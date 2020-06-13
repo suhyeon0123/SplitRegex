@@ -39,8 +39,8 @@ class EncoderRNN(BaseRNN):
 
     def __init__(self, vocab_size, max_len, hidden_size,
                  input_dropout_p=0, dropout_p=0,
-                 n_layers=1, bidirectional=False, rnn_cell='gru', variable_lengths=False,
-                 embedding=None, update_embedding=True):
+                 n_layers=1, bidirectional=False, rnn_cell='LSTM', variable_lengths=False,
+                 embedding=None, update_embedding=True, vocab = None):
         super(EncoderRNN, self).__init__(vocab_size, max_len, hidden_size,
                 input_dropout_p, dropout_p, n_layers, rnn_cell)
 
@@ -49,6 +49,7 @@ class EncoderRNN(BaseRNN):
         if embedding is not None:
             self.embedding.weight = nn.Parameter(embedding)
         self.embedding.weight.requires_grad = update_embedding
+        self.vocab = vocab
         self.rnn = self.rnn_cell(hidden_size, hidden_size, n_layers,
                                  batch_first=True, bidirectional=bidirectional, dropout=dropout_p)
 

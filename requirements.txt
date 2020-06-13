@@ -3,3 +3,5 @@ numpy
 dill
 tqdm
 torchtext
+jupyter
+ipython==7.9

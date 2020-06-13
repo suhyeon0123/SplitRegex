@@ -2,6 +2,7 @@ import os
 import argparse
 import logging
 
+import time
 import torch
 from torch.optim.lr_scheduler import StepLR
 import torchtext
@@ -14,6 +15,8 @@ from seq2seq.optim import Optimizer
 from seq2seq.dataset import SourceField, TargetField
 from seq2seq.evaluator import Predictor
 from seq2seq.util.checkpoint import Checkpoint
+from seq2seq.util.string_preprocess import get_set_num
+
 
 try:
     raw_input          # Python 2
@@ -59,31 +62,32 @@ if opt.load_checkpoint is not None:
     output_vocab = checkpoint.output_vocab
 else:
     # Prepare dataset
+    
+    train_file = opt.train_path
+    valid_file = opt.dev_path
+    
+    set_num = get_set_num(train_file)
+    
     src = SourceField()
     tgt = TargetField()
     max_len = 50
+    
     def len_filter(example):
         return len(example.src) <= max_len and len(example.tgt) <= max_len
+    
     train = torchtext.data.TabularDataset(
-        path=opt.train_path, format='tsv',
-        fields=[('src', src), ('tgt', tgt)],
-        filter_pred=len_filter
-    )
+        path=train_file, format='tsv',
+        fields= [('src{}'.format(i+1), src) for i in range(set_num)]+[('tgt', tgt)])
+    
     dev = torchtext.data.TabularDataset(
-        path=opt.dev_path, format='tsv',
-        fields=[('src', src), ('tgt', tgt)],
-        filter_pred=len_filter
-    )
+        path=valid_file, format='tsv',
+        fields= [('src{}'.format(i+1), src) for i in range(set_num)]+[('tgt', tgt)])
+    
     src.build_vocab(train, max_size=50000)
     tgt.build_vocab(train, max_size=50000)
     input_vocab = src.vocab
     output_vocab = tgt.vocab
 
-    # NOTE: If the source field name and the target field name
-    # are different from 'src' and 'tgt' respectively, they have
-    # to be set explicitly before any training or inference
-    # seq2seq.src_field_name = 'src'
-    # seq2seq.tgt_field_name = 'tgt'
 
     # Prepare loss
     weight = torch.ones(len(tgt.vocab))
@@ -98,12 +102,13 @@ else:
         # Initialize model
         hidden_size=128
         bidirectional = True
-        encoder = EncoderRNN(len(src.vocab), max_len, hidden_size,
-                             bidirectional=bidirectional, variable_lengths=True)
+        encoder = EncoderRNN(len(src.vocab), max_len, hidden_size, dropout_p = 0.25,
+                             bidirectional=bidirectional, n_layers=2, variable_lengths=True, vocab = input_vocab)
         decoder = DecoderRNN(len(tgt.vocab), max_len, hidden_size * 2 if bidirectional else hidden_size,
-                             dropout_p=0.2, use_attention=True, bidirectional=bidirectional,
+                             dropout_p=0.2, use_attention=True, bidirectional=bidirectional, n_layers=2,
                              eos_id=tgt.eos_id, sos_id=tgt.sos_id)
         seq2seq = Seq2seq(encoder, decoder)
+        
         if torch.cuda.is_available():
             seq2seq.cuda()
 
@@ -112,25 +117,23 @@ else:
 
         # Optimizer and learning rate scheduler can be customized by
         # explicitly constructing the objects and pass to the trainer.
-        #
-        # optimizer = Optimizer(torch.optim.Adam(seq2seq.parameters()), max_grad_norm=5)
-        # scheduler = StepLR(optimizer.optimizer, 1)
-        # optimizer.set_scheduler(scheduler)
+        
+        optimizer = Optimizer(torch.optim.Adam(seq2seq.parameters(), lr = 0.001), max_grad_norm=5)
+        scheduler = StepLR(optimizer.optimizer, 1)
+        optimizer.set_scheduler(scheduler)
 
     # train
-    t = SupervisedTrainer(loss=loss, batch_size=32,
-                          checkpoint_every=50,
-                          print_every=10, expt_dir=opt.expt_dir)
-
+    t = SupervisedTrainer(loss=loss, batch_size=2,
+                          checkpoint_every=1800,
+                          print_every=300, expt_dir=opt.expt_dir, input_vocab=input_vocab, output_vocab=output_vocab)
+    
+    start_time = time.time()
     seq2seq = t.train(seq2seq, train,
                       num_epochs=6, dev_data=dev,
                       optimizer=optimizer,
                       teacher_forcing_ratio=0.5,
                       resume=opt.resume)
-
+    end_time = time.time()
+    print('total time > ', end_time-start_time)
+    
 predictor = Predictor(seq2seq, input_vocab, output_vocab)
-
-while True:
-    seq_str = raw_input("Type in a source sequence:")
-    seq = seq_str.strip().split()
-    print(predictor.predict(seq))

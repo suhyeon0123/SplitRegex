@@ -13,6 +13,7 @@ from seq2seq.evaluator import Evaluator
 from seq2seq.loss import NLLLoss
 from seq2seq.optim import Optimizer
 from seq2seq.util.checkpoint import Checkpoint
+from seq2seq.util.string_preprocess import pad_tensor
 
 class SupervisedTrainer(object):
     """ The SupervisedTrainer class helps in setting up a training framework in a
@@ -27,7 +28,7 @@ class SupervisedTrainer(object):
     """
     def __init__(self, expt_dir='experiment', loss=NLLLoss(), batch_size=64,
                  random_seed=None,
-                 checkpoint_every=100, print_every=100):
+                 checkpoint_every=100, print_every=100, input_vocab = None, output_vocab = None):
         self._trainer = "Simple Trainer"
         self.random_seed = random_seed
         if random_seed is not None:
@@ -38,7 +39,10 @@ class SupervisedTrainer(object):
         self.optimizer = None
         self.checkpoint_every = checkpoint_every
         self.print_every = print_every
-
+        
+        self.input_vocab = input_vocab
+        self.output_vocab = output_vocab
+        
         if not os.path.isabs(expt_dir):
             expt_dir = os.path.join(os.getcwd(), expt_dir)
         self.expt_dir = expt_dir
@@ -72,18 +76,20 @@ class SupervisedTrainer(object):
         print_loss_total = 0  # Reset every print_every
         epoch_loss_total = 0  # Reset every epoch
 
-        device = None if torch.cuda.is_available() else -1
+        device = torch.device('cuda:0') if torch.cuda.is_available() else -1
+        
         batch_iterator = torchtext.data.BucketIterator(
             dataset=data, batch_size=self.batch_size,
-            sort=False, sort_within_batch=True,
-            sort_key=lambda x: len(x.src),
-            device=device, repeat=False)
+            sort=False, sort_within_batch=False,
+            device=device, repeat=False, shuffle=True)
 
         steps_per_epoch = len(batch_iterator)
         total_steps = steps_per_epoch * n_epochs
 
         step = start_step
         step_elapsed = 0
+        best_acc  = 0 
+        
         for epoch in range(start_epoch, n_epochs + 1):
             log.debug("Epoch: %d, Step: %d" % (epoch, step))
 
@@ -97,8 +103,36 @@ class SupervisedTrainer(object):
                 step += 1
                 step_elapsed += 1
 
-                input_variables, input_lengths = getattr(batch, seq2seq.src_field_name)
                 target_variables = getattr(batch, seq2seq.tgt_field_name)
+                input_variables = [[] for i in range(batch.batch_size)]
+                input_lengths = [[] for i in range(batch.batch_size)]
+                set_size = len(batch.fields)-1
+                max_len_within_batch = -1
+                
+                for idx in range(batch.batch_size):
+                    for src_idx in range(1, set_size+1):
+                        src, src_len = getattr(batch, 'src{}'.format(src_idx))
+                        input_variables[idx].append(src[idx])
+                        input_lengths[idx].append(src_len[idx])
+                    
+                    input_lengths[idx] = torch.stack(input_lengths[idx], dim =0)
+                    if max_len_within_batch <  torch.max(input_lengths[idx].view(-1)).item():
+                        max_len_within_batch = torch.max(input_lengths[idx].view(-1)).item()
+
+                for batch_idx in range(len(input_variables)):
+                    for set_idx in range(set_size):
+                        input_variables[batch_idx][set_idx] = pad_tensor(input_variables[batch_idx][set_idx], 
+                                                                         max_len_within_batch, self.input_vocab)
+                    input_variables[batch_idx] = torch.stack(input_variables[batch_idx], dim=0)
+                    
+                input_variables = torch.stack(input_variables, dim=0)
+                input_lengths = torch.stack(input_lengths, dim=0)
+                
+                print('input_variables',input_variables, input_variables.size())
+                print('input_lengths', input_lengths, input_lengths.size())
+                1/0
+                
+                
 
                 loss = self._train_batch(input_variables, input_lengths.tolist(), target_variables, model, teacher_forcing_ratio)
 
