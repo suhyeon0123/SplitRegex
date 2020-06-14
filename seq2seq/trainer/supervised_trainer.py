@@ -128,13 +128,7 @@ class SupervisedTrainer(object):
                 input_variables = torch.stack(input_variables, dim=0)
                 input_lengths = torch.stack(input_lengths, dim=0)
                 
-                print('input_variables',input_variables, input_variables.size())
-                print('input_lengths', input_lengths, input_lengths.size())
-                1/0
-                
-                
-
-                loss = self._train_batch(input_variables, input_lengths.tolist(), target_variables, model, teacher_forcing_ratio)
+                loss = self._train_batch(input_variables, input_lengths, target_variables, model, teacher_forcing_ratio)
 
                 # Record average loss
                 print_loss_total += loss

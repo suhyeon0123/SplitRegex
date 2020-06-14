@@ -29,12 +29,7 @@ class EncoderRNN(BaseRNN):
     Outputs: output, hidden
         - **output** (batch, seq_len, hidden_size): tensor containing the encoded features of the input sequence
         - **hidden** (num_layers * num_directions, batch, hidden_size): tensor containing the features in the hidden state `h`
-
-    Examples::
-
-         >>> encoder = EncoderRNN(input_vocab, max_seq_length, hidden_size)
-         >>> output, hidden = encoder(input)
-
+        
     """
 
     def __init__(self, vocab_size, max_len, hidden_size,
@@ -53,6 +48,7 @@ class EncoderRNN(BaseRNN):
         self.rnn = self.rnn_cell(hidden_size, hidden_size, n_layers,
                                  batch_first=True, bidirectional=bidirectional, dropout=dropout_p)
 
+        
     def forward(self, input_var, input_lengths=None):
         """
         Applies a multi-layer RNN to an input sequence.
@@ -63,14 +59,27 @@ class EncoderRNN(BaseRNN):
               in the mini-batch
 
         Returns: output, hidden
-            - **output** (batch, seq_len, hidden_size): variable containing the encoded features of the input sequence
-            - **hidden** (num_layers * num_directions, batch, hidden_size): variable containing the features in the hidden state h
+            - **output** (batch, seq_len, hidden_size): 
+            - **hidden** (num_layers * num_directions, batch, hidden_size): 
         """
+
+        batch_size = input_var.size(0)
+        set_size = input_var.size(1)
+        seq_len = input_var.size(2)
+        
         embedded = self.embedding(input_var)
+        embedded = embedded.view(batch_size*set_size, seq_len, -1)
         embedded = self.input_dropout(embedded)
+
         if self.variable_lengths:
-            embedded = nn.utils.rnn.pack_padded_sequence(embedded, input_lengths, batch_first=True)
+            embedded = nn.utils.rnn.pack_padded_sequence(embedded, input_lengths.view(-1).cpu(), batch_first=True, enforce_sorted=False)
+            
         output, hidden = self.rnn(embedded)
         if self.variable_lengths:
             output, _ = nn.utils.rnn.pad_packed_sequence(output, batch_first=True)
+        
+        output = output.view(batch_size, set_size, seq_len, -1)
+        h_n = hidden[0]
+        c_n = hidden[1]
+
         return output, hidden

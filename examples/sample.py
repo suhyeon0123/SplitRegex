@@ -100,7 +100,7 @@ else:
     optimizer = None
     if not opt.resume:
         # Initialize model
-        hidden_size=128
+        hidden_size= 2
         bidirectional = True
         encoder = EncoderRNN(len(src.vocab), max_len, hidden_size, dropout_p = 0.25,
                              bidirectional=bidirectional, n_layers=2, variable_lengths=True, vocab = input_vocab)
