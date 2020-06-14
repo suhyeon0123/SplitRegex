@@ -51,22 +51,37 @@ class Attention(nn.Module):
         """
         self.mask = mask
 
-    def forward(self, output, context):
-        batch_size = output.size(0)
-        hidden_size = output.size(2)
-        input_size = context.size(1)
-        # (batch, out_len, dim) * (batch, in_len, dim) -> (batch, out_len, in_len)
-        attn = torch.bmm(output, context.transpose(1, 2))
+    def forward(self, dec_hidden, context):
+        '''
+        dec_hidden -> decoder hidden state -> (#batch, #dec_len, #hidden*2) if not teacher_forcing_ratio: dec_len=1 
+        context -> context is encoder outputs that is composed of two LSTM encoder outputs with tuple.
+        context[0] -> (#batch, #set_num, #enc_len, #hidden*2)
+        context[1] -> (#batch, #set_num, #hidden*2)
+        '''
+        batch_size = dec_hidden.size(0)
+        hidden_size = dec_hidden.size(2)
+        set_size = context[0].size(1)
+        enc_len = context[0].size(2)
+        dec_len = dec_hidden.size(1)
+        
+        # one phase attention 
+        output1 = context[0]
+        output1 = output1.view(batch_size, set_size*enc_len,-1)
+        attn = torch.bmm(dec_hidden, output1.transpose(1,2))        
+        
         if self.mask is not None:
             attn.data.masked_fill_(self.mask, -float('inf'))
-        attn = F.softmax(attn.view(-1, input_size), dim=1).view(batch_size, -1, input_size)
+            
+        attn = attn.view(batch_size, dec_len, set_size, enc_len) 
+        attn = F.softmax(attn, dim=-1)
 
-        # (batch, out_len, in_len) * (batch, in_len, dim) -> (batch, out_len, dim)
-        mix = torch.bmm(attn, context)
-
-        # concat -> (batch, out_len, 2*dim)
-        combined = torch.cat((mix, output), dim=2)
-        # output -> (batch, out_len, dim)
-        output = F.tanh(self.linear_out(combined.view(-1, 2 * hidden_size))).view(batch_size, -1, hidden_size)
-
+        output1 = output1.view(batch_size, set_size, enc_len, -1)
+        output1= output1.reshape(batch_size*set_size, enc_len, -1)
+        attn = attn.transpose(1,2)
+        attn = attn.reshape(batch_size*set_size, dec_len, enc_len)
+        c_t = torch.bmm(attn, output1)
+                
+        # two phase attetion 
+        1/0
+        
         return output, attn

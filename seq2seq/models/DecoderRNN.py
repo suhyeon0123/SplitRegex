@@ -113,12 +113,8 @@ class DecoderRNN(BaseRNN):
 
         inputs, batch_size, max_length = self._validate_args(inputs, encoder_hidden, encoder_outputs,
                                                              function, teacher_forcing_ratio)
-        decoder_hidden = self._init_state(encoder_hidden)
-        print('decoder hidden', type(decoder_hidden), len(decoder_hidden))
-        print('decoder hidden[0]', decoder_hidden[0].size())
-        print('decoder hidden[1]', decoder_hidden[1].size())
         
-        1/0
+        decoder_hidden = self._init_state(encoder_hidden)
         use_teacher_forcing = True if random.random() < teacher_forcing_ratio else False
 
         decoder_outputs = []

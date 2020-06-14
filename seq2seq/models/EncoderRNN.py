@@ -52,7 +52,7 @@ class EncoderRNN(BaseRNN):
         self.rnn1 = self.rnn_cell(hidden_size, hidden_size, n_layers,
                                  batch_first=True, bidirectional=bidirectional, dropout=dropout_p)
         
-        self.rnn2 = self.rnn_cell(n_layers * hidden_size*2 if self.bidirectional else n_layers * hidden_size, hidden_size,
+        self.rnn2 = self.rnn_cell(n_layers * hidden_size*2 if self.bidirectional else n_layers * hidden_size, hidden_size, n_layers,
                                  batch_first=True, bidirectional=True, dropout=dropout_p)
         
         
@@ -67,9 +67,9 @@ class EncoderRNN(BaseRNN):
 
         Returns: output, hidden
             - output = (output1, output2)
-            - **output1** (batch, set_size, seq_len, hidden_size): 
-            - **output2** (batch, set_size, hidden_size*bidirectional): 
-            - **hidden2** (num_layers * num_directions, batch, hidden_size): Tuple(final hidden state, final cell state)
+            - **output1** (batch, set_size, seq_len, hidden_size):  used when calculating attention within each string of set 
+            - **output2** (batch, set_size, hidden_size*bidirectional): used when calculating attention between each string
+            - **hidden2** (num_layers * num_directions, batch, hidden_size): Tuple(final hidden state, final cell state) 
         """
 
         batch_size = input_var.size(0)
