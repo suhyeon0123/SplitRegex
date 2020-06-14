@@ -1,4 +1,5 @@
 import torch.nn as nn
+import torch
 
 from .baseRNN import BaseRNN
 
@@ -45,9 +46,15 @@ class EncoderRNN(BaseRNN):
             self.embedding.weight = nn.Parameter(embedding)
         self.embedding.weight.requires_grad = update_embedding
         self.vocab = vocab
-        self.rnn = self.rnn_cell(hidden_size, hidden_size, n_layers,
+        self.bidirectional = bidirectional
+        self.hidden_size = hidden_size
+        
+        self.rnn1 = self.rnn_cell(hidden_size, hidden_size, n_layers,
                                  batch_first=True, bidirectional=bidirectional, dropout=dropout_p)
-
+        
+        self.rnn2 = self.rnn_cell(n_layers * hidden_size*2 if self.bidirectional else n_layers * hidden_size, hidden_size,
+                                 batch_first=True, bidirectional=True, dropout=dropout_p)
+        
         
     def forward(self, input_var, input_lengths=None):
         """
@@ -59,8 +66,10 @@ class EncoderRNN(BaseRNN):
               in the mini-batch
 
         Returns: output, hidden
-            - **output** (batch, seq_len, hidden_size): 
-            - **hidden** (num_layers * num_directions, batch, hidden_size): 
+            - output = (output1, output2)
+            - **output1** (batch, set_size, seq_len, hidden_size): 
+            - **output2** (batch, set_size, hidden_size*bidirectional): 
+            - **hidden2** (num_layers * num_directions, batch, hidden_size): Tuple(final hidden state, final cell state)
         """
 
         batch_size = input_var.size(0)
@@ -74,12 +83,35 @@ class EncoderRNN(BaseRNN):
         if self.variable_lengths:
             embedded = nn.utils.rnn.pack_padded_sequence(embedded, input_lengths.view(-1).cpu(), batch_first=True, enforce_sorted=False)
             
-        output, hidden = self.rnn(embedded)
+        output1, hidden1 = self.rnn1(embedded)
         if self.variable_lengths:
-            output, _ = nn.utils.rnn.pad_packed_sequence(output, batch_first=True)
+            output1, _ = nn.utils.rnn.pad_packed_sequence(output1, batch_first=True)
         
-        output = output.view(batch_size, set_size, seq_len, -1)
-        h_n = hidden[0]
-        c_n = hidden[1]
+        output1 = output1.view(batch_size, set_size, seq_len, -1)
+        h_n1 = hidden1[0]
+        c_n1 = hidden1[1]
+                
+        # bidirectional concat
+        h_n1 = self._cat_directions(h_n1).squeeze(0)
+        c_n1 = self._cat_directions(c_n1).squeeze(0)
 
-        return output, hidden
+        # layer concat 
+        h_n1 = torch.cat([h_i for h_i in h_n1], dim = -1)
+        c_n1 = torch.cat([c_i for c_i in c_n1], dim = -1)
+        
+        h_n1 = h_n1.view(batch_size, set_size, -1)
+        c_n1 = c_n1.view(batch_size, set_size, -1)
+        
+        # feed final hidden state of set string into the new LSTM
+        output2, hidden2 = self.rnn2(h_n1)
+        output = (output1, output2)
+        return output, hidden2
+    
+    
+    def _cat_directions(self, h):
+        """ If the encoder is bidirectional, do the following transformation.
+            (#directions * #layers, #batch, hidden_size) -> (#layers, #batch, #directions * hidden_size)
+        """
+        if self.bidirectional:
+            h = torch.cat([h[0:h.size(0):2], h[1:h.size(0):2]], 2)
+        return h
