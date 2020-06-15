@@ -35,7 +35,7 @@ class SupervisedTrainer(object):
             random.seed(random_seed)
             torch.manual_seed(random_seed)
         self.loss = loss
-        self.evaluator = Evaluator(loss=self.loss, batch_size=batch_size)
+        self.evaluator = Evaluator(loss=self.loss, batch_size=batch_size, input_vocab=input_vocab)
         self.optimizer = None
         self.checkpoint_every = checkpoint_every
         self.print_every = print_every
@@ -148,8 +148,8 @@ class SupervisedTrainer(object):
                     Checkpoint(model=model,
                                optimizer=self.optimizer,
                                epoch=epoch, step=step,
-                               input_vocab=data.fields[seq2seq.src_field_name].vocab,
-                               output_vocab=data.fields[seq2seq.tgt_field_name].vocab).save(self.expt_dir)
+                               input_vocab=self.input_vocab,
+                               output_vocab=self.output_vocab).save(self.expt_dir)
 
             if step_elapsed == 0: continue
 

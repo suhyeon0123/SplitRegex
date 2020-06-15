@@ -10,7 +10,7 @@ import torchtext
 import seq2seq
 from seq2seq.trainer import SupervisedTrainer
 from seq2seq.models import EncoderRNN, DecoderRNN, Seq2seq
-from seq2seq.loss import Perplexity
+from seq2seq.loss import Perplexity, NLLLoss
 from seq2seq.optim import Optimizer
 from seq2seq.dataset import SourceField, TargetField
 from seq2seq.evaluator import Predictor
@@ -92,7 +92,7 @@ else:
     # Prepare loss
     weight = torch.ones(len(tgt.vocab))
     pad = tgt.vocab.stoi[tgt.pad_token]
-    loss = Perplexity(weight, pad)
+    loss = NLLLoss(weight, pad)
     if torch.cuda.is_available():
         loss.cuda()
 
@@ -129,7 +129,7 @@ else:
     
     start_time = time.time()
     seq2seq = t.train(seq2seq, train,
-                      num_epochs=6, dev_data=dev,
+                      num_epochs=20, dev_data=dev,
                       optimizer=optimizer,
                       teacher_forcing_ratio=0.5,
                       resume=opt.resume)

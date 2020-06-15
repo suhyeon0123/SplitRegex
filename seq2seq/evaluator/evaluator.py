@@ -5,6 +5,7 @@ import torchtext
 
 import seq2seq
 from seq2seq.loss import NLLLoss
+from seq2seq.util.string_preprocess import pad_tensor
 
 class Evaluator(object):
     """ Class to evaluate models with given datasets.
@@ -14,10 +15,11 @@ class Evaluator(object):
         batch_size (int, optional): batch size for evaluator (default: 64)
     """
 
-    def __init__(self, loss=NLLLoss(), batch_size=64):
+    def __init__(self, loss=NLLLoss(), batch_size=64, input_vocab=None):
         self.loss = loss
         self.batch_size = batch_size
-
+        self.input_vocab = input_vocab
+        
     def evaluate(self, model, data):
         """ Evaluate a model on given dataset and return performance.
 
@@ -35,20 +37,46 @@ class Evaluator(object):
         match = 0
         total = 0
 
-        device = None if torch.cuda.is_available() else -1
+        device = torch.device('cuda:0') if torch.cuda.is_available() else -1
         batch_iterator = torchtext.data.BucketIterator(
             dataset=data, batch_size=self.batch_size,
-            sort=True, sort_key=lambda x: len(x.src),
-            device=device, train=False)
+            sort=False, sort_within_batch=False,
+            device=device, repeat=False, shuffle=True, train=False)
+        
         tgt_vocab = data.fields[seq2seq.tgt_field_name].vocab
         pad = tgt_vocab.stoi[data.fields[seq2seq.tgt_field_name].pad_token]
 
         with torch.no_grad():
             for batch in batch_iterator:
-                input_variables, input_lengths  = getattr(batch, seq2seq.src_field_name)
                 target_variables = getattr(batch, seq2seq.tgt_field_name)
 
-                decoder_outputs, decoder_hidden, other = model(input_variables, input_lengths.tolist(), target_variables)
+                input_variables = [[] for i in range(batch.batch_size)]
+                input_lengths = [[] for i in range(batch.batch_size)]
+                set_size = len(batch.fields)-1
+                max_len_within_batch = -1
+                
+                for idx in range(batch.batch_size):
+                    for src_idx in range(1, set_size+1):
+                        src, src_len = getattr(batch, 'src{}'.format(src_idx))
+                        input_variables[idx].append(src[idx])
+                        input_lengths[idx].append(src_len[idx])
+                    
+                    input_lengths[idx] = torch.stack(input_lengths[idx], dim =0)
+                    if max_len_within_batch <  torch.max(input_lengths[idx].view(-1)).item():
+                        max_len_within_batch = torch.max(input_lengths[idx].view(-1)).item()
+
+                for batch_idx in range(len(input_variables)):
+                    for set_idx in range(set_size):
+                        input_variables[batch_idx][set_idx] = pad_tensor(input_variables[batch_idx][set_idx], 
+                                                                         max_len_within_batch, self.input_vocab)
+                    input_variables[batch_idx] = torch.stack(input_variables[batch_idx], dim=0)
+                    
+                input_variables = torch.stack(input_variables, dim=0)
+                input_lengths = torch.stack(input_lengths, dim=0)
+                
+                print('input_variables',input_variables)
+                print('input_lengths', input_lengths)
+                decoder_outputs, decoder_hidden, other = model(input_variables, input_lengths, target_variables)
 
                 # Evaluation
                 seqlist = other['sequence']
