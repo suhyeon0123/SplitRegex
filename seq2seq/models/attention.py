@@ -79,9 +79,23 @@ class Attention(nn.Module):
         output1= output1.reshape(batch_size*set_size, enc_len, -1)
         attn = attn.transpose(1,2)
         attn = attn.reshape(batch_size*set_size, dec_len, enc_len)
-        c_t = torch.bmm(attn, output1)
-                
-        # two phase attetion 
-        1/0
+        c_t = torch.bmm(attn, output1) 
+        c_t = c_t.view(batch_size, set_size, dec_len, -1)
+        c_t = c_t.transpose(1,2)
+        
+        
+        # two phase attetion
+        output2 = context[1] 
+
+        attn2 = torch.bmm(dec_hidden, output2.transpose(1,2))
+        attn2 = F.softmax(attn2, dim=-1)
+        attn2 = attn2.unsqueeze(-1)
+        attn2 = attn2.view(batch_size*dec_len, set_size,-1)
+
+        c_t = c_t.reshape(batch_size*dec_len, set_size, -1)
+        attn2 = attn2.transpose(1,2)
+        c_t2 = torch.bmm(attn2, c_t)
+        c_t2 = c_t2.view(batch_size, dec_len,1,-1)
+        c_t2 = c_t2.squeeze(2)
         
         return output, attn
