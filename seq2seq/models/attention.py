@@ -63,6 +63,7 @@ class Attention(nn.Module):
         set_size = context[0].size(1)
         enc_len = context[0].size(2)
         dec_len = dec_hidden.size(1)
+        attn_set = []
         
         # one phase attention 
         output1 = context[0]
@@ -74,7 +75,8 @@ class Attention(nn.Module):
             
         attn = attn.view(batch_size, dec_len, set_size, enc_len) 
         attn = F.softmax(attn, dim=-1)
-
+        attn_set.append(attn)
+        
         output1 = output1.view(batch_size, set_size, enc_len, -1)
         output1= output1.reshape(batch_size*set_size, enc_len, -1)
         attn = attn.transpose(1,2)
@@ -83,12 +85,12 @@ class Attention(nn.Module):
         c_t = c_t.view(batch_size, set_size, dec_len, -1)
         c_t = c_t.transpose(1,2)
         
-        
         # two phase attetion
         output2 = context[1] 
-
         attn2 = torch.bmm(dec_hidden, output2.transpose(1,2))
         attn2 = F.softmax(attn2, dim=-1)
+        attn_set.append(attn2)
+
         attn2 = attn2.unsqueeze(-1)
         attn2 = attn2.view(batch_size*dec_len, set_size,-1)
 
@@ -98,4 +100,7 @@ class Attention(nn.Module):
         c_t2 = c_t2.view(batch_size, dec_len,1,-1)
         c_t2 = c_t2.squeeze(2)
         
-        return output, attn
+        combined = torch.cat((c_t2, dec_hidden), dim=2)
+        output = torch.tanh(self.linear_out(combined.view(-1,2*hidden_size))).view(batch_size, -1, hidden_size)
+
+        return output, attn_set
