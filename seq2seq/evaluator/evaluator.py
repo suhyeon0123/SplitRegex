@@ -73,9 +73,7 @@ class Evaluator(object):
                     
                 input_variables = torch.stack(input_variables, dim=0)
                 input_lengths = torch.stack(input_lengths, dim=0)
-                
-                print('input_variables',input_variables)
-                print('input_lengths', input_lengths)
+
                 decoder_outputs, decoder_hidden, other = model(input_variables, input_lengths, target_variables)
 
                 # Evaluation
