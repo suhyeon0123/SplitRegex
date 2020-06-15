@@ -16,9 +16,11 @@ __pycache__/
 venv/
 env/
 build/
+origin_dataset
 develop-eggs/
 dist/
 downloads/
+experiment
 eggs/
 .eggs/
 lib/

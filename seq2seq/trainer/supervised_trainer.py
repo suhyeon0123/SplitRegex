@@ -34,6 +34,7 @@ class SupervisedTrainer(object):
         if random_seed is not None:
             random.seed(random_seed)
             torch.manual_seed(random_seed)
+            
         self.loss = loss
         self.evaluator = Evaluator(loss=self.loss, batch_size=batch_size, input_vocab=input_vocab)
         self.optimizer = None
@@ -160,6 +161,15 @@ class SupervisedTrainer(object):
                 dev_loss, accuracy = self.evaluator.evaluate(model, dev_data)
                 self.optimizer.update(dev_loss, epoch)
                 log_msg += ", Dev %s: %.4f, Accuracy: %.4f" % (self.loss.name, dev_loss, accuracy)
+                if accuracy > best_acc:
+                    log.info('best_accuracy{}, current_accuracy{}'.format(accuracy, best_acc))
+                    best_acc = accuracy
+                    Checkpoint(model=model,
+                               optimizer=self.optimizer,
+                               epoch=epoch, step=step,
+                               input_vocab=self.input_vocab,
+                               output_vocab=self.output_vocab).save(self.expt_dir +'/best_model')
+                
                 model.train(mode=True)
             else:
                 self.optimizer.update(epoch_loss_avg, epoch)

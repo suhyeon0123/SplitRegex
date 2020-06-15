@@ -100,7 +100,7 @@ else:
     optimizer = None
     if not opt.resume:
         # Initialize model
-        hidden_size= 2
+        hidden_size= 128
         bidirectional = True
         encoder = EncoderRNN(len(src.vocab), max_len, hidden_size, dropout_p = 0.25,
                              bidirectional=bidirectional, n_layers=2, variable_lengths=True, vocab = input_vocab)
@@ -113,7 +113,7 @@ else:
             seq2seq.cuda()
 
         for param in seq2seq.parameters():
-            param.data.uniform_(-0.08, 0.08)
+            param.data.uniform_(-0.1, 0.1)
 
         # Optimizer and learning rate scheduler can be customized by
         # explicitly constructing the objects and pass to the trainer.
@@ -123,13 +123,13 @@ else:
         optimizer.set_scheduler(scheduler)
 
     # train
-    t = SupervisedTrainer(loss=loss, batch_size=2,
+    t = SupervisedTrainer(loss=loss, batch_size=64,
                           checkpoint_every=1800,
                           print_every=300, expt_dir=opt.expt_dir, input_vocab=input_vocab, output_vocab=output_vocab)
     
     start_time = time.time()
     seq2seq = t.train(seq2seq, train,
-                      num_epochs=20, dev_data=dev,
+                      num_epochs=25, dev_data=dev,
                       optimizer=optimizer,
                       teacher_forcing_ratio=0.5,
                       resume=opt.resume)
