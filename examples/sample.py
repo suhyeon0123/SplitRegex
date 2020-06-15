@@ -4,7 +4,7 @@ import logging
 
 import time
 import torch
-from torch.optim.lr_scheduler import StepLR
+from torch.optim.lr_scheduler import StepLR, ReduceLROnPlateau
 import torchtext
 
 import seq2seq
@@ -119,8 +119,9 @@ else:
         # explicitly constructing the objects and pass to the trainer.
         
         optimizer = Optimizer(torch.optim.Adam(seq2seq.parameters(), lr = 0.001), max_grad_norm=5)
-        scheduler = StepLR(optimizer.optimizer, 1)
-        optimizer.set_scheduler(scheduler)
+#         scheduler = StepLR(optimizer.optimizer, 1)
+#         optimizer.set_scheduler(scheduler)
+        scheduler = ReduceLROnPlateau(optimizer.optimizer, 'min', factor = 0.1, verbose=True, patience=9)
 
     # train
     t = SupervisedTrainer(loss=loss, batch_size=64,
@@ -129,7 +130,7 @@ else:
     
     start_time = time.time()
     seq2seq = t.train(seq2seq, train,
-                      num_epochs=25, dev_data=dev,
+                      num_epochs=30, dev_data=dev,
                       optimizer=optimizer,
                       teacher_forcing_ratio=0.5,
                       resume=opt.resume)
