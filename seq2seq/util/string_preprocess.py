@@ -27,18 +27,21 @@ def count_star(string):
     return cnt
 
 
-def decode_tensor_input(batch, input_vocab, set_num):
-    input_strings = []
-    for num in range(1,set_num+1):
-        src_tensor, src_length = getattr(batch, 'src{}'.format(num))
-        src_tensor =src_tensor.view(-1)
-        strings = ''
-        for i in src_tensor:
-            word = input_vocab.itos[i]
-            strings += word
-        strings = strings.replace('<pad>','')
-        input_strings.append(strings)
-    return input_strings
+def decode_tensor_input(input_var, vocab):
+    '''
+    decoder input tensor when evaluation step
+    '''
+    result = []
+    input_var = input_var.squeeze(0)
+    
+    for i in range(input_var.size(0)):
+        res = ""
+        for j in range(input_var[i].size(0)):
+            res += vocab.itos[input_var[i][j]]
+        res = res.replace('<pad>', '')
+        result.append(res)
+        
+    return result
 
 
 def decode_tensor_target(tensor, vocab):
@@ -51,16 +54,4 @@ def decode_tensor_target(tensor, vocab):
         if word != '<sos>' and word != '<pad>' and word != '<eos>':
             words.append(word)
     return ' '.join(words)
-
-
-def regex_equal(regex1, regex2):
-    import FAdo.reex
-    import FAdo
-    regex1 = regex1.replace(' ','')
-    regex1 = regex1.replace('[0-3]','(0|1|2|3)')
-    regex2 = regex2.replace(' ','')
-    regex2 = regex2.replace('[0-3]','(0|1|2|3)')
-    dfa1 = FAdo.reex.str2regexp(regex1).toDFA()
-    dfa2 = FAdo.reex.str2regexp(regex2).toDFA()
-    return dfa1.equal(dfa2)
 
