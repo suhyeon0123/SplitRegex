@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
 import FAdo
 from FAdo.reex import str2regexp
 
@@ -17,8 +16,8 @@ def membership_test(regex, examples):
 
 
 def regex_equal(regex1, regex2):
-    dfa1 = FAdo.reex.str2regexp(regex1).toDFA()
-    dfa2 = FAdo.reex.str2regexp(regex2).toDFA()
+    dfa1 = str2regexp(regex1).toDFA()
+    dfa2 = str2regexp(regex2).toDFA()
     return dfa1.equal(dfa2)
 
 
@@ -32,13 +31,13 @@ def preprocess_regex(regex1, regex2):
 
 def regex_inclusion(target, predict):
     '''
-    check if predict is bre
+    check if predict is belong to target 
     Let assume that target is superset of predict.
     '''
     target = str2regexp(target).toDFA()
     predict = str2regexp(predict).toDFA()
-    intersection = ~target & predict
-    if intersection.witness() == None:
+    
+    if (target & predict).witness() != None and (~target & predict).witness() == None:
         return True
     else:
         return False    

@@ -83,7 +83,7 @@ class DecoderRNN(BaseRNN):
         self.sos_id = sos_id
 
         self.init_input = None
-
+        self.input_dropout_p= input_dropout_p
         self.embedding = nn.Embedding(self.output_size, self.hidden_size)
         if use_attention:
             self.attention = Attention(self.hidden_size)

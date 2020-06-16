@@ -80,4 +80,6 @@ target/
 # Vagrant
 .vagrant
 
+# trained_checkpoint
+supervised/
 vocab_pickle

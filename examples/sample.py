@@ -102,10 +102,10 @@ else:
         # Initialize model
         hidden_size= 128
         bidirectional = True
-        encoder = EncoderRNN(len(src.vocab), max_len, hidden_size, dropout_p = 0.25,
+        encoder = EncoderRNN(len(src.vocab), max_len, hidden_size, dropout_p = 0.25,input_dropout_p = 0.25,
                              bidirectional=bidirectional, n_layers=2, variable_lengths=True, vocab = input_vocab)
         decoder = DecoderRNN(len(tgt.vocab), max_len, hidden_size * 2 if bidirectional else hidden_size,
-                             dropout_p=0.2, use_attention=True, bidirectional=bidirectional, n_layers=2,
+                             dropout_p=0.2, input_dropout_p=0.25, use_attention=True, bidirectional=bidirectional, n_layers=2,
                              eos_id=tgt.eos_id, sos_id=tgt.sos_id)
         seq2seq = Seq2seq(encoder, decoder)
         
@@ -120,8 +120,8 @@ else:
         
         optimizer = Optimizer(torch.optim.Adam(seq2seq.parameters(), lr = 0.001), max_grad_norm=5)
 #         scheduler = StepLR(optimizer.optimizer, 1)
-#         optimizer.set_scheduler(scheduler)
         scheduler = ReduceLROnPlateau(optimizer.optimizer, 'min', factor = 0.1, verbose=True, patience=9)
+        optimizer.set_scheduler(scheduler) #fix
 
     # train
     t = SupervisedTrainer(loss=loss, batch_size=64,
@@ -130,7 +130,7 @@ else:
     
     start_time = time.time()
     seq2seq = t.train(seq2seq, train,
-                      num_epochs=30, dev_data=dev,
+                      num_epochs=25, dev_data=dev,
                       optimizer=optimizer,
                       teacher_forcing_ratio=0.5,
                       resume=opt.resume)

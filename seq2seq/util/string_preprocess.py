@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[11]:
 import torch
 
 def get_set_num(dataset_file):

@@ -48,6 +48,7 @@ class EncoderRNN(BaseRNN):
         self.vocab = vocab
         self.bidirectional = bidirectional
         self.hidden_size = hidden_size
+        self.input_dropout_p = input_dropout_p
         
         self.rnn1 = self.rnn_cell(hidden_size, hidden_size, n_layers,
                                  batch_first=True, bidirectional=bidirectional, dropout=dropout_p)
