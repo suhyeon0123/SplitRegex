@@ -54,3 +54,10 @@ def decode_tensor_target(tensor, vocab):
             words.append(word)
     return ' '.join(words)
 
+
+def stoi(tensors, vocab):
+    result = []
+    for val in tensors:
+        vocab_idx = vocab.stoi[val]
+        result.append(vocab_idx)
+    return result
