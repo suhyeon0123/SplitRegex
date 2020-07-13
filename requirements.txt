@@ -4,4 +4,6 @@ dill
 tqdm
 torchtext
 jupyter
+jupyterlab
 ipython==7.9
+matplotlib

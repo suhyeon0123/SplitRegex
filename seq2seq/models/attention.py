@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from seq2seq.util.string_preprocess import pad_attention
 
 
 class Attention(nn.Module):
@@ -41,7 +42,10 @@ class Attention(nn.Module):
         super(Attention, self).__init__()
         self.linear_out = nn.Linear(dim*2, dim)
         self.mask = None
-
+        self.mask1 = None
+        self.mask2 = None
+        
+        
     def set_mask(self, mask):
         """
         Sets indices to be masked
@@ -50,57 +54,66 @@ class Attention(nn.Module):
             mask (torch.Tensor): tensor containing indices to be masked
         """
         self.mask = mask
+        self.mask1 = mask[0]
+        self.mask2 = mask[1]
+
 
     def forward(self, dec_hidden, context):
-        '''
-        dec_hidden -> decoder hidden state -> (#batch, #dec_len, #hidden*2) if not teacher_forcing_ratio: dec_len=1 
+        ''' 
         context -> context is encoder outputs that is composed of two LSTM encoder outputs with tuple.
-        context[0] -> (#batch, #set_num, #enc_len, #hidden*2)
-        context[1] -> (#batch, #set_num, #hidden*2)
+        context[0] -> (#batch, #set_num, #enc_len, #hidden)
+        context[1] -> (#batch, #set_num, #hidden)
+        dec_hidden -> decoder hidden state (#batch, #dec_len, #hidden)
         '''
-        batch_size = dec_hidden.size(0)
-        hidden_size = dec_hidden.size(2)
+
+        batch_size = context[0].size(0) 
         set_size = context[0].size(1)
         enc_len = context[0].size(2)
         dec_len = dec_hidden.size(1)
+        hidden_size = dec_hidden.size(-1)
         attn_set = []
         
-        # one phase attention 
-        output1 = context[0]
-        output1 = output1.view(batch_size, set_size*enc_len,-1)
-        attn = torch.bmm(dec_hidden, output1.transpose(1,2))        
+        outputs1 = context[0]
+        outputs2 = context[1]
         
-        if self.mask is not None:
-            attn.data.masked_fill_(self.mask, -float('inf'))
-            
-        attn = attn.view(batch_size, dec_len, set_size, enc_len) 
-        attn = F.softmax(attn, dim=-1)
+        outputs1 = outputs1.view(outputs1.size(0), -1, outputs1.size(-1))
+        attn = torch.bmm(dec_hidden, outputs1.transpose(1,2))
+        attn = attn.view(batch_size, dec_len, set_size, enc_len)
+        if self.mask1 is not None:
+            self.mask1 = self.mask1.unsqueeze(1)
+            attn = attn.data.masked_fill(self.mask1, -float('inf'))
+        
+        attn = torch.softmax(attn, dim=-1)
+        attn[attn != attn] = 0
         attn_set.append(attn)
         
-        output1 = output1.view(batch_size, set_size, enc_len, -1)
-        output1= output1.reshape(batch_size*set_size, enc_len, -1)
+        outputs1 = context[0].reshape(batch_size*set_size, enc_len, -1)
         attn = attn.transpose(1,2)
-        attn = attn.reshape(batch_size*set_size, dec_len, enc_len)
-        c_t = torch.bmm(attn, output1) 
-        c_t = c_t.view(batch_size, set_size, dec_len, -1)
+        attn = attn.reshape(batch_size*set_size, -1, enc_len)
+        
+        c_t = torch.bmm(attn, outputs1)
+        c_t = c_t.reshape(batch_size, set_size, dec_len, -1)
         c_t = c_t.transpose(1,2)
         
-        # two phase attetion
-        output2 = context[1] 
-        attn2 = torch.bmm(dec_hidden, output2.transpose(1,2))
-        attn2 = F.softmax(attn2, dim=-1)
+        attn2 = torch.bmm(dec_hidden, outputs2.transpose(1,2))
+        attn2 = pad_attention(attn2, c_t.size(2))
+
+        if self.mask2 is not None:
+            self.mask2 = self.mask2.unsqueeze(1)
+            attn2 = attn2.data.masked_fill(self.mask2, -float('inf'))
+
+        attn2 = torch.softmax(attn2, dim=-1)
         attn_set.append(attn2)
-
-        attn2 = attn2.unsqueeze(-1)
-        attn2 = attn2.view(batch_size*dec_len, set_size,-1)
-
-        c_t = c_t.reshape(batch_size*dec_len, set_size, -1)
-        attn2 = attn2.transpose(1,2)
-        c_t2 = torch.bmm(attn2, c_t)
-        c_t2 = c_t2.view(batch_size, dec_len,1,-1)
-        c_t2 = c_t2.squeeze(2)
         
-        combined = torch.cat((c_t2, dec_hidden), dim=2)
-        output = torch.tanh(self.linear_out(combined.view(-1,2*hidden_size))).view(batch_size, -1, hidden_size)
+        attn2 = attn2.unsqueeze(-1)
+        attn2 = attn2.reshape(attn2.size(0)*attn2.size(1), -1, 1)
+        attn2 = attn2.transpose(1,2)
 
+        c_t = c_t.reshape(batch_size *dec_len, set_size, -1)
+        c_t = torch.bmm(attn2, c_t)
+        c_t = c_t.reshape(batch_size, dec_len, 1, -1)
+        c_t = c_t.squeeze(2)
+
+        combined = torch.cat((c_t, dec_hidden), dim=2)
+        output = torch.tanh(self.linear_out(combined.view(-1,2*hidden_size))).view(batch_size, -1, hidden_size)
         return output, attn_set

@@ -61,3 +61,46 @@ def stoi(tensors, vocab):
         vocab_idx = vocab.stoi[val]
         result.append(vocab_idx)
     return result
+
+
+def preprocessing(input_var, none_idx):
+    processed_input = []
+    set_size_in_batch = []
+    input_var = torch.split(input_var, input_var.size(0), dim=0)
+    none_idx_within_batch = [(input_var[0][idx] == none_idx).nonzero() for idx in range(len(input_var[0]))]
+
+    for minibatch, idx in zip(input_var[0], none_idx_within_batch):
+        if len(idx) ==0:
+            processed_input.append(minibatch)
+            set_size_in_batch.append(minibatch.size(0))
+            continue
+        set_size_in_batch.append(idx[0][0].item())
+        processed_input.append(torch.narrow(minibatch, 0,0, idx[0][0].item()))
+
+    return torch.cat(processed_input, dim=0), set_size_in_batch
+
+
+def get_set_lengths(input_var):
+    '''
+    1-> pad token 
+    '''
+    return (~(input_var[:,:, 0] == 1)).sum(dim=-1)
+
+
+def get_mask1(inputs):
+    masking = torch.eq(inputs, 1)
+    return masking
+
+
+def pad_attention(attn, max_len):
+    diff  = max_len - attn.size(-1)
+    zero_padding = torch.zeros(attn.size(0), attn.size(1), diff).cuda()
+    attn = torch.cat((attn, zero_padding), dim=-1)
+    return attn
+
+
+def get_mask2(set_lens, max_len):
+    masking = [torch.tensor((val * [1] + (max_len-val)* [0])) for val in set_lens]
+    masking = torch.stack(masking, dim=0)
+    masking= ~masking.type(torch.BoolTensor).cuda()
+    return masking

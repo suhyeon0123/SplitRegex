@@ -83,6 +83,7 @@ class DecoderRNN(BaseRNN):
         self.sos_id = sos_id
 
         self.init_input = None
+        self.masking= None
         self.input_dropout_p= input_dropout_p
         self.embedding = nn.Embedding(self.output_size, self.hidden_size)
         if use_attention:
@@ -100,20 +101,24 @@ class DecoderRNN(BaseRNN):
 
         attn = None
         if self.use_attention:
+            self.attention.set_mask(self.masking)
             output, attn = self.attention(output, encoder_outputs)
 
         predicted_softmax = function(self.out(output.contiguous().view(-1, self.hidden_size)), dim=1).view(batch_size, output_size, -1)
         return predicted_softmax, hidden, attn
 
     def forward(self, inputs=None, encoder_hidden=None, encoder_outputs=None,
-                    function=F.log_softmax, teacher_forcing_ratio=0):
+                    function=F.log_softmax, teacher_forcing_ratio=0, masking=None):
         ret_dict = dict()
         if self.use_attention:
             ret_dict[DecoderRNN.KEY_ATTN_SCORE] = list()
-
+        
+        if masking is not None: 
+            self.masking = masking
+        
         inputs, batch_size, max_length = self._validate_args(inputs, encoder_hidden, encoder_outputs,
                                                              function, teacher_forcing_ratio)
-        
+
         decoder_hidden = self._init_state(encoder_hidden)
         use_teacher_forcing = True if random.random() < teacher_forcing_ratio else False
 

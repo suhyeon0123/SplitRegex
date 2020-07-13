@@ -47,6 +47,11 @@ parser.add_argument('--log-level', dest='log_level',
                     default='info',
                     help='Logging level.')
 
+parser.add_argument('--bidirectional', action='store_true', dest='bidirectional',
+                    default=False,
+                    help='Indicates if training model is bidirectional model or not')
+
+
 opt = parser.parse_args()
 
 LOG_FORMAT = '%(asctime)s %(name)-12s %(levelname)-8s %(message)s'
@@ -88,7 +93,6 @@ else:
     input_vocab = src.vocab
     output_vocab = tgt.vocab
 
-
     # Prepare loss
     weight = torch.ones(len(tgt.vocab))
     pad = tgt.vocab.stoi[tgt.pad_token]
@@ -101,7 +105,7 @@ else:
     if not opt.resume:
         # Initialize model
         hidden_size= 128
-        bidirectional = True
+        bidirectional = opt.bidirectional
         encoder = EncoderRNN(len(src.vocab), max_len, hidden_size, dropout_p = 0.25,input_dropout_p = 0.25,
                              bidirectional=bidirectional, n_layers=2, variable_lengths=True, vocab = input_vocab)
         decoder = DecoderRNN(len(tgt.vocab), max_len, hidden_size * 2 if bidirectional else hidden_size,
@@ -119,9 +123,9 @@ else:
         # explicitly constructing the objects and pass to the trainer.
         
         optimizer = Optimizer(torch.optim.Adam(seq2seq.parameters(), lr = 0.001), max_grad_norm=5)
-#         scheduler = StepLR(optimizer.optimizer, 1)
+        #scheduler = StepLR(optimizer.optimizer, 1)
         scheduler = ReduceLROnPlateau(optimizer.optimizer, 'min', factor = 0.1, verbose=True, patience=9)
-        optimizer.set_scheduler(scheduler) #fix
+        optimizer.set_scheduler(scheduler)
 
     # train
     t = SupervisedTrainer(loss=loss, batch_size=64,
@@ -130,7 +134,7 @@ else:
     
     start_time = time.time()
     seq2seq = t.train(seq2seq, train,
-                      num_epochs=25, dev_data=dev,
+                      num_epochs=50, dev_data=dev,
                       optimizer=optimizer,
                       teacher_forcing_ratio=0.5,
                       resume=opt.resume)

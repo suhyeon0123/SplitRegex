@@ -1,5 +1,7 @@
 import torch.nn as nn
 import torch
+import seq2seq
+from seq2seq.util.string_preprocess import preprocessing, get_set_lengths, get_mask1, get_mask2
 
 from .baseRNN import BaseRNN
 
@@ -49,12 +51,12 @@ class EncoderRNN(BaseRNN):
         self.bidirectional = bidirectional
         self.hidden_size = hidden_size
         self.input_dropout_p = input_dropout_p
-        
+        self.n_layers= n_layers
         self.rnn1 = self.rnn_cell(hidden_size, hidden_size, n_layers,
                                  batch_first=True, bidirectional=bidirectional, dropout=dropout_p)
         
-        self.rnn2 = self.rnn_cell(n_layers * hidden_size*2 if self.bidirectional else n_layers * hidden_size, hidden_size, n_layers,
-                                 batch_first=True, bidirectional=True, dropout=dropout_p)
+        self.rnn2 = self.rnn_cell(hidden_size*2 if self.bidirectional else hidden_size, hidden_size, n_layers,
+                                 batch_first=True, bidirectional=bidirectional, dropout=dropout_p)
         
         
     def forward(self, input_var, input_lengths=None):
@@ -72,47 +74,41 @@ class EncoderRNN(BaseRNN):
             - **output2** (batch, set_size, hidden_size*bidirectional): used when calculating attention between each string
             - **hidden2** (num_layers * num_directions, batch, hidden_size): Tuple(final hidden state, final cell state) 
         """
-
         batch_size = input_var.size(0)
         set_size = input_var.size(1)
         seq_len = input_var.size(2)
+        embedded = self.embedding(input_var)        
+        embedded = embedded.view(embedded.size(0)*embedded.size(1), -1, self.hidden_size)
+        set_lengths = get_set_lengths(input_var)
+
+        masking1 = get_mask1(input_var)
+        masking2 = get_mask2(set_lengths, set_size)
+        masking = (masking1, masking2)
         
-        embedded = self.embedding(input_var)
-        embedded = embedded.view(batch_size*set_size, seq_len, -1)
-        embedded = self.input_dropout(embedded)
+        input_lengths = input_lengths.reshape(-1)
 
         if self.variable_lengths:
-            embedded = nn.utils.rnn.pack_padded_sequence(embedded, input_lengths.view(-1).cpu(), batch_first=True, enforce_sorted=False)
-            
+            embedded = nn.utils.rnn.pack_padded_sequence(embedded, input_lengths.cpu(), batch_first= True, enforce_sorted=False)  
+        
         output1, hidden1 = self.rnn1(embedded)
+        
         if self.variable_lengths:
             output1, _ = nn.utils.rnn.pad_packed_sequence(output1, batch_first=True)
         
-        output1 = output1.view(batch_size, set_size, seq_len, -1)
-        h_n1 = hidden1[0]
-        c_n1 = hidden1[1]
-                
-        # bidirectional concat
-        h_n1 = self._cat_directions(h_n1).squeeze(0)
-        c_n1 = self._cat_directions(c_n1).squeeze(0)
-
-        # layer concat 
-        h_n1 = torch.cat([h_i for h_i in h_n1], dim = -1)
-        c_n1 = torch.cat([c_i for c_i in c_n1], dim = -1)
+        str_embedding = hidden1[0].view(2, -1, batch_size*set_size, self.hidden_size)
+        str_embedding  = str_embedding[-1, :,:,:] 
         
-        h_n1 = h_n1.view(batch_size, set_size, -1)
-        c_n1 = c_n1.view(batch_size, set_size, -1)
-        
-        # feed final hidden state of set string into the new LSTM
-        output2, hidden2 = self.rnn2(h_n1)
-        output = (output1, output2)
-        return output, hidden2
-    
-    
-    def _cat_directions(self, h):
-        """ If the encoder is bidirectional, do the following transformation.
-            (#directions * #layers, #batch, hidden_size) -> (#layers, #batch, #directions * hidden_size)
-        """
         if self.bidirectional:
-            h = torch.cat([h[0:h.size(0):2], h[1:h.size(0):2]], 2)
-        return h
+            str_embedding = torch.cat((str_embedding[0], str_embedding[1]), dim=-1)
+        else:
+            str_embedding  = str_embedding.squeeze(0)
+            
+        str_embedding = str_embedding.view(batch_size, set_size, -1)
+        output1 = output1.view(batch_size, set_size, seq_len, -1)
+        
+        str_embedding = nn.utils.rnn.pack_padded_sequence(str_embedding, set_lengths.cpu(), batch_first= True, enforce_sorted=False)
+        output2, hiddens = self.rnn2(str_embedding)
+        output2, _ = nn.utils.rnn.pad_packed_sequence(output2, batch_first=True)
+        outputs = (output1, output2) 
+
+        return outputs, hiddens, masking

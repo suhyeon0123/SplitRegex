@@ -10,9 +10,11 @@ checkpoint/*
 __pycache__/
 *.py[cod]
 *$py.class
-
+.tablereg.*
+.tablereg
 # Distribution / packaging
 .Python
+data/
 venv/
 env/
 build/

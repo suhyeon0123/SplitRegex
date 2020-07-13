@@ -168,9 +168,9 @@ with torch.no_grad():
                 else: 
                     fw.write('input_string : ' + ' '.join(input_words)+'\n') 
                     fw.write('target_regex : ' + target_regex  +'\n')
-                    fw.write('predict_regex : ' + predict_regex + '\n')
+                    fw.write('predict_regex : ' + predict_regex + '\n\n')
             except:
-                print('invalid predicted regex >  {}\n'.format(edited_predict_regex))
+                fw.write('invalid predicted regex >  {}\n'.format(edited_predict_regex))
             
             if total == 0:
                 accuracy = float('nan')
