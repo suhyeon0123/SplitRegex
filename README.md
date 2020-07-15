@@ -8,6 +8,7 @@ Generating regular expressions from both natural language and examples
 
 ## Install 
     $python3 -m venv venv
+    $source venv/bin/activate
     $pip install -r requirements.txt
     $python setup.py install
     $python fado-python3/setup.py install
