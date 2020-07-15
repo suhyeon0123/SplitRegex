@@ -6,7 +6,7 @@ Generating regular expressions from both natural language and examples
 - This product use fado module from https://github.com/0xnurl/fado-python3
 
 ## Dataset download
-> [set2regex dataset](https://github.com/woaksths/set2regex_dataset, "set2regex dataset link")
+> [set2regex dataset](https://github.com/woaksths/set2regex_dataset "set2regex dataset link")
 ## Install 
     $python3 -m venv venv
     $source venv/bin/activate
