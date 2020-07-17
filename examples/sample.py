@@ -46,7 +46,6 @@ parser.add_argument('--resume', action='store_true', dest='resume',
 parser.add_argument('--log-level', dest='log_level',
                     default='info',
                     help='Logging level.')
-
 parser.add_argument('--bidirectional', action='store_true', dest='bidirectional',
                     default=False,
                     help='Indicates if training model is bidirectional model or not')
@@ -70,8 +69,8 @@ else:
     
     train_file = opt.train_path
     valid_file = opt.dev_path
-    
-    set_num = get_set_num(train_file)
+    set_num = get_set_num(train_file) 
+    set_num = int(set_num/2)
     
     src = SourceField()
     tgt = TargetField()
@@ -79,15 +78,18 @@ else:
     
     def len_filter(example):
         return len(example.src) <= max_len and len(example.tgt) <= max_len
-    
+
+    print('check')
     train = torchtext.data.TabularDataset(
         path=train_file, format='tsv',
-        fields= [('src{}'.format(i+1), src) for i in range(set_num)]+[('tgt', tgt)])
+        fields= [('pos{}'.format(i+1), src) for i in range(set_num)] +
+        [('neg{}'.format(i+1),src) for i in range(set_num)]+[('tgt', tgt)])
     
     dev = torchtext.data.TabularDataset(
         path=valid_file, format='tsv',
-        fields= [('src{}'.format(i+1), src) for i in range(set_num)]+[('tgt', tgt)])
-    
+        fields=[('pos{}'.format(i+1),src) for i in range(set_num)] + 
+        [('neg{}'.format(i+1),src) for i in range(set_num)]+[('tgt', tgt)])
+        
     src.build_vocab(train, max_size=50000)
     tgt.build_vocab(train, max_size=50000)
     input_vocab = src.vocab
@@ -128,7 +130,7 @@ else:
         optimizer.set_scheduler(scheduler)
 
     # train
-    t = SupervisedTrainer(loss=loss, batch_size=64,
+    t = SupervisedTrainer(loss=loss, batch_size=1,
                           checkpoint_every=1800,
                           print_every=300, expt_dir=opt.expt_dir, input_vocab=input_vocab, output_vocab=output_vocab)
     

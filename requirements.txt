@@ -2,8 +2,8 @@ torch
 numpy
 dill
 tqdm
-torchtext
 jupyter
 jupyterlab
+torchtext
 ipython==7.9
 matplotlib
