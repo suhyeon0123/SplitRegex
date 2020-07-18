@@ -87,7 +87,7 @@ def get_set_lengths(input_var):
     return (~(input_var[:,:, 0] == 1)).sum(dim=-1)
 
 
-def get_mask1(inputs):
+def get_mask(inputs):
     masking = torch.eq(inputs, 1)
     return masking
 

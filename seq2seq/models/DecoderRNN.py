@@ -160,7 +160,10 @@ class DecoderRNN(BaseRNN):
                 decoder_output, decoder_hidden, step_attn = self.forward_step(decoder_input, decoder_hidden, encoder_outputs,
                                                                          function=function)
                 step_output = decoder_output.squeeze(1)
-                step_attn = (step_attn[0].squeeze(1), step_attn[1].squeeze(1))
+                if step_attn is not None:
+                    step_attn = (step_attn[0].squeeze(1), step_attn[1].squeeze(1))
+                else:
+                    step_attn = None
                 symbols = decode(di, step_output, step_attn)
                 decoder_input = symbols
 

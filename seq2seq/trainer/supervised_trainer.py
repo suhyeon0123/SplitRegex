@@ -152,8 +152,8 @@ class SupervisedTrainer(object):
                 neg_input_variables = torch.stack(neg_input_variables, dim=0)
                 neg_input_lengths = torch.stack(neg_input_lengths, dim=0)
                 
-                1/0
-                # train_batch, pos_input_var, neg_input_var, pos_input_len, neg_input_len, tgt_var)  넘겨줘야함.
+                input_variables = (pos_input_variables, neg_input_variables)
+                input_lengths= (pos_input_lengths, neg_input_lengths)
                 loss = self._train_batch(input_variables, input_lengths, target_variables, model, teacher_forcing_ratio)
 
                 # Record average loss
