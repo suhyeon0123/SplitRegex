@@ -108,7 +108,7 @@ else:
         bidirectional = opt.bidirectional
         encoder = EncoderRNN(len(src.vocab), max_len, hidden_size, dropout_p = 0.25,input_dropout_p = 0.25,
                              bidirectional=bidirectional, n_layers=2, variable_lengths=True, vocab = input_vocab)
-        decoder = DecoderRNN(len(tgt.vocab), max_len, hidden_size * 4 if bidirectional else 2*hidden_size,
+        decoder = DecoderRNN(len(tgt.vocab), max_len, hidden_size * 2 if bidirectional else hidden_size,
                              dropout_p=0.2, input_dropout_p=0.25, use_attention=True, bidirectional=bidirectional, n_layers=2,
                              eos_id=tgt.eos_id, sos_id=tgt.sos_id, attn_mode = opt.attn_mode)
         seq2seq = Seq2seq(encoder, decoder)
@@ -128,7 +128,7 @@ else:
         optimizer.set_scheduler(scheduler)
 
     # train
-    t = SupervisedTrainer(loss=loss, batch_size=64,
+    t = SupervisedTrainer(loss=loss, batch_size=16,
                           checkpoint_every=1800,
                           print_every=100, expt_dir=opt.expt_dir, input_vocab=input_vocab, output_vocab=output_vocab)
     

@@ -59,7 +59,14 @@ class Attention(nn.Module):
 
 
     def forward(self, dec_hidden, context):
-        if self.attn_mode: # attention both pos and neg samples
+        # context => ((pos_output, neg_output),(pos_set_output, neg_set_output))
+        # pos_output => batch, set_size, pos_seq_len, hidden
+        # neg_output => batch, set_size, neg_seq_len, hidden
+        # pos_set_output => batch, set_size, hidden
+        # neg_set_output => batch, set_size, hidden
+        # dec_hidde => batch, dec_len, hidden
+        1/0
+        if self.attn_mode: # attention both pos and neg samples            
             pass
         else: # attention only pos samples
             pass

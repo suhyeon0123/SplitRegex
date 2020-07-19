@@ -57,7 +57,7 @@ class EncoderRNN(BaseRNN):
         
         self.rnn2 = self.rnn_cell(hidden_size*2 if self.bidirectional else hidden_size, hidden_size, n_layers,
                                  batch_first=True, bidirectional=bidirectional, dropout=dropout_p)
-        
+        self.linear = nn.Linear(2*self.hidden_size, self.hidden_size)
         
     def forward(self, input_var, input_lengths=None):
         pos_input  = input_var[0] # batch, set_size, seq_len
@@ -116,6 +116,12 @@ class EncoderRNN(BaseRNN):
         neg_set_last_cell = neg_set_hidden[1] # num_layer x num_dir, batch, hidden  
         last_hidden = torch.cat((pos_set_last_hidden, neg_set_last_hidden), dim=-1) # num_layer x num_dir, batch, 2 x hidden 
         last_cell = torch.cat((pos_set_last_cell, neg_set_last_cell), dim=-1) # num_layer x num_dir, batch, 2 x hidden 
+
+        last_hidden = self.linear(last_hidden.view(-1, self.hidden_size*2))
+        last_hidden = last_hidden.view(-1, batch_size, self.hidden_size)
+        last_cell = self.linear(last_cell.view(-1, self.hidden_size*2))
+        last_cell = last_cell.view(-1, batch_size, self.hidden_size)
+
         hiddens = (last_hidden, last_cell)
         outputs = ((pos_output, neg_output),(pos_set_output, neg_set_output))
         return outputs, hiddens, masking
