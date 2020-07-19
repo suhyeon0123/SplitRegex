@@ -49,10 +49,9 @@ parser.add_argument('--log-level', dest='log_level',
 parser.add_argument('--bidirectional', action='store_true', dest='bidirectional',
                     default=False,
                     help='Indicates if training model is bidirectional model or not')
-
+parser.add_argument('--attn_mode', action='store_true', dest='attn_mode', default = False, help='choose attention mode')
 
 opt = parser.parse_args()
-
 LOG_FORMAT = '%(asctime)s %(name)-12s %(levelname)-8s %(message)s'
 logging.basicConfig(format=LOG_FORMAT, level=getattr(logging, opt.log_level.upper()))
 logging.info(opt)
@@ -79,7 +78,6 @@ else:
     def len_filter(example):
         return len(example.src) <= max_len and len(example.tgt) <= max_len
 
-    print('check')
     train = torchtext.data.TabularDataset(
         path=train_file, format='tsv',
         fields= [('pos{}'.format(i+1), src) for i in range(set_num)] +
@@ -111,8 +109,8 @@ else:
         encoder = EncoderRNN(len(src.vocab), max_len, hidden_size, dropout_p = 0.25,input_dropout_p = 0.25,
                              bidirectional=bidirectional, n_layers=2, variable_lengths=True, vocab = input_vocab)
         decoder = DecoderRNN(len(tgt.vocab), max_len, hidden_size * 4 if bidirectional else 2*hidden_size,
-                             dropout_p=0.2, input_dropout_p=0.25, use_attention=False, bidirectional=bidirectional, n_layers=2,
-                             eos_id=tgt.eos_id, sos_id=tgt.sos_id)
+                             dropout_p=0.2, input_dropout_p=0.25, use_attention=True, bidirectional=bidirectional, n_layers=2,
+                             eos_id=tgt.eos_id, sos_id=tgt.sos_id, attn_mode = opt.attn_mode)
         seq2seq = Seq2seq(encoder, decoder)
         
         if torch.cuda.is_available():

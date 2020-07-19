@@ -60,24 +60,11 @@ class EncoderRNN(BaseRNN):
         
         
     def forward(self, input_var, input_lengths=None):
-        """
-        Applies a multi-layer RNN to an input sequence.
+        pos_input  = input_var[0] # batch, set_size, seq_len
+        neg_input = input_var[1] # batch, set_size, seq_len 
+        pos_lengths = input_lengths[0] # batch, set_size
+        neg_lengths = input_lengths[1] # batch, set_size
 
-        Args:
-            input_var (batch, seq_len): tensor containing the features of the input sequence.
-            input_lengths (list of int, optional): A list that contains the lengths of sequences
-              in the mini-batch
-
-        Returns: output, hidden
-            - output = (output1, output2)
-            - **output1** (batch, set_size, seq_len, hidden_size):  used when calculating attention within each string of set 
-            - **output2** (batch, set_size, hidden_size*bidirectional): used when calculating attention between each string
-            - **hidden2** (num_layers * num_directions, batch, hidden_size): Tuple(final hidden state, final cell state) 
-        """
-        pos_input  = input_var[0]
-        neg_input = input_var[1]
-        pos_lengths = input_lengths[0]
-        neg_lengths = input_lengths[1]
         batch_size = pos_input.size(0)
         set_size = pos_input.size(1)
         seq_len = pos_input.size(2)
@@ -86,12 +73,12 @@ class EncoderRNN(BaseRNN):
         neg_embedded = self.embedding(neg_input) # batch, set_size, seq_len, embedding_dim
         pos_embedded = pos_embedded.view(batch_size*set_size,seq_len, -1) # batch x set_size, seq_len, embedding_dim
         neg_embedded = neg_embedded.view(batch_size*set_size, seq_len, -1) # batch x set_size, seq_len ,embedding_dim 
-        pos_input_mask = get_mask(pos_input)
-        neg_input_mask = get_mask(neg_input)
+        pos_input_mask = get_mask(pos_input) # batch, set_size, seq_len
+        neg_input_mask = get_mask(neg_input) # batch, set_size, seq_len 
         masking = (pos_input_mask, neg_input_mask) # masking for sequence lengths
-        pos_lengths = pos_lengths.reshape(-1) 
-        neg_lengths = neg_lengths.reshape(-1)
-        
+        pos_lengths = pos_lengths.reshape(-1) # batch x set_size
+        neg_lengths = neg_lengths.reshape(-1) # batch x set_size
+
         if self.variable_lengths:
             pos_embedded = nn.utils.rnn.pack_padded_sequence(pos_embedded, pos_lengths.cpu(), batch_first=True, enforce_sorted=False)
             neg_embedded = nn.utils.rnn.pack_padded_sequence(neg_embedded, neg_lengths.cpu(), batch_first=True, enforce_sorted=False)
@@ -123,13 +110,12 @@ class EncoderRNN(BaseRNN):
         pos_set_output, pos_set_hidden = self.rnn2(pos_set_embedded) # (batch, set_size, hidden), # (num_layer*num_dir, batch, hidden) 2개 tuple 구성
         neg_set_output, neg_set_hidden = self.rnn2(neg_set_embedded) # (batch, set_size, hidden), # (num_later*num_dir, batch, hidden) 2개 tuple 
         
-        pos_set_last_hidden = pos_set_hidden[0]
-        neg_set_last_hidden = neg_set_hidden[0] 
-        pos_set_last_cell = pos_set_hidden[1]
-        neg_set_last_cell = neg_set_hidden[1]
-        last_hidden = torch.cat((pos_set_last_hidden, neg_set_last_hidden), dim=-1)
-        last_cell = torch.cat((pos_set_last_cell, neg_set_last_cell), dim=-1)
-        
+        pos_set_last_hidden = pos_set_hidden[0] # num_layer x num_dir, batch, hidden
+        neg_set_last_hidden = neg_set_hidden[0] # num_later x num_dir, batch, hidden
+        pos_set_last_cell = pos_set_hidden[1] # num_layer x num_dir, batch, hidden
+        neg_set_last_cell = neg_set_hidden[1] # num_layer x num_dir, batch, hidden  
+        last_hidden = torch.cat((pos_set_last_hidden, neg_set_last_hidden), dim=-1) # num_layer x num_dir, batch, 2 x hidden 
+        last_cell = torch.cat((pos_set_last_cell, neg_set_last_cell), dim=-1) # num_layer x num_dir, batch, 2 x hidden 
         hiddens = (last_hidden, last_cell)
         outputs = ((pos_output, neg_output),(pos_set_output, neg_set_output))
         return outputs, hiddens, masking

@@ -38,13 +38,13 @@ class Attention(nn.Module):
          >>> output, attn = attention(output, context)
 
     """
-    def __init__(self, dim):
+    def __init__(self, dim, attn_mode):
         super(Attention, self).__init__()
         self.linear_out = nn.Linear(dim*2, dim)
         self.mask = None
         self.mask1 = None
         self.mask2 = None
-        
+        self.attn_mode = attn_mode # True (attention both pos and neg) # False (attention only pos samples)
         
     def set_mask(self, mask):
         """
@@ -59,61 +59,8 @@ class Attention(nn.Module):
 
 
     def forward(self, dec_hidden, context):
-        ''' 
-        context -> context is encoder outputs that is composed of two LSTM encoder outputs with tuple.
-        context[0] -> (#batch, #set_num, #enc_len, #hidden)
-        context[1] -> (#batch, #set_num, #hidden)
-        dec_hidden -> decoder hidden state (#batch, #dec_len, #hidden)
-        '''
-
-        batch_size = context[0].size(0) 
-        set_size = context[0].size(1)
-        enc_len = context[0].size(2)
-        dec_len = dec_hidden.size(1)
-        hidden_size = dec_hidden.size(-1)
-        attn_set = []
-        
-        outputs1 = context[0]
-        outputs2 = context[1]
-        
-        outputs1 = outputs1.view(outputs1.size(0), -1, outputs1.size(-1))
-        attn = torch.bmm(dec_hidden, outputs1.transpose(1,2))
-        attn = attn.view(batch_size, dec_len, set_size, enc_len)
-        if self.mask1 is not None:
-            self.mask1 = self.mask1.unsqueeze(1)
-            attn = attn.data.masked_fill(self.mask1, -float('inf'))
-        
-        attn = torch.softmax(attn, dim=-1)
-        attn[attn != attn] = 0
-        attn_set.append(attn)
-        
-        outputs1 = context[0].reshape(batch_size*set_size, enc_len, -1)
-        attn = attn.transpose(1,2)
-        attn = attn.reshape(batch_size*set_size, -1, enc_len)
-        
-        c_t = torch.bmm(attn, outputs1)
-        c_t = c_t.reshape(batch_size, set_size, dec_len, -1)
-        c_t = c_t.transpose(1,2)
-        
-        attn2 = torch.bmm(dec_hidden, outputs2.transpose(1,2))
-        attn2 = pad_attention(attn2, c_t.size(2))
-
-        if self.mask2 is not None:
-            self.mask2 = self.mask2.unsqueeze(1)
-            attn2 = attn2.data.masked_fill(self.mask2, -float('inf'))
-
-        attn2 = torch.softmax(attn2, dim=-1)
-        attn_set.append(attn2)
-        
-        attn2 = attn2.unsqueeze(-1)
-        attn2 = attn2.reshape(attn2.size(0)*attn2.size(1), -1, 1)
-        attn2 = attn2.transpose(1,2)
-
-        c_t = c_t.reshape(batch_size *dec_len, set_size, -1)
-        c_t = torch.bmm(attn2, c_t)
-        c_t = c_t.reshape(batch_size, dec_len, 1, -1)
-        c_t = c_t.squeeze(2)
-
-        combined = torch.cat((c_t, dec_hidden), dim=2)
-        output = torch.tanh(self.linear_out(combined.view(-1,2*hidden_size))).view(batch_size, -1, hidden_size)
-        return output, attn_set
+        if self.attn_mode: # attention both pos and neg samples
+            pass
+        else: # attention only pos samples
+            pass
+        return None

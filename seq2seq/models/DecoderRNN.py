@@ -68,7 +68,7 @@ class DecoderRNN(BaseRNN):
     def __init__(self, vocab_size, max_len, hidden_size,
             sos_id, eos_id,
             n_layers=1, rnn_cell='LSTM', bidirectional=False,
-            input_dropout_p=0, dropout_p=0, use_attention=False):
+            input_dropout_p=0, dropout_p=0, use_attention=False, attn_mode=False):
         super(DecoderRNN, self).__init__(vocab_size, max_len, hidden_size,
                 input_dropout_p, dropout_p,
                 n_layers, rnn_cell)
@@ -79,6 +79,7 @@ class DecoderRNN(BaseRNN):
         self.output_size = vocab_size
         self.max_length = max_len
         self.use_attention = use_attention
+        self.attn_mode = attn_mode
         self.eos_id = eos_id
         self.sos_id = sos_id
 
@@ -87,17 +88,18 @@ class DecoderRNN(BaseRNN):
         self.input_dropout_p= input_dropout_p
         self.embedding = nn.Embedding(self.output_size, self.hidden_size)
         if use_attention:
-            self.attention = Attention(self.hidden_size)
+            self.attention = Attention(self.hidden_size, attn_mode)
 
         self.out = nn.Linear(self.hidden_size, self.output_size)
 
     def forward_step(self, input_var, hidden, encoder_outputs, function):
         batch_size = input_var.size(0)
         output_size = input_var.size(1)
-        embedded = self.embedding(input_var)
-        embedded = self.input_dropout(embedded)
-
-        output, hidden = self.rnn(embedded, hidden)
+        embedded = self.embedding(input_var) # batch, seq_len, embedding_dim
+        embedded = self.input_dropout(embedded) # batch, seq_len, embedding_dim
+        output, hidden = self.rnn(embedded, hidden) 
+        # output (batch, dec_seq_len, hidden)
+        # hidden type: tuple (num_layer, batch, hidden)
 
         attn = None
         if self.use_attention:
@@ -118,8 +120,10 @@ class DecoderRNN(BaseRNN):
         
         inputs, batch_size, max_length = self._validate_args(inputs, encoder_hidden, encoder_outputs,
                                                              function, teacher_forcing_ratio)
-
+        # inputs -> (batch, dec_seq_len)
+        # encoder_hidden -> (num_layer x num_dir, batch, hidden)
         decoder_hidden = self._init_state(encoder_hidden)
+        # decoder_hidden -> if bidirecional: (num_layer, batch, 2 x hidden) else : (num_layer x num_dir, batch, hidden)
         use_teacher_forcing = True if random.random() < teacher_forcing_ratio else False
 
         decoder_outputs = []
@@ -143,10 +147,10 @@ class DecoderRNN(BaseRNN):
         # Manual unrolling is used to support random teacher forcing.
         # If teacher_forcing_ratio is True or False instead of a probability, the unrolling can be done in graph
         if use_teacher_forcing:
-            decoder_input = inputs[:, :-1]
+            decoder_input = inputs[:, :-1] #(batch, seq_len)
             decoder_output, decoder_hidden, attn = self.forward_step(decoder_input, decoder_hidden, encoder_outputs,
                                                                      function=function)
-
+            
             for di in range(decoder_output.size(1)):
                 step_output = decoder_output[:, di, :]
                 if attn is not None:
@@ -155,7 +159,7 @@ class DecoderRNN(BaseRNN):
                     step_attn = None
                 decode(di, step_output, step_attn)
         else:
-            decoder_input = inputs[:, 0].unsqueeze(1)
+            decoder_input = inputs[:, 0].unsqueeze(1) # (batch, 1)
             for di in range(max_length):
                 decoder_output, decoder_hidden, step_attn = self.forward_step(decoder_input, decoder_hidden, encoder_outputs,
                                                                          function=function)
