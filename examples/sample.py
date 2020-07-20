@@ -49,7 +49,10 @@ parser.add_argument('--log-level', dest='log_level',
 parser.add_argument('--bidirectional', action='store_true', dest='bidirectional',
                     default=False,
                     help='Indicates if training model is bidirectional model or not')
+
+parser.add_argument('--use_attn', action='store_true', dest='use_attn', default = False, help='use attention or not')
 parser.add_argument('--attn_mode', action='store_true', dest='attn_mode', default = False, help='choose attention mode')
+
 
 opt = parser.parse_args()
 LOG_FORMAT = '%(asctime)s %(name)-12s %(levelname)-8s %(message)s'
@@ -70,7 +73,7 @@ else:
     valid_file = opt.dev_path
     set_num = get_set_num(train_file) 
     set_num = int(set_num/2)
-    
+
     src = SourceField()
     tgt = TargetField()
     max_len = 50
@@ -109,7 +112,7 @@ else:
         encoder = EncoderRNN(len(src.vocab), max_len, hidden_size, dropout_p = 0.25,input_dropout_p = 0.25,
                              bidirectional=bidirectional, n_layers=2, variable_lengths=True, vocab = input_vocab)
         decoder = DecoderRNN(len(tgt.vocab), max_len, hidden_size * 2 if bidirectional else hidden_size,
-                             dropout_p=0.2, input_dropout_p=0.25, use_attention=True, bidirectional=bidirectional, n_layers=2,
+                             dropout_p=0.2, input_dropout_p=0.25, use_attention=opt.use_attn, bidirectional=bidirectional, n_layers=2,
                              eos_id=tgt.eos_id, sos_id=tgt.sos_id, attn_mode = opt.attn_mode)
         seq2seq = Seq2seq(encoder, decoder)
         
@@ -128,7 +131,7 @@ else:
         optimizer.set_scheduler(scheduler)
 
     # train
-    t = SupervisedTrainer(loss=loss, batch_size=16,
+    t = SupervisedTrainer(loss=loss, batch_size=64,
                           checkpoint_every=1800,
                           print_every=100, expt_dir=opt.expt_dir, input_vocab=input_vocab, output_vocab=output_vocab)
     

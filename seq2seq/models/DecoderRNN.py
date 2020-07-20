@@ -154,7 +154,10 @@ class DecoderRNN(BaseRNN):
             for di in range(decoder_output.size(1)):
                 step_output = decoder_output[:, di, :]
                 if attn is not None:
-                    step_attn = (attn[0][:,di,:,:],attn[1][:,di,:])
+                    if self.attn_mode:
+                        step_attn = ((attn[0][0][:,di,:,:], attn[0][1][:,di,:,:]), (attn[1][0][:,di,:],attn[1][1][:,di,:]))
+                    else: # attn only pos 
+                        step_attn = (attn[0][:,di,:,:],attn[1][:,di,:])
                 else:
                     step_attn = None
                 decode(di, step_output, step_attn)
@@ -164,8 +167,11 @@ class DecoderRNN(BaseRNN):
                 decoder_output, decoder_hidden, step_attn = self.forward_step(decoder_input, decoder_hidden, encoder_outputs,
                                                                          function=function)
                 step_output = decoder_output.squeeze(1)
-                if step_attn is not None:
-                    step_attn = (step_attn[0].squeeze(1), step_attn[1].squeeze(1))
+                if step_attn is not None: 
+                    if self.attn_mode: 
+                        step_attn = ((step_attn[0][0].squeeze(1), step_attn[0][1].squeeze(1)),(step_attn[1][0].squeeze(1), step_attn[1][1].squeeze(1)))
+                    else:
+                        step_attn = (step_attn[0].squeeze(1), step_attn[1].squeeze(1))
                 else:
                     step_attn = None
                 symbols = decode(di, step_output, step_attn)
