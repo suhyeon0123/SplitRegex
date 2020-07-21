@@ -5,13 +5,23 @@ import FAdo
 from FAdo.reex import str2regexp
 
 
-def membership_test(regex, examples):    
+def pos_membership_test(regex, examples):    
     regex = str2regexp(regex)
     for word in examples:
         if regex.evalWordP(word):
             continue
         else:
             return False
+    return True
+
+
+def neg_membership_test(regex, examples):    
+    regex = str2regexp(regex)
+    for word in examples:
+        if regex.evalWordP(word):
+            return False
+        else:
+            continue
     return True
 
 
