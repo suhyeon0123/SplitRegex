@@ -1,5 +1,5 @@
 ## Model architecture
-
+![ex_screenshot](./model_version3.JPG)
 ## Result
 
 - unidirectional model
