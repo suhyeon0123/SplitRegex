@@ -129,15 +129,15 @@ else:
         #scheduler = StepLR(optimizer.optimizer, 1)
         scheduler = ReduceLROnPlateau(optimizer.optimizer, 'min', factor = 0.1, verbose=True, patience=9)
         optimizer.set_scheduler(scheduler)
-
+    expt_dir = opt.expt_dir + '_hidden_{}'.format(hidden_size)
     # train
     t = SupervisedTrainer(loss=loss, batch_size=64,
                           checkpoint_every=1800,
-                          print_every=100, expt_dir=opt.expt_dir, input_vocab=input_vocab, output_vocab=output_vocab)
+                          print_every=100, expt_dir=expt_dir, input_vocab=input_vocab, output_vocab=output_vocab)
     
     start_time = time.time()
     seq2seq = t.train(seq2seq, train,
-                      num_epochs=50, dev_data=dev,
+                      num_epochs=100, dev_data=dev,
                       optimizer=optimizer,
                       teacher_forcing_ratio=0.5,
                       resume=opt.resume)

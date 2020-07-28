@@ -3,7 +3,7 @@ import logging
 import os
 import random
 import time
-
+import numpy as np
 import torch
 import torchtext
 from torch import optim
@@ -14,6 +14,8 @@ from seq2seq.loss import NLLLoss
 from seq2seq.optim import Optimizer
 from seq2seq.util.checkpoint import Checkpoint
 from seq2seq.util.string_preprocess import pad_tensor,decode_tensor_input,decode_tensor_target
+from seq2seq.util.visualize import visualize_loss
+from seq2seq.trainer.EarlyStopping import EarlyStopping
 
 class SupervisedTrainer(object):
     """ The SupervisedTrainer class helps in setting up a training framework in a
@@ -91,6 +93,14 @@ class SupervisedTrainer(object):
         step_elapsed = 0
         best_acc  = 0 
         
+        # to track the training loss as the model trains
+        train_losses = []
+        # to track the average training loss per epoch as the model trains
+        avg_train_losses = []
+        # to track the average validtation loss per epoch as the model trains
+        avg_valid_losses = []
+        early_stopping = EarlyStopping(patience = 7, verbose=True)
+        
         for epoch in range(start_epoch, n_epochs + 1):
             log.debug("Epoch: %d, Step: %d" % (epoch, step))
 
@@ -155,7 +165,9 @@ class SupervisedTrainer(object):
                 input_variables = (pos_input_variables, neg_input_variables)
                 input_lengths= (pos_input_lengths, neg_input_lengths)
                 loss = self._train_batch(input_variables, input_lengths, target_variables, model, teacher_forcing_ratio)
-
+                
+                train_losses.append(loss)
+                
                 # Record average loss
                 print_loss_total += loss
                 epoch_loss_total += loss
@@ -168,39 +180,38 @@ class SupervisedTrainer(object):
                         self.loss.name,
                         print_loss_avg)
                     log.info(log_msg)
-
-                # Checkpoint
-                if step % self.checkpoint_every == 0 or step == total_steps:
-                    Checkpoint(model=model,
-                               optimizer=self.optimizer,
-                               epoch=epoch, step=step,
-                               input_vocab=self.input_vocab,
-                               output_vocab=self.output_vocab).save(self.expt_dir)
-
+                
+            train_loss = np.average(train_losses)
+            avg_train_losses.append(train_loss)
+            
+            # clear lists to track next epoch 
+            train_losses = []
             if step_elapsed == 0: continue
 
             epoch_loss_avg = epoch_loss_total / min(steps_per_epoch, step - start_step)
             epoch_loss_total = 0
-            log_msg = "Finished epoch %d: Train %s: %.4f" % (epoch, self.loss.name, epoch_loss_avg)
+            log_msg = "Finished epoch %d: Train %s: %.4f,  %.4f" % (epoch, self.loss.name, epoch_loss_avg, train_loss)
+            
             if dev_data is not None:
                 dev_loss, accuracy = self.evaluator.evaluate(model, dev_data)
-                self.optimizer.update(dev_loss, epoch)
+                avg_valid_losses.append(dev_loss)
                 log_msg += ", Dev %s: %.4f, Accuracy: %.4f" % (self.loss.name, dev_loss, accuracy)
+                early_stopping(dev_loss, model, self.optimizer, epoch, step, self.input_vocab, self.output_vocab, self.expt_dir)                 
+                self.optimizer.update(dev_loss, epoch)
                 if accuracy > best_acc:
-                    log.info('best_accuracy{}, current_accuracy{}'.format(accuracy, best_acc))
+                    log.info('accuracy increased >> best_accuracy{}, current_accuracy{}'.format(accuracy, best_acc))
                     best_acc = accuracy
-                    Checkpoint(model=model,
-                               optimizer=self.optimizer,
-                               epoch=epoch, step=step,
-                               input_vocab=self.input_vocab,
-                               output_vocab=self.output_vocab).save(self.expt_dir +'/best_model')
-                
                 model.train(mode=True)
             else:
                 self.optimizer.update(epoch_loss_avg, epoch)
-
+            
+            if early_stopping.early_stop:
+                print("Early Stopping")
+                break
             log.info(log_msg)
-
+        return avg_train_losses, avg_valid_losses
+    
+    
     def train(self, model, data, num_epochs=5,
               resume=False, dev_data=None,
               optimizer=None, teacher_forcing_ratio=0):
@@ -244,7 +255,8 @@ class SupervisedTrainer(object):
 
         self.logger.info("Optimizer: %s, Scheduler: %s" % (self.optimizer.optimizer, self.optimizer.scheduler))
 
-        self._train_epoches(data, model, num_epochs,
-                            start_epoch, step, dev_data=dev_data,
-                            teacher_forcing_ratio=teacher_forcing_ratio)
+        train_loss, valid_loss = self._train_epoches(data, model, num_epochs,
+                                                     start_epoch, step, dev_data=dev_data,
+                                                     teacher_forcing_ratio=teacher_forcing_ratio)
+        visualize_loss(train_loss, valid_loss, self.expt_dir)
         return model
