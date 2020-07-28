@@ -16,5 +16,6 @@ Generating regular expressions from both natural language and examples
 
 
 ## Usage
+    # Before running this command, check the training option via $python examples/sample.py --help
     $python examples/sample.py --train_path $TRAIN_PATH --dev_path $DEV_PATH --expt_dir $EXPT_DIR
     $python examples/evaluation.py --train_path $TRAIN_PATH --test_path $TEST_PATH --checkpoint $CHECKPOINT
