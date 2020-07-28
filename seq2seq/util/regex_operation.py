@@ -2,6 +2,7 @@
 # coding: utf-8
 
 import FAdo
+import re
 from FAdo.reex import str2regexp
 
 
@@ -50,4 +51,21 @@ def regex_inclusion(target, predict):
     if (target & predict).witness() != None and (~target & predict).witness() == None:
         return True
     else:
-        return False    
+        return False
+    
+    
+def valid_regex(regex):
+    try:
+        p = re.compile(regex)
+        is_valid =True
+    except re.error:
+        is_valid=False
+    return is_valid
+
+
+def or_exception(regex):
+    if '||' in regex or '|)' in regex or '(|' in regex or \
+    regex[0] == '|' or regex[-1] =='|' or '()' in regex:
+        return False
+    else :
+        return True

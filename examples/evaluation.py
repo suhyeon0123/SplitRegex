@@ -19,7 +19,7 @@ from seq2seq.util.checkpoint import Checkpoint
 from seq2seq.dataset import SourceField, TargetField
 from seq2seq.evaluator import Predictor
 from seq2seq.util.string_preprocess import get_set_num,pad_tensor, count_star, decode_tensor_input, decode_tensor_target
-from seq2seq.util.regex_operation import pos_membership_test, neg_membership_test, preprocess_regex, regex_equal, regex_inclusion
+from seq2seq.util.regex_operation import pos_membership_test, neg_membership_test, preprocess_regex, regex_equal, regex_inclusion, valid_regex, or_exception
 
 
 parser = argparse.ArgumentParser()
@@ -78,7 +78,7 @@ num_samples = 0
 
 with torch.no_grad():
     with open('{}_error_analysis.txt'.format(opt.checkpoint), 'w') as fw:
-        statistics = [{'cnt':0,'hit': 0,'string_equal':0,'dfa_equal':0, 'inclusion_equal':0} for _ in range(4)]
+        statistics = [{'cnt':0,'hit': 0,'string_equal':0,'dfa_equal':0, 'membership_equal':0, 'invalid_regex':0} for _ in range(4)]
         for batch in batch_iterator:
             num_samples = num_samples + 1
             target_variables = getattr(batch, seq2seq.tgt_field_name)
@@ -160,15 +160,16 @@ with torch.no_grad():
             star_cnt = count_star(target_regex)
             statistics[star_cnt]['cnt'] +=1
             
-            # calculate regex equivalent accuracy
-            try:            
+            if not valid_regex(predict_regex) or not or_exception(predict_regex):
+                statistics[star_cnt]['invalid_regex'] +=1
+            else:    
                 if target_regex == predict_regex:
                     statistics[star_cnt]['hit'] +=1
                     statistics[star_cnt]['string_equal']+=1
                 elif regex_equal(target_regex, predict_regex):
                     statistics[star_cnt]['hit'] +=1
                     statistics[star_cnt]['dfa_equal'] +=1
-                elif pos_membership_test(predict_regex, pos_input) and neg_membership_test(predict,neg_input):
+                elif pos_membership_test(predict_regex, pos_input) and neg_membership_test(predict_regex,neg_input):
                     statistics[star_cnt]['hit'] +=1 
                     statistics[star_cnt]['membership_equal'] +=1
                 else: 
@@ -176,8 +177,6 @@ with torch.no_grad():
                     fw.write('neg_input : ' + ' '.join(neg_input)+'\n')
                     fw.write('target_regex : ' + target_regex  +'\n')
                     fw.write('predict_regex : ' + predict_regex + '\n\n')
-            except:
-                fw.write('invalid predicted regex >  {}\n'.format(predict_regex))
             
             if total == 0:
                 accuracy = float('nan')
