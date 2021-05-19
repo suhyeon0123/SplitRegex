@@ -55,6 +55,7 @@ parser.add_argument('--attn_mode', action='store_true', dest='attn_mode', defaul
 
 
 opt = parser.parse_args()
+opt.expt_dir = '/home/ksh/PycharmProjects/split/set2regex/'
 LOG_FORMAT = '%(asctime)s %(name)-12s %(levelname)-8s %(message)s'
 logging.basicConfig(format=LOG_FORMAT, level=getattr(logging, opt.log_level.upper()))
 logging.info(opt)
@@ -69,32 +70,35 @@ if opt.load_checkpoint is not None:
 else:
     # Prepare dataset
     
-    train_file = opt.train_path
-    valid_file = opt.dev_path
+    #train_file = opt.train_path
+    #valid_file = opt.dev_path
+
+    train_file = '../data/train2.txt'
+    valid_file = '../data/valid2.txt'
+
+
     set_num = get_set_num(train_file) 
-    set_num = int(set_num/2)
+    set_num = int(set_num/2) # 10g
 
     src = SourceField()
-    tgt = TargetField()
-    max_len = 50
-    
-    def len_filter(example):
-        return len(example.src) <= max_len and len(example.tgt) <= max_len
+    tgt = SourceField()
+    max_len = 10
 
     train = torchtext.data.TabularDataset(
         path=train_file, format='tsv',
-        fields= [('pos{}'.format(i+1), src) for i in range(set_num)] +
-        [('neg{}'.format(i+1),src) for i in range(set_num)]+[('tgt', tgt)])
-    
+        fields= [('src{}'.format(i+1), src) for i in range(set_num)] + [('tgt{}'.format(i+1), tgt) for i in range(set_num)])
+
     dev = torchtext.data.TabularDataset(
         path=valid_file, format='tsv',
-        fields=[('pos{}'.format(i+1),src) for i in range(set_num)] + 
-        [('neg{}'.format(i+1),src) for i in range(set_num)]+[('tgt', tgt)])
-        
+        fields=[('src{}'.format(i + 1), src) for i in range(set_num)] + [('tgt{}'.format(i + 1), tgt) for i in range(set_num)])
+
     src.build_vocab(train, max_size=50000)
     tgt.build_vocab(train, max_size=50000)
+
     input_vocab = src.vocab
     output_vocab = tgt.vocab
+    print("src vacab: " + str(input_vocab.stoi))
+    print("tgt vacab: " + str(output_vocab.stoi))
 
     # Prepare loss
     weight = torch.ones(len(tgt.vocab))
@@ -113,10 +117,12 @@ else:
                              bidirectional=bidirectional, n_layers=2, variable_lengths=True, vocab = input_vocab)
         decoder = DecoderRNN(len(tgt.vocab), max_len, hidden_size * 2 if bidirectional else hidden_size,
                              dropout_p=0.2, input_dropout_p=0.25, use_attention=opt.use_attn, bidirectional=bidirectional, n_layers=2,
-                             eos_id=tgt.eos_id, sos_id=tgt.sos_id, attn_mode = opt.attn_mode)
+                             attn_mode = opt.attn_mode)
+
         seq2seq = Seq2seq(encoder, decoder)
         
         if torch.cuda.is_available():
+            print("cuda is available")
             seq2seq.cuda()
 
         for param in seq2seq.parameters():
@@ -125,11 +131,13 @@ else:
         # Optimizer and learning rate scheduler can be customized by
         # explicitly constructing the objects and pass to the trainer.
         
-        optimizer = Optimizer(torch.optim.Adam(seq2seq.parameters(), lr = 0.001), max_grad_norm=5)
+        optimizer = Optimizer(torch.optim.Adam(seq2seq.parameters(), lr = 0.001), max_grad_norm=0.5)
         #scheduler = StepLR(optimizer.optimizer, 1)
-        scheduler = ReduceLROnPlateau(optimizer.optimizer, 'min', factor = 0.1, verbose=True, patience=9)
+        scheduler = ReduceLROnPlateau(optimizer.optimizer, 'min', factor = 0.1, verbose=True, patience=10)
         optimizer.set_scheduler(scheduler)
     expt_dir = opt.expt_dir + '_hidden_{}'.format(hidden_size)
+
+
     # train
     t = SupervisedTrainer(loss=loss, batch_size=64,
                           checkpoint_every=1800,
@@ -137,7 +145,7 @@ else:
     
     start_time = time.time()
     seq2seq = t.train(seq2seq, train,
-                      num_epochs=100, dev_data=dev,
+                      num_epochs=10000, dev_data=dev,
                       optimizer=optimizer,
                       teacher_forcing_ratio=0.5,
                       resume=opt.resume)

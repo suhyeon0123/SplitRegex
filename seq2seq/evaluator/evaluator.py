@@ -2,6 +2,7 @@ from __future__ import print_function, division
 
 import torch
 import torchtext
+from seq2seq.dataset import SourceField
 
 import seq2seq
 from seq2seq.loss import NLLLoss
@@ -42,71 +43,62 @@ class Evaluator(object):
             dataset=data, batch_size=self.batch_size,
             sort=False, sort_within_batch=False,
             device=device, repeat=False, shuffle=True, train=False)
-        
-        tgt_vocab = data.fields[seq2seq.tgt_field_name].vocab
-        pad = tgt_vocab.stoi[data.fields[seq2seq.tgt_field_name].pad_token]
+
+        #tgt_vocab = data.fields[seq2seq.tgt_field_name].vocab
+        #pad = tgt_vocab.stoi[data.fields[seq2seq.tgt_field_name].pad_token]
+
+
+        tgt_vocab = data.fields['tgt1'].vocab
+        pad = tgt_vocab.stoi[data.fields['tgt1'].pad_token]
 
         with torch.no_grad():
             for batch in batch_iterator:
-                target_variables = getattr(batch, seq2seq.tgt_field_name)
+                src_variables = [[] for i in range(batch.batch_size)]
+                tgt_variables = [[] for i in range(batch.batch_size)]
+                lengths = [[] for i in range(batch.batch_size)]
 
-                pos_input_variables = [[] for i in range(batch.batch_size)]
-                pos_input_lengths = [[] for i in range(batch.batch_size)]
-                
-                neg_input_variables = [[] for i in range(batch.batch_size)]
-                neg_input_lengths = [[] for i in range(batch.batch_size)]
-                
-                set_size = len(batch.fields)-1
+                set_size = len(batch.fields) / 2
                 max_len_within_batch = -1
-                
+
                 for idx in range(batch.batch_size):
-                    for src_idx in range(1, int(set_size/2)+1):
-                        src, src_len = getattr(batch, 'pos{}'.format(src_idx))
-                        pos_input_variables[idx].append(src[idx])
-                        pos_input_lengths[idx].append(src_len[idx])
-                    
-                    for src_idx in range(1, int(set_size/2)+1):
-                        src, src_len = getattr(batch, 'neg{}'.format(src_idx))
-                        neg_input_variables[idx].append(src[idx])
-                        neg_input_lengths[idx].append(src_len[idx])
-                    
-                    pos_input_lengths[idx] = torch.stack(pos_input_lengths[idx], dim =0)
-                    neg_input_lengths[idx] = torch.stack(neg_input_lengths[idx], dim =0)
-                    
-                    if max_len_within_batch <  torch.max(pos_input_lengths[idx].view(-1)).item():
-                        max_len_within_batch = torch.max(pos_input_lengths[idx].view(-1)).item()
-                    
-                    if max_len_within_batch <  torch.max(neg_input_lengths[idx].view(-1)).item():
-                        max_len_within_batch = torch.max(neg_input_lengths[idx].view(-1)).item()
+                    for src_idx in range(1, int(set_size) + 1):
+                        src, src_len = getattr(batch, 'src{}'.format(src_idx))
+                        src_variables[idx].append(src[idx])
+                        tgt, tgt_len = getattr(batch, 'tgt{}'.format(src_idx))
+                        tgt_variables[idx].append(tgt[idx])
+                        lengths[idx].append(src_len[idx])
 
-                for batch_idx in range(len(pos_input_variables)):
-                    for set_idx in range(int(set_size/2)):
-                        pos_input_variables[batch_idx][set_idx] = pad_tensor(pos_input_variables[batch_idx][set_idx], 
-                                                                         max_len_within_batch, self.input_vocab)
-                        
-                        neg_input_variables[batch_idx][set_idx] = pad_tensor(neg_input_variables[batch_idx][set_idx], 
-                                                                         max_len_within_batch, self.input_vocab)
-                        
-                    pos_input_variables[batch_idx] = torch.stack(pos_input_variables[batch_idx], dim=0)
-                    neg_input_variables[batch_idx] = torch.stack(neg_input_variables[batch_idx], dim=0)
+                    lengths[idx] = torch.stack(lengths[idx], dim=0)
 
-                
-                pos_input_variables = torch.stack(pos_input_variables, dim=0)
-                pos_input_lengths = torch.stack(pos_input_lengths, dim=0)
-                
-                neg_input_variables = torch.stack(neg_input_variables, dim=0)
-                neg_input_lengths = torch.stack(neg_input_lengths, dim=0)
-                
-                input_variables = (pos_input_variables, neg_input_variables)
-                input_lengths= (pos_input_lengths, neg_input_lengths)
+                    if max_len_within_batch < torch.max(lengths[idx].view(-1)).item():
+                        max_len_within_batch = torch.max(lengths[idx].view(-1)).item()
 
-                decoder_outputs, decoder_hidden, other = model(input_variables, input_lengths, target_variables)
+                for batch_idx in range(len(src_variables)):
+                    for set_idx in range(int(set_size)):
+                        src_variables[batch_idx][set_idx] = pad_tensor(src_variables[batch_idx][set_idx],
+                                                                       max_len_within_batch, self.input_vocab)
+
+                        tgt_variables[batch_idx][set_idx] = pad_tensor(tgt_variables[batch_idx][set_idx],
+                                                                       max_len_within_batch, tgt_vocab)
+
+                    src_variables[batch_idx] = torch.stack(src_variables[batch_idx], dim=0)
+                    tgt_variables[batch_idx] = torch.stack(tgt_variables[batch_idx], dim=0)
+
+                # ---- a copy from supervised_trainer.py
+
+                src_variables = torch.stack(src_variables, dim=0)
+                tgt_variables = torch.stack(tgt_variables, dim=0)
+                lengths = torch.stack(lengths, dim=0)
+
+
+                decoder_outputs, decoder_hidden, other = model(src_variables, lengths, tgt_variables)
 
                 # Evaluation
                 seqlist = other['sequence']
+                tgt_variables = tgt_variables.view(-1,10)
                 for step, step_output in enumerate(decoder_outputs):
-                    target = target_variables[:, step + 1]
-                    loss.eval_batch(step_output.view(target_variables.size(0), -1), target)
+                    target = tgt_variables[:, step]
+                    loss.eval_batch(step_output.view(tgt_variables.size(0), -1), target)
 
                     non_padding = target.ne(pad)
                     correct = seqlist[step].view(-1).eq(target).masked_select(non_padding).sum().item()

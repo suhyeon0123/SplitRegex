@@ -12,6 +12,8 @@ def get_set_num(dataset_file):
 def pad_tensor(input_var, max_len, vocab):
     pad_idx = vocab.stoi['<pad>']
     input_var = input_var.cuda()
+    if len(input_var) > 10:
+        input_var = input_var[:10]
     if len(input_var) < max_len:
         padded = torch.Tensor([pad_idx]*(max_len-len(input_var))).type(torch.LongTensor).cuda()
         input_var = torch.cat((input_var, padded))

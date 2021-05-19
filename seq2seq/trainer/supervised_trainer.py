@@ -62,9 +62,18 @@ class SupervisedTrainer(object):
                                                        teacher_forcing_ratio=teacher_forcing_ratio)
         # Get loss
         loss.reset()
+        target_variable = target_variable.view(-1, 10)
+        #print(type(decoder_outputs))
+        #print(len(decoder_outputs))
+        #print(len(decoder_outputs[0]))
+        #print(len(decoder_outputs[0][0]))
+        # 10, 640, 9
+        #print(target_variable.shape)
         for step, step_output in enumerate(decoder_outputs):
             batch_size = target_variable.size(0)
-            loss.eval_batch(step_output.contiguous().view(batch_size, -1), target_variable[:, step + 1])
+            loss.eval_batch(step_output.contiguous().view(batch_size, -1), target_variable[:, step])
+            #loss.eval_batch(step_output.contiguous().view(batch_size, -1), target_variable[:, step+1])
+
         # Backward propagation
         model.zero_grad()
         loss.backward()
@@ -80,7 +89,8 @@ class SupervisedTrainer(object):
         epoch_loss_total = 0  # Reset every epoch
 
         device = torch.device('cuda:0') if torch.cuda.is_available() else -1
-        
+
+
         batch_iterator = torchtext.data.BucketIterator(
             dataset=data, batch_size=self.batch_size,
             sort=False, sort_within_batch=False,
@@ -99,8 +109,8 @@ class SupervisedTrainer(object):
         avg_train_losses = []
         # to track the average validtation loss per epoch as the model trains
         avg_valid_losses = []
-        early_stopping = EarlyStopping(patience = 7, verbose=True)
-        
+        early_stopping = EarlyStopping(patience = 100, verbose=True)
+
         for epoch in range(start_epoch, n_epochs + 1):
             log.debug("Epoch: %d, Step: %d" % (epoch, step))
 
@@ -113,58 +123,56 @@ class SupervisedTrainer(object):
             for batch in batch_generator:
                 step += 1
                 step_elapsed += 1
-                target_variables = getattr(batch, 'tgt')
-                
-                pos_input_variables = [[] for i in range(batch.batch_size)]
-                pos_input_lengths = [[] for i in range(batch.batch_size)]
-                
-                neg_input_variables = [[] for i in range(batch.batch_size)]
-                neg_input_lengths = [[] for i in range(batch.batch_size)]
-                
-                set_size = len(batch.fields)-1
+
+
+                src_variables = [[] for _ in range(batch.batch_size)]
+                tgt_variables = [[] for _ in range(batch.batch_size)]
+
+                lengths = [[] for _ in range(batch.batch_size)]
+
+                set_size = len(batch.fields)/2
                 max_len_within_batch = -1
-                
+
+
                 for idx in range(batch.batch_size):
-                    for src_idx in range(1, int(set_size/2)+1):
-                        src, src_len = getattr(batch, 'pos{}'.format(src_idx))
-                        pos_input_variables[idx].append(src[idx])
-                        pos_input_lengths[idx].append(src_len[idx])
-                    
-                    for src_idx in range(1, int(set_size/2)+1):
-                        src, src_len = getattr(batch, 'neg{}'.format(src_idx))
-                        neg_input_variables[idx].append(src[idx])
-                        neg_input_lengths[idx].append(src_len[idx])
-                    
-                    pos_input_lengths[idx] = torch.stack(pos_input_lengths[idx], dim =0)
-                    neg_input_lengths[idx] = torch.stack(neg_input_lengths[idx], dim =0)
-                    
-                    if max_len_within_batch <  torch.max(pos_input_lengths[idx].view(-1)).item():
-                        max_len_within_batch = torch.max(pos_input_lengths[idx].view(-1)).item()
-                    
-                    if max_len_within_batch <  torch.max(neg_input_lengths[idx].view(-1)).item():
-                        max_len_within_batch = torch.max(neg_input_lengths[idx].view(-1)).item()
+                    for src_idx in range(1, int(set_size)+1):
+                        src, src_len = getattr(batch, 'src{}'.format(src_idx))
+                        src_variables[idx].append(src[idx])
+                        tgt, tgt_len = getattr(batch, 'tgt{}'.format(src_idx))
+                        tgt_variables[idx].append(tgt[idx])
+                        lengths[idx].append(src_len[idx])
 
-                for batch_idx in range(len(pos_input_variables)):
-                    for set_idx in range(int(set_size/2)):
-                        pos_input_variables[batch_idx][set_idx] = pad_tensor(pos_input_variables[batch_idx][set_idx], 
-                                                                         max_len_within_batch, self.input_vocab)
-                        
-                        neg_input_variables[batch_idx][set_idx] = pad_tensor(neg_input_variables[batch_idx][set_idx], 
-                                                                         max_len_within_batch, self.input_vocab)
-                        
-                    pos_input_variables[batch_idx] = torch.stack(pos_input_variables[batch_idx], dim=0)
-                    neg_input_variables[batch_idx] = torch.stack(neg_input_variables[batch_idx], dim=0)
+                    lengths[idx] = torch.stack(lengths[idx], dim=0)
+
+                    if max_len_within_batch < torch.max(lengths[idx].view(-1)).item():
+                        max_len_within_batch = torch.max(lengths[idx].view(-1)).item()
+
+
+                for batch_idx in range(len(src_variables)):
+                    for set_idx in range(int(set_size)):
+
+                        src_variables[batch_idx][set_idx] = pad_tensor(src_variables[batch_idx][set_idx],
+                                                                             max_len_within_batch, self.input_vocab)
+
+                        tgt_variables[batch_idx][set_idx] = pad_tensor(tgt_variables[batch_idx][set_idx],
+                                                                       max_len_within_batch, self.output_vocab)
+
+
+
+                    src_variables[batch_idx] = torch.stack(src_variables[batch_idx], dim=0)
+                    tgt_variables[batch_idx] = torch.stack(tgt_variables[batch_idx], dim=0)
 
                 
-                pos_input_variables = torch.stack(pos_input_variables, dim=0)
-                pos_input_lengths = torch.stack(pos_input_lengths, dim=0)
-                
-                neg_input_variables = torch.stack(neg_input_variables, dim=0)
-                neg_input_lengths = torch.stack(neg_input_lengths, dim=0)
-                
-                input_variables = (pos_input_variables, neg_input_variables)
-                input_lengths= (pos_input_lengths, neg_input_lengths)
-                loss = self._train_batch(input_variables, input_lengths, target_variables, model, teacher_forcing_ratio)
+                src_variables = torch.stack(src_variables, dim=0)
+                tgt_variables = torch.stack(tgt_variables, dim=0)
+                lengths = torch.stack(lengths, dim=0)
+
+
+
+                #input_variables = (pos_input_variables, neg_input_variables)
+                #input_lengths= (pos_input_lengths, neg_input_lengths)
+                #print(lengths.shape)
+                loss = self._train_batch(src_variables, lengths, tgt_variables, model, teacher_forcing_ratio)
                 
                 train_losses.append(loss)
                 
@@ -254,7 +262,6 @@ class SupervisedTrainer(object):
             self.optimizer = optimizer
 
         self.logger.info("Optimizer: %s, Scheduler: %s" % (self.optimizer.optimizer, self.optimizer.scheduler))
-
         train_loss, valid_loss = self._train_epoches(data, model, num_epochs,
                                                      start_epoch, step, dev_data=dev_data,
                                                      teacher_forcing_ratio=teacher_forcing_ratio)
