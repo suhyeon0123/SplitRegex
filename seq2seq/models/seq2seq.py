@@ -46,16 +46,11 @@ class Seq2seq(nn.Module):
 
     def forward(self, input_variable, input_lengths=None, target_variable=None,
                 teacher_forcing_ratio=0):
-        encoder_outputs, encoder_hidden, masking = self.encoder(input_variable, input_lengths)
+        encoder_outputs, encoder_hidden, masking, rnn1_hidden = self.encoder(input_variable, input_lengths)
         result = self.decoder(inputs=input_variable,
                               encoder_hidden=encoder_hidden,
                               encoder_outputs=encoder_outputs,
                               function=self.decode_function,
-                              teacher_forcing_ratio=teacher_forcing_ratio, masking=masking)
+                              teacher_forcing_ratio=teacher_forcing_ratio, masking=masking, rnn1_hidden = rnn1_hidden)
 
-        '''result = self.decoder(inputs=target_variable,
-                              encoder_hidden=encoder_hidden,
-                              encoder_outputs=encoder_outputs,
-                              function=self.decode_function,
-                              teacher_forcing_ratio=teacher_forcing_ratio, masking= masking)'''
         return result

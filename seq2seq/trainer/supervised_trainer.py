@@ -63,17 +63,20 @@ class SupervisedTrainer(object):
         # Get loss
         loss.reset()
         target_variable = target_variable.view(-1, 10)
+        #print(target_variable.shape) # 640,10
+        #for i in range(10):
+            #print(target_variable[i])
+        #exit()
         #print(type(decoder_outputs))
         #print(len(decoder_outputs))
         #print(len(decoder_outputs[0]))
         #print(len(decoder_outputs[0][0]))
-        # 10, 640, 9
+        # 10, 640, 12
         #print(target_variable.shape)
         for step, step_output in enumerate(decoder_outputs):
             batch_size = target_variable.size(0)
             loss.eval_batch(step_output.contiguous().view(batch_size, -1), target_variable[:, step])
             #loss.eval_batch(step_output.contiguous().view(batch_size, -1), target_variable[:, step+1])
-
         # Backward propagation
         model.zero_grad()
         loss.backward()
@@ -199,11 +202,12 @@ class SupervisedTrainer(object):
             epoch_loss_avg = epoch_loss_total / min(steps_per_epoch, step - start_step)
             epoch_loss_total = 0
             log_msg = "Finished epoch %d: Train %s: %.4f,  %.4f" % (epoch, self.loss.name, epoch_loss_avg, train_loss)
-            
+
+
             if dev_data is not None:
-                dev_loss, accuracy = self.evaluator.evaluate(model, dev_data)
+                dev_loss, accuracy, acc_seq, acc_set= self.evaluator.evaluate(model, dev_data)
                 avg_valid_losses.append(dev_loss)
-                log_msg += ", Dev %s: %.4f, Accuracy: %.4f" % (self.loss.name, dev_loss, accuracy)
+                log_msg += ", Dev %s: %.4f, Accuracy: %.4f, Accuracy of seq: %.4f, Accuracy of set: %.4f" % (self.loss.name, dev_loss, accuracy, acc_seq, acc_set)
                 early_stopping(dev_loss, model, self.optimizer, epoch, step, self.input_vocab, self.output_vocab, self.expt_dir)                 
                 self.optimizer.update(dev_loss, epoch)
                 if accuracy > best_acc:

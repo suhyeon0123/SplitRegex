@@ -1,4 +1,5 @@
 import torch.nn as nn
+import torch.nn.functional as F
 import torch
 import seq2seq
 from seq2seq.util.string_preprocess import preprocessing, get_set_lengths, get_mask, get_mask2
@@ -52,9 +53,9 @@ class EncoderRNN(BaseRNN):
         self.hidden_size = hidden_size
         self.input_dropout_p = input_dropout_p
         self.n_layers= n_layers
-        self.rnn1 = self.rnn_cell(hidden_size, hidden_size, n_layers,
+        self.rnn1 = self.rnn_cell(vocab_size, hidden_size, n_layers,
                                  batch_first=True, bidirectional=bidirectional, dropout=dropout_p)
-        
+
         self.rnn2 = self.rnn_cell(hidden_size*2 if self.bidirectional else hidden_size, hidden_size, n_layers,
                                  batch_first=True, bidirectional=bidirectional, dropout=dropout_p)
         self.linear = nn.Linear(self.hidden_size, self.hidden_size)
@@ -70,20 +71,14 @@ class EncoderRNN(BaseRNN):
         set_size = input_var.size(1)    #10
         seq_len = input_var.size(2)     #10
 
-        src_embedded = self.embedding(input_var) # batch, set_size, seq_len, embedding_dim
-        src_embedded = src_embedded.view(batch_size*set_size,seq_len, -1) # batch x set_size, seq_len, embedding_dim
+
+        one_hot = F.one_hot(input_var)
+        src_embedded = one_hot.view(batch_size*set_size,seq_len, -1).float()
+        #src_embedded = self.embedding(input_var) # batch, set_size, seq_len, embedding_dim
+        #src_embedded = src_embedded.view(batch_size*set_size,seq_len, -1) # batch x set_size, seq_len, embedding_dim
         masking = get_mask(input_var)  # batch, set_size, seq_len
         input_lengths = input_lengths.reshape(-1)  # batch x set_size
 
-        '''pos_embedded = self.embedding(pos_input) # batch, set_size, seq_len, embedding_dim
-        neg_embedded = self.embedding(neg_input) # batch, set_size, seq_len, embedding_dim
-        pos_embedded = pos_embedded.view(batch_size*set_size,seq_len, -1) # batch x set_size, seq_len, embedding_dim
-        neg_embedded = neg_embedded.view(batch_size*set_size, seq_len, -1) # batch x set_size, seq_len ,embedding_dim 
-        pos_input_mask = get_mask(pos_input) # batch, set_size, seq_len
-        neg_input_mask = get_mask(neg_input) # batch, set_size, seq_len 
-        masking = (pos_input_mask, neg_input_mask) # masking for sequence lengths
-        pos_lengths = pos_lengths.reshape(-1) # batch x set_size
-        neg_lengths = neg_lengths.reshape(-1) # batch x set_size'''
 
         #variable_lengths is True
         if self.variable_lengths:
@@ -91,6 +86,7 @@ class EncoderRNN(BaseRNN):
             #neg_embedded = nn.utils.rnn.pack_padded_sequence(neg_embedded, neg_lengths.cpu(), batch_first=True, enforce_sorted=False)
         
         src_output, src_hidden = self.rnn1(src_embedded) # (batch x set_size, seq_len, hidden), # (num_layer x num_dir, batch*set_size, hidden)
+        rnn1_hidden = src_hidden # (num_layer x num_dir, batch*set_size, hidden)
 
 
         if self.variable_lengths:
@@ -134,4 +130,4 @@ class EncoderRNN(BaseRNN):
 
         hiddens = (last_hidden, last_cell)
         outputs = (src_output, set_output) #revised
-        return outputs, hiddens, masking
+        return outputs, hiddens, masking, rnn1_hidden

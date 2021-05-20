@@ -69,16 +69,13 @@ if opt.load_checkpoint is not None:
     output_vocab = checkpoint.output_vocab
 else:
     # Prepare dataset
-    
-    #train_file = opt.train_path
-    #valid_file = opt.dev_path
 
-    train_file = '../data/train2.txt'
-    valid_file = '../data/valid2.txt'
+    train_file = "/home/ksh/PycharmProjects/train3.txt"
+    valid_file = "/home/ksh/PycharmProjects/valid3.txt"
 
 
     set_num = get_set_num(train_file) 
-    set_num = int(set_num/2) # 10g
+    set_num = int(set_num/2) # 10
 
     src = SourceField()
     tgt = SourceField()
@@ -145,7 +142,7 @@ else:
     
     start_time = time.time()
     seq2seq = t.train(seq2seq, train,
-                      num_epochs=10000, dev_data=dev,
+                      num_epochs=50, dev_data=dev,
                       optimizer=optimizer,
                       teacher_forcing_ratio=0.5,
                       resume=opt.resume)
