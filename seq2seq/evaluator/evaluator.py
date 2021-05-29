@@ -1,4 +1,7 @@
 from __future__ import print_function, division
+
+from collections import Counter
+
 import numpy as np
 import torch
 import torchtext
@@ -27,7 +30,7 @@ class Evaluator(object):
         self.loss = loss
         self.batch_size = batch_size
         self.input_vocab = input_vocab
-        
+
     def evaluate(self, model, data):
         """ Evaluate a model on given dataset and return performance.
 
@@ -44,6 +47,7 @@ class Evaluator(object):
         loss.reset()
         match = 0
         match_seqnum = 0
+        only_pad_count = 0
         match_setnum = 0
         total = 0
 
@@ -99,19 +103,55 @@ class Evaluator(object):
 
 
                 decoder_outputs, decoder_hidden, other = model(src_variables, lengths, tgt_variables)
+                tgt_variables = tgt_variables.view(-1, 10)
+
+
+
+
+                # debug
+                src_variables1 = src_variables.view(-1, 10)
+                batch_size = tgt_variables.size(0)
+
+                result = [dict(Counter(l)) for l in tgt_variables.tolist()]
+                print("")
+                print(result[:10])
+                example = []
+                for batch_idx in range(batch_size):
+                    batch_example = {}
+                    example_idx = 0
+                    for label in range(2, 12):
+                        if label in result[batch_idx]:
+                            batch_example[label - 2] = src_variables1[batch_idx][
+                                                       example_idx:example_idx + result[batch_idx][label]]
+                            example_idx += result[batch_idx][label]
+
+                    example.append(batch_example)
+
+                seqlist = other['sequence']
+                seqlist = [i.tolist() for i in seqlist]
+                tmp = torch.Tensor(seqlist).transpose(0, 1).squeeze(-1).tolist()
+                result = [dict(Counter(l)) for l in tmp]
+                print(result[:10])
+                example = []
+                for batch_idx in range(batch_size):
+                    batch_example = {}
+                    example_idx = 0
+                    for label in range(2, 12):
+                        if label in result[batch_idx]:
+                            batch_example[label - 2] = src_variables1[batch_idx][
+                                                       example_idx:example_idx + result[batch_idx][label]]
+                            example_idx += result[batch_idx][label]
+                    example.append(batch_example)
+
 
 
                 # Evaluation
-                seqlist = other['sequence']
-                #print(seqlist.shape) # 10,640
-                tgt_variables = tgt_variables.view(-1, 10)
+                seqlist = other['sequence']# 10,640
+
                 match_seq = None
                 match_seq = torch.zeros(len(tgt_variables))
                 for step, step_output in enumerate(decoder_outputs):
                     target = tgt_variables[:, step]
-                    #print(target.shape)
-                    #print(step_output.view(tgt_variables.size(0), -1).shape)
-                    #exit()
                     loss.eval_batch(step_output.view(tgt_variables.size(0), -1), target)
 
                     if step == 0:
@@ -122,20 +162,19 @@ class Evaluator(object):
                     correct = seqlist[step].view(-1).eq(target).masked_select(non_padding).sum().item()
                     match += correct
                     total += non_padding.sum().item()
-                    #print(match_seq.shape)
+                #print(match_seq.shape) # 640, 10
 
-                #print(match_seq)
-                #print(match_seq.tolist())
-                #print( [example.all() for example in match_seq].count(True))
-                match_seqnum += [example.all() for example in match_seq].count(True)
-                tmp = [example.all() for example in match_seq]
+                result = torch.logical_or(match_seq, tgt_variables.eq(pad))
+                match_seqnum += [example.all() for example in result].count(True)
+                only_pad_count += [example.all() for example in tgt_variables.eq(pad)].count(True)
+
+                tmp = [example.all() for example in result]
                 tmp = list_chunk(tmp, 10)
                 match_setnum += [all(example) for example in tmp].count(True)
 
 
 
-
-        acc_seq = match_seqnum / 20000 / 10
+        acc_seq = (match_seqnum - only_pad_count) / (20000 * 10 - only_pad_count)
         acc_set = match_setnum / 20000
         if total == 0:
             accuracy = float('nan')

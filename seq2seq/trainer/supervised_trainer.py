@@ -7,6 +7,7 @@ import numpy as np
 import torch
 import torchtext
 from torch import optim
+from collections import Counter
 
 import seq2seq
 from seq2seq.evaluator import Evaluator
@@ -36,16 +37,16 @@ class SupervisedTrainer(object):
         if random_seed is not None:
             random.seed(random_seed)
             torch.manual_seed(random_seed)
-            
+
         self.loss = loss
         self.evaluator = Evaluator(loss=self.loss, batch_size=batch_size, input_vocab=input_vocab)
         self.optimizer = None
         self.checkpoint_every = checkpoint_every
         self.print_every = print_every
-        
+
         self.input_vocab = input_vocab
         self.output_vocab = output_vocab
-        
+
         if not os.path.isabs(expt_dir):
             expt_dir = os.path.join(os.getcwd(), expt_dir)
         self.expt_dir = expt_dir
@@ -58,11 +59,57 @@ class SupervisedTrainer(object):
     def _train_batch(self, input_variable, input_lengths, target_variable, model, teacher_forcing_ratio):
         loss = self.loss
         # Forward propagation
-        decoder_outputs, decoder_hidden, other = model(input_variable, input_lengths, target_variable,
+        decoder_outputs, decoder_hidden, other = model(input_variable, input_lengths, input_variable,
                                                        teacher_forcing_ratio=teacher_forcing_ratio)
+
+        target_variable = target_variable.view(-1, 10)
+        batch_size = target_variable.size(0)
+
+        input_variable = input_variable.view(-1, 10).tolist() # 640,10  {'<unk>': 0, '<pad>': 1, '1': 2, '0': 3})
+
+
+        '''result = [dict(Counter(l)) for l in target_variable.tolist()]
+        print("")
+        print(result[:10])
+        example = []
+        for batch_idx in range(batch_size):
+            batch_example = {}
+            example_idx = 0
+            for label in range(2, 12):
+                if label in result[batch_idx]:
+                    batch_example[label - 2] = input_variable[batch_idx][
+                                               example_idx:example_idx + result[batch_idx][label]]
+                    example_idx += result[batch_idx][label]
+
+            if random.random() < 0.01:
+                pass
+                # print(batch_example)
+            example.append(batch_example)
+
+
+        seqlist = other['sequence']
+        seqlist = [i.tolist() for i in seqlist]
+        tmp = torch.Tensor(seqlist).transpose(0, 1).squeeze(-1).tolist()
+        result = [dict(Counter(l)) for l in tmp]
+        print(result[:10])
+        example = []
+        for batch_idx in range(batch_size):
+            batch_example = {}
+            example_idx = 0
+            for label in range(2, 12):
+                if label in result[batch_idx]:
+                    batch_example[label-2] = input_variable[batch_idx][example_idx:example_idx +result[batch_idx][label]]
+                    example_idx += result[batch_idx][label]
+
+            if random.random() <0.01:
+                pass
+                #print(batch_example)
+            example.append(batch_example)'''
+
+
+
         # Get loss
         loss.reset()
-        target_variable = target_variable.view(-1, 10)
         #print(target_variable.shape) # 640,10
         #for i in range(10):
             #print(target_variable[i])
@@ -104,8 +151,8 @@ class SupervisedTrainer(object):
 
         step = start_step
         step_elapsed = 0
-        best_acc  = 0 
-        
+        best_acc  = 0
+
         # to track the training loss as the model trains
         train_losses = []
         # to track the average training loss per epoch as the model trains
@@ -165,20 +212,18 @@ class SupervisedTrainer(object):
                     src_variables[batch_idx] = torch.stack(src_variables[batch_idx], dim=0)
                     tgt_variables[batch_idx] = torch.stack(tgt_variables[batch_idx], dim=0)
 
-                
+
                 src_variables = torch.stack(src_variables, dim=0)
                 tgt_variables = torch.stack(tgt_variables, dim=0)
                 lengths = torch.stack(lengths, dim=0)
-
-
 
                 #input_variables = (pos_input_variables, neg_input_variables)
                 #input_lengths= (pos_input_lengths, neg_input_lengths)
                 #print(lengths.shape)
                 loss = self._train_batch(src_variables, lengths, tgt_variables, model, teacher_forcing_ratio)
-                
+
                 train_losses.append(loss)
-                
+
                 # Record average loss
                 print_loss_total += loss
                 epoch_loss_total += loss
@@ -191,11 +236,11 @@ class SupervisedTrainer(object):
                         self.loss.name,
                         print_loss_avg)
                     log.info(log_msg)
-                
+
             train_loss = np.average(train_losses)
             avg_train_losses.append(train_loss)
-            
-            # clear lists to track next epoch 
+
+            # clear lists to track next epoch
             train_losses = []
             if step_elapsed == 0: continue
 
@@ -208,7 +253,7 @@ class SupervisedTrainer(object):
                 dev_loss, accuracy, acc_seq, acc_set= self.evaluator.evaluate(model, dev_data)
                 avg_valid_losses.append(dev_loss)
                 log_msg += ", Dev %s: %.4f, Accuracy: %.4f, Accuracy of seq: %.4f, Accuracy of set: %.4f" % (self.loss.name, dev_loss, accuracy, acc_seq, acc_set)
-                early_stopping(dev_loss, model, self.optimizer, epoch, step, self.input_vocab, self.output_vocab, self.expt_dir)                 
+                early_stopping(dev_loss, model, self.optimizer, epoch, step, self.input_vocab, self.output_vocab, self.expt_dir)
                 self.optimizer.update(dev_loss, epoch)
                 if accuracy > best_acc:
                     log.info('accuracy increased >> best_accuracy{}, current_accuracy{}'.format(accuracy, best_acc))
@@ -216,14 +261,14 @@ class SupervisedTrainer(object):
                 model.train(mode=True)
             else:
                 self.optimizer.update(epoch_loss_avg, epoch)
-            
+
             if early_stopping.early_stop:
                 print("Early Stopping")
                 break
             log.info(log_msg)
         return avg_train_losses, avg_valid_losses
-    
-    
+
+
     def train(self, model, data, num_epochs=5,
               resume=False, dev_data=None,
               optimizer=None, teacher_forcing_ratio=0):

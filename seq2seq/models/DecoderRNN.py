@@ -75,7 +75,7 @@ class DecoderRNN(BaseRNN):
 
         self.bidirectional_encoder = bidirectional
         #self.rnn = self.rnn_cell(hidden_size, hidden_size*2, n_layers, batch_first=True, dropout=dropout_p)
-        self.rnn = self.rnn_cell(4, hidden_size*2, n_layers, batch_first=True, dropout=dropout_p)
+        self.rnn = self.rnn_cell(4, hidden_size, n_layers, batch_first=True, dropout=dropout_p)
         self.output_size = vocab_size
         self.max_length = max_len
         self.use_attention = use_attention
@@ -89,7 +89,9 @@ class DecoderRNN(BaseRNN):
         if use_attention:
             self.attention = Attention(self.hidden_size, attn_mode)
 
-        self.out = nn.Linear(self.hidden_size*2, self.output_size)
+        self.out = nn.Linear(self.hidden_size, self.output_size)
+        self.hidden_out1 = nn.Linear(self.hidden_size*2, self.hidden_size)
+        self.hidden_out2 = nn.Linear(self.hidden_size * 2, self.hidden_size)
 
     '''def forward_step(self, input_var, hidden, encoder_outputs, function):
         batch_size = input_var.size(0)
@@ -97,7 +99,7 @@ class DecoderRNN(BaseRNN):
         print(output_size)
         embedded = self.embedding(input_var) # batch, seq_len, embedding_dim
         embedded = self.input_dropout(embedded) # batch, seq_len, embedding_dim
-        output, hidden = self.rnn(embedded, hidden) 
+        output, hidden = self.rnn(embedded, hidden)
         # output (batch, dec_seq_len, hidden)
         # hidden type: tuple (num_layer, batch, hidden)
 
@@ -120,11 +122,13 @@ class DecoderRNN(BaseRNN):
         embedded = self.input_dropout(embedded)
 
 
-
         hidden = (hidden[0].repeat_interleave(10, dim=1), hidden[1].repeat_interleave(10, dim=1))  # 2, 640, 128 of tuple2
 
         #hidden = (hidden[0][::]+ self.rnn1_hidden[0][::], hidden[1][::]+ self.rnn1_hidden[1][::])# 2, 640, 128 * of tuple2
         hidden = (torch.cat((hidden[0], self.rnn1_hidden[0]), -1), torch.cat((hidden[1], self.rnn1_hidden[1]), -1)) # 2, 640, 256 of tuple2
+        hidden = (self.hidden_out1(hidden[0]), self.hidden_out2(hidden[1]))
+
+
         output, hidden = self.rnn(embedded, hidden)
 
         # output (batch*set, dec_seq_len, hidden)
@@ -140,11 +144,17 @@ class DecoderRNN(BaseRNN):
 
         attn = None
         if self.use_attention:
-            self.attention.set_mask(self.masking)
-            output, attn = self.attention(output, encoder_outputs)
+            #self.masking = self.masking.repeat_interleave(10, dim=0)
+            #self.attention.set_mask(self.masking)
+
+            # encouder_outputs[0].shape: batch_size x seq_len x set_size x hidden
+            # output.shape: (batch_size * set_size) x seq_len x (hidden * 2?)
+
+            # print(len(encoder_outputs), encoder_outputs[0].shape, output.shape)
+            output, attn = self.attention(output, encoder_outputs[0].view(batch_size*set_size, seq_len, -1))
 
         #print(output.contiguous().view(-1, self.hidden_size*2).shape)
-        predicted_softmax = function(self.out(output.contiguous().view(-1, self.hidden_size*2)), dim=1).view(batch_size * 10, 10, self.output_size)
+        predicted_softmax = function(self.out(output.contiguous().view(-1, self.hidden_size)), dim=1).view(batch_size * set_size, seq_len, self.output_size)
         #print(predicted_softmax.shape) # (640,10,9)
         return predicted_softmax, hidden, attn
 
@@ -156,8 +166,8 @@ class DecoderRNN(BaseRNN):
         ret_dict = dict()
         if self.use_attention:
             ret_dict[DecoderRNN.KEY_ATTN_SCORE] = list()
-        
-        if masking is not None: 
+
+        if masking is not None:
             self.masking = masking
 
         inputs, batch_size, max_length = self._validate_args(inputs, encoder_hidden, encoder_outputs,
@@ -201,6 +211,7 @@ class DecoderRNN(BaseRNN):
                                                                       function=function)
         #print(decoder_output.shape)
         #print(decoder_output.size(1))
+
         for di in range(decoder_output.size(1)):
             step_output = decoder_output[:, di, :]
             if attn is not None:
@@ -208,7 +219,7 @@ class DecoderRNN(BaseRNN):
                     step_attn = (
                     (attn[0][0][:, di, :, :], attn[0][1][:, di, :, :]), (attn[1][0][:, di, :], attn[1][1][:, di, :]))
                 else:  # attn only pos
-                    step_attn = (attn[0][:, di, :, :], attn[1][:, di, :])
+                    step_attn = attn[:, di, :]
             else:
                 step_attn = None
             decode(di, step_output, step_attn)

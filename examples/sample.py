@@ -113,7 +113,7 @@ else:
         encoder = EncoderRNN(len(src.vocab), max_len, hidden_size, dropout_p = 0.25,input_dropout_p = 0.25,
                              bidirectional=bidirectional, n_layers=2, variable_lengths=True, vocab = input_vocab)
         decoder = DecoderRNN(len(tgt.vocab), max_len, hidden_size * 2 if bidirectional else hidden_size,
-                             dropout_p=0.2, input_dropout_p=0.25, use_attention=opt.use_attn, bidirectional=bidirectional, n_layers=2,
+                             dropout_p=0.2, input_dropout_p=0.25, use_attention=True, bidirectional=bidirectional, n_layers=2,
                              attn_mode = opt.attn_mode)
 
         seq2seq = Seq2seq(encoder, decoder)

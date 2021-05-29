@@ -33,7 +33,7 @@ class EncoderRNN(BaseRNN):
     Outputs: output, hidden
         - **output** (batch, seq_len, hidden_size): tensor containing the encoded features of the input sequence
         - **hidden** (num_layers * num_directions, batch, hidden_size): tensor containing the features in the hidden state `h`
-        
+
     """
 
     def __init__(self, vocab_size, max_len, hidden_size,
@@ -58,8 +58,7 @@ class EncoderRNN(BaseRNN):
 
         self.rnn2 = self.rnn_cell(hidden_size*2 if self.bidirectional else hidden_size, hidden_size, n_layers,
                                  batch_first=True, bidirectional=bidirectional, dropout=dropout_p)
-        self.linear = nn.Linear(self.hidden_size, self.hidden_size)
-        
+
     def forward(self, input_var, input_lengths=None):
 
         '''pos_input  = input_var[0] # batch, set_size, seq_len
@@ -84,7 +83,7 @@ class EncoderRNN(BaseRNN):
         if self.variable_lengths:
             src_embedded = nn.utils.rnn.pack_padded_sequence(src_embedded, input_lengths.cpu(), batch_first=True, enforce_sorted=False)
             #neg_embedded = nn.utils.rnn.pack_padded_sequence(neg_embedded, neg_lengths.cpu(), batch_first=True, enforce_sorted=False)
-        
+
         src_output, src_hidden = self.rnn1(src_embedded) # (batch x set_size, seq_len, hidden), # (num_layer x num_dir, batch*set_size, hidden)
         rnn1_hidden = src_hidden # (num_layer x num_dir, batch*set_size, hidden)
 
@@ -92,22 +91,22 @@ class EncoderRNN(BaseRNN):
         if self.variable_lengths:
             src_output, _ = nn.utils.rnn.pad_packed_sequence(src_output, batch_first=True)
             #neg_output, _ = nn.utils.rnn.pad_packed_sequence(neg_output, batch_first=True)
-        
+
         src_output = src_output.view(batch_size, set_size, src_output.size(1), -1) # batch, set_size, seq_len, hidden)
         #neg_output = neg_output.view(batch_size, set_size, neg_output.size(1), -1) # batch, set_size, neg_seq_len, hidden)
-        set_embedded = src_hidden[0].view(2, -1, batch_size*set_size, self.hidden_size) # num_layer(2), num_direction, batch x set_size, hidden
+        set_embedded = src_hidden[0].view(self.n_layers, -1, batch_size*set_size, self.hidden_size) # num_layer(2), num_direction, batch x set_size, hidden
         #neg_set_embedded = neg_hidden[0].view(2, -1, batch_size*set_size, self.hidden_size) # num_layer(2), num_direction, batch x set_size, hidden
         # use hidden state of final_layer
         set_embedded = set_embedded[-1, :,:,:] # num_direction, batch x set_size, hidden
         #neg_set_embedded = neg_set_embedded[-1, :,:,:] # num_direction, batch x set_size, hidden
-        
+
         if self.bidirectional:
             set_embedded = torch.cat((set_embedded[0], set_embedded[1]), dim=-1) # batch x set_size, num_direction x hidden
             #neg_set_embedded = torch.cat((neg_set_embedded[0], neg_set_embedded[1]), dim=-1) # batch x set_size, num_direction x hidden
         else:
             set_embedded = set_embedded.squeeze(0) # batch x set_size, hidden
             #neg_set_embedded = neg_set_embedded.squeeze(0) # batch x set_size, hidden
-        
+
         set_embedded = set_embedded.view(batch_size, set_size, -1) # batch, set_size, hidden
         #neg_set_embedded = neg_set_embedded.view(batch_size, set_size, -1) # batch, set_size, hidden
         set_output, set_hidden = self.rnn2(set_embedded) # (batch, set_size, hidden), # (num_layer*num_dir, batch, hidden) 2개 tuple 구성
@@ -122,10 +121,13 @@ class EncoderRNN(BaseRNN):
         #last_cell = torch.cat((pos_set_last_cell, neg_set_last_cell), dim=-1) # num_layer x num_dir, batch, 2 x hidden
 
         # hidden_size *2 -> hidden_size
-        last_hidden = self.linear(last_hidden.view(-1, self.hidden_size))
-        last_hidden = last_hidden.view(-1, batch_size, self.hidden_size) # 2, 64, 128
-        last_cell = self.linear(last_cell.view(-1, self.hidden_size))
-        last_cell = last_cell.view(-1, batch_size, self.hidden_size)
+
+        #last_hidden = self.linear(last_hidden.view(-1, self.hidden_size))
+        #last_hidden = last_hidden.view(-1, batch_size, self.hidden_size) # 2, 64, 128
+        #last_cell = self.linear(last_cell.view(-1, self.hidden_size))
+        #last_cell = last_cell.view(-1, batch_size, self.hidden_size)
+
+        #print(last_hidden.shape, last_cell.shape)
 
 
         hiddens = (last_hidden, last_cell)

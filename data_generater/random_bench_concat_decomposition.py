@@ -12,6 +12,7 @@ def rand_example(limit):
 
 # len(pos_example) <=10
 def get_train_data(bench_num, file_name):
+    file_name = file_name + "_regex.txt"
     f = open(file_name, 'w')
 
     bench_count = 1
@@ -62,7 +63,7 @@ def get_train_data(bench_num, file_name):
                 bracket -= 1
 
         regex = "".join(str_list)
-        #print(regex)
+        print(regex)
 
 
 
@@ -71,6 +72,7 @@ def get_train_data(bench_num, file_name):
         for example in pos:
             str_list = []
             dic = re.fullmatch(regex, example).groupdict()
+            print(dic)
             for i in range(1, len(dic)+1):
                 key = "t" + str(i)
                 targetstring = dic[key]
@@ -111,8 +113,6 @@ def get_train_data(bench_num, file_name):
 
     #save in txt file
 
-
-
-get_train_data(100000, "/home/ksh/PycharmProjects/train4.txt")
+get_train_data(100000, "/home/ksh/PycharmProjects/train1")
 get_train_data(20000, "/home/ksh/PycharmProjects/valid4.txt")
 
