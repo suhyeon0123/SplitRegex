@@ -1,7 +1,7 @@
 from __future__ import print_function, division
 
 from collections import Counter
-
+import re
 import numpy as np
 import torch
 import torchtext
@@ -47,8 +47,11 @@ class Evaluator(object):
         loss.reset()
         match = 0
         match_seqnum = 0
-        only_pad_count = 0
         match_setnum = 0
+        match_seqnum2 = 0
+        match_setnum2 = 0
+        only_pad_count = 0
+        only_pad_count2 = 0
         total = 0
 
         device = torch.device('cuda:0') if torch.cuda.is_available() else -1
@@ -64,9 +67,11 @@ class Evaluator(object):
         with torch.no_grad():
             for batch in batch_iterator:
 
-                src_variables = [[] for i in range(batch.batch_size)]
-                tgt_variables = [[] for i in range(batch.batch_size)]
-                lengths = [[] for i in range(batch.batch_size)]
+                src_variables = [[] for _ in range(batch.batch_size)]
+                tgt_variables = [[] for _ in range(batch.batch_size)]
+                idx_variables = [[] for _ in range(batch.batch_size)]
+
+                lengths = [[] for _ in range(batch.batch_size)]
 
                 set_size = len(batch.fields) / 2
                 max_len_within_batch = -1
@@ -78,6 +83,7 @@ class Evaluator(object):
                         tgt, tgt_len = getattr(batch, 'tgt{}'.format(src_idx))
                         tgt_variables[idx].append(tgt[idx])
                         lengths[idx].append(src_len[idx])
+                    idx_variables[idx] = getattr(batch, 'idx')
 
                     lengths[idx] = torch.stack(lengths[idx], dim=0)
 
@@ -107,16 +113,15 @@ class Evaluator(object):
 
 
 
-
                 # debug
                 src_variables1 = src_variables.view(-1, 10)
                 batch_size = tgt_variables.size(0)
 
                 result = [dict(Counter(l)) for l in tgt_variables.tolist()]
-                print("")
-                print(result[:10])
+                #print("")
+                print(result)
                 example = []
-                for batch_idx in range(batch_size):
+                '''for batch_idx in range(batch_size):
                     batch_example = {}
                     example_idx = 0
                     for label in range(2, 12):
@@ -125,14 +130,14 @@ class Evaluator(object):
                                                        example_idx:example_idx + result[batch_idx][label]]
                             example_idx += result[batch_idx][label]
 
-                    example.append(batch_example)
+                    example.append(batch_example)'''
 
                 seqlist = other['sequence']
-                seqlist = [i.tolist() for i in seqlist]
-                tmp = torch.Tensor(seqlist).transpose(0, 1).squeeze(-1).tolist()
+                seqlist2 = [i.tolist() for i in seqlist]
+                tmp = torch.Tensor(seqlist2).transpose(0, 1).squeeze(-1).tolist()
                 result = [dict(Counter(l)) for l in tmp]
-                print(result[:10])
-                example = []
+                #print(result[:10])
+                '''example = []
                 for batch_idx in range(batch_size):
                     batch_example = {}
                     example_idx = 0
@@ -142,13 +147,58 @@ class Evaluator(object):
                                                        example_idx:example_idx + result[batch_idx][label]]
                             example_idx += result[batch_idx][label]
                     example.append(batch_example)
+'''
 
+                #check the re fullmatching
+                regex_vaild_file = "/home/ksh/PycharmProjects/valid1regex.txt"
+                with open(regex_vaild_file, 'r') as rf:
+                    dataset = rf.read().split('\n')
+
+                src = src_variables.view(-1, 10).tolist()
+                for idx, count_dict in enumerate(result):
+                    target_full_regex = idx_variables[idx % 10]
+                    print('target_full_regex:', target_full_regex)
+                    embed = 2.0
+                    src_seq = list(map(lambda x: x-2, src[idx]))
+                    end = 0
+                    total = 0
+                    limit = src_seq.count(1) + src_seq.count(0)
+                    for sub_regex in target_full_regex:
+                        try:
+                            key = count_dict[embed]
+                        except KeyError:
+                            break
+                        total += key
+                        if total > limit:
+                            key -= total - limit
+                        start = end
+                        end = start + key
+                        embed += 1
+                        print('sub_regex', sub_regex)
+                        print('src_seq', src_seq[start:end])
+                        print(re.fullmatch(sub_regex, ''.join([str(a) for a in src_seq[start:end]])))
 
 
                 # Evaluation
-                seqlist = other['sequence']# 10,640
+                '''
+                match_seq = tgt_variables.eq(torch.Tensor(torch.Tensor(seqlist2).transpose(0, 1).squeeze(-1).tolist()).to("cuda"))
 
-                match_seq = None
+                result = torch.logical_or(match_seq, tgt_variables.eq(pad))
+                #print([example.all() for example in result])
+                match_seqnum2 += [example.all() for example in result].count(True)
+                only_pad_count2 += [example.all() for example in tgt_variables.eq(pad)].count(True)
+
+                tmp = [example.all() for example in result]
+                tmp = list_chunk(tmp, 10)
+                match_setnum2 += [all(example) for example in tmp].count(True)
+                #print([all(example) for example in tmp])
+                acc_seq2 = (match_seqnum2 - only_pad_count2) / (20000 * 10 - only_pad_count2)
+                acc_set2 = match_setnum2 / 20000'''
+
+
+
+
+
                 match_seq = torch.zeros(len(tgt_variables))
                 for step, step_output in enumerate(decoder_outputs):
                     target = tgt_variables[:, step]
@@ -165,21 +215,25 @@ class Evaluator(object):
                 #print(match_seq.shape) # 640, 10
 
                 result = torch.logical_or(match_seq, tgt_variables.eq(pad))
+                #print([example.all() for example in result])
                 match_seqnum += [example.all() for example in result].count(True)
                 only_pad_count += [example.all() for example in tgt_variables.eq(pad)].count(True)
 
                 tmp = [example.all() for example in result]
                 tmp = list_chunk(tmp, 10)
                 match_setnum += [all(example) for example in tmp].count(True)
+                #print([all(example) for example in tmp])
 
-
-
+        #print(acc_seq2)
+        #print(acc_set2)
         acc_seq = (match_seqnum - only_pad_count) / (20000 * 10 - only_pad_count)
         acc_set = match_setnum / 20000
         if total == 0:
             accuracy = float('nan')
         else:
             accuracy = match / total
+
+
 
         return loss.get_loss(), accuracy, acc_seq, acc_set
 

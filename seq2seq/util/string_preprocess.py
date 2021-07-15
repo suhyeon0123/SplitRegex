@@ -8,6 +8,10 @@ def get_set_num(dataset_file):
         dataset = rf.read().split('\n')
     return len(dataset[0].split('\t'))-1
 
+def get_regex_list(dataset_file):
+    with open(dataset_file, 'r') as rf:
+        dataset = rf.read().split('\n')
+    return dataset
 
 def pad_tensor(input_var, max_len, vocab):
     pad_idx = vocab.stoi['<pad>']

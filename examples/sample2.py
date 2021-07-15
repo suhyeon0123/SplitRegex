@@ -16,6 +16,8 @@ from seq2seq.dataset import SourceField, TargetField
 from seq2seq.evaluator import Predictor
 from seq2seq.util.checkpoint import Checkpoint
 from seq2seq.util.string_preprocess import get_set_num, get_regex_list
+import seq2seq.util.utils
+from seq2seq.util.utils import Vocabulary
 
 try:
     raw_input          # Python 2
@@ -67,44 +69,16 @@ if opt.load_checkpoint is not None:
     input_vocab = checkpoint.input_vocab
     output_vocab = checkpoint.output_vocab
 else:
-
     # Prepare dataset
-    train_file = "/home/ksh/PycharmProjects/train1.txt"
-    valid_file = "/home/ksh/PycharmProjects/valid1.txt"
+    train_path = "/home/ksh/PycharmProjects/train4.csv"
+    valid_path = "/home/ksh/PycharmProjects/valid4.csv"
 
-    set_num = get_set_num(train_file)
-    set_num = int(set_num/2) # 10
+    train = seq2seq.util.utils.get_loader(train_path, batch_size=64, shuffle=True)
+    dev = seq2seq.util.utils.get_loader(valid_path, batch_size=64, shuffle=False)
 
-    src = SourceField()
-    tgt = SourceField()
-    idx = SourceField()
-    max_len = 10
-
-    train = torchtext.data.TabularDataset(
-        path=train_file, format='tsv',
-        fields= [('src{}'.format(i+1), src) for i in range(set_num)] + [('tgt{}'.format(i+1), tgt) for i in range(set_num)])
-
-    dev = torchtext.data.TabularDataset(
-        path=valid_file, format='tsv',
-        fields=[('src{}'.format(i + 1), src) for i in range(set_num)] + [('tgt{}'.format(i + 1), tgt) for i in range(set_num)] + [('idx', idx)])
-
-    src.build_vocab(train, max_size=50000)
-    tgt.build_vocab(train, max_size=50000)
-    idx.build_vocab(dev, max_size=50000)
-
-    input_vocab = src.vocab
-    output_vocab = tgt.vocab
-    idx_vocab = idx.vocab
-
-    print("src vacab: " + str(input_vocab.stoi))
-    print("tgt vacab: " + str(output_vocab.stoi))
-    print("idx vacab: " + str(idx_vocab.stoi))
 
     # Prepare loss
-    weight = torch.ones(len(tgt.vocab))
-    pad = tgt.vocab.stoi[tgt.pad_token]
-    #loss = NLLLoss(weight)
-    loss = NLLLoss(weight, pad)
+    loss = NLLLoss()
     if torch.cuda.is_available():
         loss.cuda()
 
@@ -112,13 +86,13 @@ else:
     optimizer = None
     if not opt.resume:
         # Initialize model
-        hidden_size= 128
+        hidden_size = 128
         bidirectional = opt.bidirectional
-        encoder = EncoderRNN(len(src.vocab), max_len, hidden_size, dropout_p = 0.25,input_dropout_p = 0.25,
-                             bidirectional=bidirectional, n_layers=2, variable_lengths=True, vocab = input_vocab)
-        decoder = DecoderRNN(len(tgt.vocab), max_len, hidden_size * 2 if bidirectional else hidden_size,
+        encoder = EncoderRNN(12, 10, hidden_size, dropout_p = 0.25,input_dropout_p = 0.25,
+                             bidirectional=bidirectional, n_layers=2, variable_lengths=True, vocab=Vocabulary())
+        decoder = DecoderRNN(12, 10, hidden_size * 2 if bidirectional else hidden_size,
                              dropout_p=0.2, input_dropout_p=0.25, use_attention=True, bidirectional=bidirectional, n_layers=2,
-                             attn_mode = opt.attn_mode)
+                             attn_mode=opt.attn_mode)
 
         seq2seq = Seq2seq(encoder, decoder)
         
@@ -142,7 +116,7 @@ else:
     # train
     t = SupervisedTrainer(loss=loss, batch_size=64,
                           checkpoint_every=1800,
-                          print_every=100, expt_dir=expt_dir, input_vocab=input_vocab, output_vocab=output_vocab)
+                          print_every=100, expt_dir=expt_dir)
     
     start_time = time.time()
     seq2seq = t.train(seq2seq, train,
