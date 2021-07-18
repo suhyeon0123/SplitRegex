@@ -93,11 +93,9 @@ class DecoderRNN(BaseRNN):
 
     def forward_step(self, input_var, hidden, encoder_outputs, function):
 
-        batch_size = input_var.size(0)  #64
-        set_size = input_var.size(1)    #10
-        seq_len = input_var.size(2)     #10
+        batch_size, set_size, seq_len = input_var.size(0), input_var.size(1), input_var.size(2)
 
-        one_hot = F.one_hot(input_var, num_classes=self.vocab_size)
+        one_hot = F.one_hot(input_var.to(device='cuda'), num_classes=self.vocab_size)
         embedded = one_hot.view(batch_size * set_size, seq_len, -1).float()
         embedded = self.input_dropout(embedded)
 
@@ -107,14 +105,12 @@ class DecoderRNN(BaseRNN):
 
         output, hidden = self.rnn(embedded, hidden)
 
-
         attn = None
         if self.use_attention:
             output, attn = self.attention(output, encoder_outputs[0].view(batch_size*set_size, seq_len, -1))
 
-        #print(output.contiguous().view(-1, self.hidden_size*2).shape)
         predicted_softmax = function(self.out(output.contiguous().view(-1, self.hidden_size)), dim=1).view(batch_size * set_size, seq_len, self.output_size)
-        #print(predicted_softmax.shape) # (640,10,9)
+
         return predicted_softmax, hidden, attn
 
 

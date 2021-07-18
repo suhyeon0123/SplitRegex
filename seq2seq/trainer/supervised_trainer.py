@@ -141,6 +141,11 @@ class SupervisedTrainer(object):
         device = torch.device('cuda:0') if torch.cuda.is_available() else -1
 
 
+        batch_iterator = torchtext.data.BucketIterator(
+            dataset=data, batch_size=self.batch_size,
+            sort=False, sort_within_batch=False,
+            device=device, repeat=False, shuffle=True)
+
         steps_per_epoch = len(data)
         total_steps = steps_per_epoch * n_epochs
 
@@ -159,27 +164,39 @@ class SupervisedTrainer(object):
         for epoch in range(start_epoch, n_epochs + 1):
             log.debug("Epoch: %d, Step: %d" % (epoch, step))
 
-
+            batch_generator = batch_iterator.__iter__()
             # consuming seen batches from previous training
+            for _ in range((epoch - 1) * steps_per_epoch, step):
+                next(batch_generator)
 
             model.train(True)
-
-            for idx, samples in enumerate(data):
+            for batch in batch_generator:
                 step += 1
                 step_elapsed += 1
 
-                src_variables = [[] for _ in range(len(samples))]
-                tgt_variables = [[] for _ in range(len(samples))]
 
-                set_size = 10
+                src_variables = [[] for _ in range(batch.batch_size)]
+                tgt_variables = [[] for _ in range(batch.batch_size)]
+
+                lengths = [[] for _ in range(batch.batch_size)]
+
+                set_size = len(batch.fields)/2
                 max_len_within_batch = -1
 
-                for idx in range(len(samples)):
+
+                for idx in range(batch.batch_size):
                     for src_idx in range(1, int(set_size)+1):
-                        src, src_len = getattr(samples[0], 'src{}'.format(src_idx))
+                        src, src_len = getattr(batch, 'src{}'.format(src_idx))
                         src_variables[idx].append(src[idx])
-                        tgt, tgt_len = getattr(samples[1], 'tgt{}'.format(src_idx))
+                        tgt, tgt_len = getattr(batch, 'tgt{}'.format(src_idx))
                         tgt_variables[idx].append(tgt[idx])
+                        lengths[idx].append(src_len[idx])
+
+                    lengths[idx] = torch.stack(lengths[idx], dim=0)
+
+                    if max_len_within_batch < torch.max(lengths[idx].view(-1)).item():
+                        max_len_within_batch = torch.max(lengths[idx].view(-1)).item()
+
 
                 for batch_idx in range(len(src_variables)):
                     for set_idx in range(int(set_size)):
@@ -196,13 +213,16 @@ class SupervisedTrainer(object):
                     tgt_variables[batch_idx] = torch.stack(tgt_variables[batch_idx], dim=0)
 
 
+
+
                 src_variables = torch.stack(src_variables, dim=0)
                 tgt_variables = torch.stack(tgt_variables, dim=0)
+                lengths = torch.stack(lengths, dim=0)
 
                 #input_variables = (pos_input_variables, neg_input_variables)
                 #input_lengths= (pos_input_lengths, neg_input_lengths)
                 #print(lengths.shape)
-                loss = self._train_batch(src_variables, tgt_variables, model, teacher_forcing_ratio)
+                loss = self._train_batch(src_variables, lengths, tgt_variables, model, teacher_forcing_ratio)
 
                 train_losses.append(loss)
 

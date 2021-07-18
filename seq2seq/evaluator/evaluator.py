@@ -10,6 +10,7 @@ from seq2seq.dataset import SourceField
 import seq2seq
 from seq2seq.loss import NLLLoss
 from seq2seq.util.string_preprocess import pad_tensor
+from seq2seq.util.utils import decomposing_regex
 
 def list_chunk(lst, n):
     return [lst[i:i+n] for i in range(0, len(lst), n)]
@@ -53,75 +54,39 @@ class Evaluator(object):
         only_pad_count = 0
         only_pad_count2 = 0
         total = 0
-
-        device = torch.device('cuda:0') if torch.cuda.is_available() else -1
-        batch_iterator = torchtext.data.BucketIterator(
-            dataset=data, batch_size=self.batch_size,
-            sort=False, sort_within_batch=False,
-            device=device, repeat=False, shuffle=True, train=False)
-
-
-        tgt_vocab = data.fields['tgt1'].vocab
-        pad = tgt_vocab.stoi[data.fields['tgt1'].pad_token]
+        correct_seq_re = 0
 
         with torch.no_grad():
-            for batch in batch_iterator:
+            for inputs, outputs, regex in data:
 
-                src_variables = [[] for _ in range(batch.batch_size)]
-                tgt_variables = [[] for _ in range(batch.batch_size)]
-                idx_variables = [[] for _ in range(batch.batch_size)]
+                for batch_idx in range(len(inputs)):
+                    inputs[batch_idx] = torch.stack(inputs[batch_idx], dim=0)
+                    outputs[batch_idx] = torch.stack(outputs[batch_idx], dim=0)
 
-                lengths = [[] for _ in range(batch.batch_size)]
+                inputs = torch.stack(inputs, dim=0)
+                outputs = torch.stack(outputs, dim=0)
 
-                set_size = len(batch.fields) / 2
-                max_len_within_batch = -1
-
-                for idx in range(batch.batch_size):
-                    for src_idx in range(1, int(set_size) + 1):
-                        src, src_len = getattr(batch, 'src{}'.format(src_idx))
-                        src_variables[idx].append(src[idx])
-                        tgt, tgt_len = getattr(batch, 'tgt{}'.format(src_idx))
-                        tgt_variables[idx].append(tgt[idx])
-                        lengths[idx].append(src_len[idx])
-                    idx_variables[idx] = getattr(batch, 'idx')
-
-                    lengths[idx] = torch.stack(lengths[idx], dim=0)
-
-                    if max_len_within_batch < torch.max(lengths[idx].view(-1)).item():
-                        max_len_within_batch = torch.max(lengths[idx].view(-1)).item()
-
-                for batch_idx in range(len(src_variables)):
-                    for set_idx in range(int(set_size)):
-                        src_variables[batch_idx][set_idx] = pad_tensor(src_variables[batch_idx][set_idx],
-                                                                       max_len_within_batch, self.input_vocab)
-
-                        tgt_variables[batch_idx][set_idx] = pad_tensor(tgt_variables[batch_idx][set_idx],
-                                                                       max_len_within_batch, tgt_vocab)
-
-                    src_variables[batch_idx] = torch.stack(src_variables[batch_idx], dim=0)
-                    tgt_variables[batch_idx] = torch.stack(tgt_variables[batch_idx], dim=0)
-
-                # ---- a copy from supervised_trainer.py
-
-                src_variables = torch.stack(src_variables, dim=0)
-                tgt_variables = torch.stack(tgt_variables, dim=0)
-                lengths = torch.stack(lengths, dim=0)
+                inputs = inputs.permute(2, 0, 1)
+                outputs = outputs.permute(2, 0, 1)
 
 
-                decoder_outputs, decoder_hidden, other = model(src_variables, lengths, tgt_variables)
+                decoder_outputs, decoder_hidden, other = model(inputs, None, outputs)
+                tgt_variables = outputs.contiguous().view(-1, 10)
                 tgt_variables = tgt_variables.view(-1, 10)
 
 
+                regex = list(map(lambda x:decomposing_regex(x), regex))
+                print()
+                print(regex[:10])
 
-                # debug
-                src_variables1 = src_variables.view(-1, 10)
-                batch_size = tgt_variables.size(0)
+                answer_dict = [dict(Counter(l)) for l in tgt_variables.tolist()]
+                print(answer_dict[:10])
 
-                result = [dict(Counter(l)) for l in tgt_variables.tolist()]
-                #print("")
-                print(result)
+                '''
                 example = []
-                '''for batch_idx in range(batch_size):
+                src_variables1 = inputs.contiguous().view(-1, 10)
+                batch_size = tgt_variables.size(0)
+                for batch_idx in range(batch_size):
                     batch_example = {}
                     example_idx = 0
                     for label in range(2, 12):
@@ -135,8 +100,9 @@ class Evaluator(object):
                 seqlist = other['sequence']
                 seqlist2 = [i.tolist() for i in seqlist]
                 tmp = torch.Tensor(seqlist2).transpose(0, 1).squeeze(-1).tolist()
-                result = [dict(Counter(l)) for l in tmp]
-                #print(result[:10])
+                predict_dict = [dict(Counter(l)) for l in tmp]
+                print(predict_dict[:10])
+
                 '''example = []
                 for batch_idx in range(batch_size):
                     batch_example = {}
@@ -150,11 +116,7 @@ class Evaluator(object):
 '''
 
                 #check the re fullmatching
-                regex_vaild_file = "/home/ksh/PycharmProjects/valid1regex.txt"
-                with open(regex_vaild_file, 'r') as rf:
-                    dataset = rf.read().split('\n')
-
-                src = src_variables.view(-1, 10).tolist()
+                '''src = inputs.view(-1, 10).tolist()
                 for idx, count_dict in enumerate(result):
                     target_full_regex = idx_variables[idx % 10]
                     print('target_full_regex:', target_full_regex)
@@ -177,7 +139,7 @@ class Evaluator(object):
                         print('sub_regex', sub_regex)
                         print('src_seq', src_seq[start:end])
                         print(re.fullmatch(sub_regex, ''.join([str(a) for a in src_seq[start:end]])))
-
+                '''
 
                 # Evaluation
                 '''
@@ -196,36 +158,75 @@ class Evaluator(object):
                 acc_set2 = match_setnum2 / 20000'''
 
 
+                '''match_seq = torch.zeros(len(tgt_variables)) #640
+                answer = tgt_variables.to(device='cuda')
+                #predict = decoder_outputs.reshape(len(tgt_variables),10,12)
+                predict = np.array(decoder_outputs).reshape(len(tgt_variables),10,12).tolist()  #640,10,12
+                seqlist2 = [i.tolist() for i in seqlist]
+                seqlist2 = torch.Tensor(seqlist2).transpose(0, 1).squeeze(-1).tolist()'''
+
+
+                print(regex)
+                print(answer_dict)
+                print(predict_dict)
+                print(len(regex))
+                print(len(answer_dict))
+                print(len(predict_dict))
 
 
 
-                match_seq = torch.zeros(len(tgt_variables))
+                for batch_idx in range(len(regex)):
+                    batch_regex = regex[batch_idx]
+                    for set_idx in range(10):
+                        start = 0
+                        all_match = True
+
+                        src_seq = inputs[batch_idx, set_idx].tolist()
+                        set_dict = predict_dict[batch_idx*10 + set_idx]
+                        #print(src_seq)
+                        #print(set_dict)
+                        for regex_idx, subregex in enumerate(batch_regex):
+                            if float(regex_idx) in set_dict:
+                                len_subregex = set_dict[float(regex_idx)]
+                                predict_subregex = ''.join([str(a) for a in src_seq[start:start + len_subregex]])
+                                start = len_subregex
+                            else:
+                                predict_subregex = ''
+
+                            #print(subregex, predict_subregex, re.fullmatch(subregex, predict_subregex))
+                            if re.fullmatch(subregex, predict_subregex) is None:
+                                all_match = False
+                        if all_match:
+                            correct_seq_re += 1
+                        #print()
+
+
                 for step, step_output in enumerate(decoder_outputs):
-                    target = tgt_variables[:, step]
+                    target = tgt_variables[:, step].to(device='cuda')  # 총 10개의 스텝
                     loss.eval_batch(step_output.view(tgt_variables.size(0), -1), target)
 
                     if step == 0:
                         match_seq = seqlist[step].view(-1).eq(target).unsqueeze(-1)
                     else:
                         match_seq = torch.cat((match_seq, seqlist[step].view(-1).eq(target).unsqueeze(-1)), dim=1)
-                    non_padding = target.ne(pad)
+                    non_padding = target.ne(11)
                     correct = seqlist[step].view(-1).eq(target).masked_select(non_padding).sum().item()
                     match += correct
                     total += non_padding.sum().item()
+
                 #print(match_seq.shape) # 640, 10
 
-                result = torch.logical_or(match_seq, tgt_variables.eq(pad))
+                result = torch.logical_or(match_seq, tgt_variables.eq(11).to(device='cuda'))
                 #print([example.all() for example in result])
                 match_seqnum += [example.all() for example in result].count(True)
-                only_pad_count += [example.all() for example in tgt_variables.eq(pad)].count(True)
+                only_pad_count += [example.all() for example in tgt_variables.eq(11)].count(True)
 
                 tmp = [example.all() for example in result]
                 tmp = list_chunk(tmp, 10)
                 match_setnum += [all(example) for example in tmp].count(True)
                 #print([all(example) for example in tmp])
 
-        #print(acc_seq2)
-        #print(acc_set2)
+        print(correct_seq_re/200000)
         acc_seq = (match_seqnum - only_pad_count) / (20000 * 10 - only_pad_count)
         acc_set = match_setnum / 20000
         if total == 0:

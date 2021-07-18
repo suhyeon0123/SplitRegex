@@ -39,7 +39,7 @@ class EncoderRNN(BaseRNN):
     def __init__(self, vocab_size, max_len, hidden_size,
                  input_dropout_p=0, dropout_p=0,
                  n_layers=1, bidirectional=False, rnn_cell='LSTM', variable_lengths=False,
-                 embedding=None, update_embedding=True, vocab = None):
+                 embedding=None, update_embedding=True, vocab=None):
         super(EncoderRNN, self).__init__(vocab_size, max_len, hidden_size,
                 input_dropout_p, dropout_p, n_layers, rnn_cell)
 
@@ -61,25 +61,14 @@ class EncoderRNN(BaseRNN):
 
     def forward(self, input_var, input_lengths=None):
 
-        batch_size = input_var.size(0)  #64
-        set_size = input_var.size(1)    #10
-        seq_len = input_var.size(2)     #10
+        batch_size, set_size, seq_len = input_var.size(0), input_var.size(1), input_var.size(2)
 
-        one_hot = F.one_hot(input_var)
+        one_hot = F.one_hot(input_var.to(device='cuda'))
         src_embedded = one_hot.view(batch_size*set_size,seq_len, -1).float()
         masking = get_mask(input_var)  # batch, set_size, seq_len
-        input_lengths = input_lengths.reshape(-1)  # batch x set_size
-
-        #variable_lengths is True
-        if self.variable_lengths:
-            src_embedded = nn.utils.rnn.pack_padded_sequence(src_embedded, input_lengths.cpu(), batch_first=True, enforce_sorted=False)
 
         src_output, src_hidden = self.rnn1(src_embedded) # (batch x set_size, seq_len, hidden), # (num_layer x num_dir, batch*set_size, hidden)
         rnn1_hidden = src_hidden # (num_layer x num_dir, batch*set_size, hidden)
-
-
-        if self.variable_lengths:
-            src_output, _ = nn.utils.rnn.pad_packed_sequence(src_output, batch_first=True)
 
         src_output = src_output.view(batch_size, set_size, src_output.size(1), -1) # batch, set_size, seq_len, hidden)
         set_embedded = src_hidden[0].view(self.n_layers, -1, batch_size*set_size, self.hidden_size) # num_layer(2), num_direction, batch x set_size, hidden

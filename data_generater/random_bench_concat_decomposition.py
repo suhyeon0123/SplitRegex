@@ -144,6 +144,6 @@ def get_train_data(bench_num, file_name):
     #save in txt file
 
 
-get_train_data(1000, "/home/ksh/PycharmProjects/train1")
-get_train_data(200, "/home/ksh/PycharmProjects/valid1")
+get_train_data(100000, "/home/ksh/PycharmProjects/train4")
+get_train_data(20000, "/home/ksh/PycharmProjects/valid4")
 

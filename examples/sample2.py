@@ -8,7 +8,7 @@ from torch.optim.lr_scheduler import StepLR, ReduceLROnPlateau
 import torchtext
 
 import seq2seq
-from seq2seq.trainer import SupervisedTrainer
+from seq2seq.trainer.supervised_trainer2 import SupervisedTrainer
 from seq2seq.models import EncoderRNN, DecoderRNN, Seq2seq
 from seq2seq.loss import Perplexity, NLLLoss
 from seq2seq.optim import Optimizer
@@ -17,7 +17,6 @@ from seq2seq.evaluator import Predictor
 from seq2seq.util.checkpoint import Checkpoint
 from seq2seq.util.string_preprocess import get_set_num, get_regex_list
 import seq2seq.util.utils
-from seq2seq.util.utils import Vocabulary
 
 try:
     raw_input          # Python 2
@@ -88,8 +87,8 @@ else:
         # Initialize model
         hidden_size = 128
         bidirectional = opt.bidirectional
-        encoder = EncoderRNN(12, 10, hidden_size, dropout_p = 0.25,input_dropout_p = 0.25,
-                             bidirectional=bidirectional, n_layers=2, variable_lengths=True, vocab=Vocabulary())
+        encoder = EncoderRNN(12, 10, hidden_size, dropout_p=0.25, input_dropout_p=0.25,
+                             bidirectional=bidirectional, n_layers=2, variable_lengths=True)
         decoder = DecoderRNN(12, 10, hidden_size * 2 if bidirectional else hidden_size,
                              dropout_p=0.2, input_dropout_p=0.25, use_attention=True, bidirectional=bidirectional, n_layers=2,
                              attn_mode=opt.attn_mode)
@@ -106,9 +105,8 @@ else:
         # Optimizer and learning rate scheduler can be customized by
         # explicitly constructing the objects and pass to the trainer.
         
-        optimizer = Optimizer(torch.optim.Adam(seq2seq.parameters(), lr = 0.001), max_grad_norm=0.5)
-        #scheduler = StepLR(optimizer.optimizer, 1)
-        scheduler = ReduceLROnPlateau(optimizer.optimizer, 'min', factor = 0.1, verbose=True, patience=10)
+        optimizer = Optimizer(torch.optim.Adam(seq2seq.parameters(), lr=0.001), max_grad_norm=0.5)
+        scheduler = ReduceLROnPlateau(optimizer.optimizer, 'min', factor=0.1, verbose=True, patience=10)
         optimizer.set_scheduler(scheduler)
     expt_dir = opt.expt_dir + '_hidden_{}'.format(hidden_size)
 
