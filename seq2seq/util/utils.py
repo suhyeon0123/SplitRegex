@@ -21,7 +21,7 @@ class Vocabulary:
 
 class CustomDataset(Dataset):
     def __init__(self, file_path):
-        self.df = pd.read_csv(file_path, header=None)
+        self.df = pd.read_csv(file_path, header=None, dtype=str)
         self.input = self.df[self.df.columns[:10]]
         self.output = self.df[self.df.columns[10:20]]
         self.regex = self.df[self.df.columns[20]]
@@ -42,10 +42,15 @@ class CustomDataset(Dataset):
         return len(self.df)
 
     def __getitem__(self, idx):
+
+
         input = self.input.iloc[idx]
         processed_list = []
-        for sequence in list(input):
-            listed_sequence = list(str(sequence))
+        for ix, sequence in enumerate(list(input)):
+            if ix != 0:
+                listed_sequence = list(str(sequence[1:]))
+            else:
+                listed_sequence = list(str(sequence))
             tmp = []
 
             for i in range(10):
@@ -55,13 +60,14 @@ class CustomDataset(Dataset):
                     tmp.append('<pad>')
 
             processed_list.append(tmp)
+
         numericalized_input = self.vocab.numericalize(processed_list)
 
 
         output = self.output.iloc[idx]
         processed_list = []
-        for sequence in list(output):
-            listed_sequence = list(str(sequence))
+        for ix, sequence in enumerate(list(output)):
+            listed_sequence = list(str(sequence[1:]))
             tmp = []
 
             for i in range(10):
@@ -71,6 +77,7 @@ class CustomDataset(Dataset):
                     tmp.append('<pad>')
 
             processed_list.append(tmp)
+
         numericalized_output = self.vocab.numericalize(processed_list)
 
 

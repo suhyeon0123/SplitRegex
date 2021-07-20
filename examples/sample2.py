@@ -96,7 +96,6 @@ else:
         seq2seq = Seq2seq(encoder, decoder)
         
         if torch.cuda.is_available():
-            print("cuda is available")
             seq2seq.cuda()
 
         for param in seq2seq.parameters():

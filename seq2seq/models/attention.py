@@ -93,9 +93,9 @@ class Attention(nn.Module):
     
     def forward(self, output, context):
 
-        batch_size = output.size(0)
-        hidden_size = output.size(2)
-        input_size = context.size(1)
+        batch_size = output.size(0)  #640
+        hidden_size = output.size(2) #128
+        input_size = context.size(1)  #10
 
         # (batch, out_len, dim) * (batch, in_len, dim) -> (batch, out_len, in_len)
         attn = torch.bmm(output, context.transpose(1, 2))

@@ -76,11 +76,11 @@ class Evaluator(object):
 
 
                 regex = list(map(lambda x:decomposing_regex(x), regex))
-                print()
-                print(regex[:10])
+                #print()
+                #print(regex[:10])
 
                 answer_dict = [dict(Counter(l)) for l in tgt_variables.tolist()]
-                print(answer_dict[:10])
+                #print(answer_dict[:10])
 
                 '''
                 example = []
@@ -101,7 +101,8 @@ class Evaluator(object):
                 seqlist2 = [i.tolist() for i in seqlist]
                 tmp = torch.Tensor(seqlist2).transpose(0, 1).squeeze(-1).tolist()
                 predict_dict = [dict(Counter(l)) for l in tmp]
-                print(predict_dict[:10])
+
+                #print(predict_dict[:10])
 
                 '''example = []
                 for batch_idx in range(batch_size):
@@ -166,12 +167,12 @@ class Evaluator(object):
                 seqlist2 = torch.Tensor(seqlist2).transpose(0, 1).squeeze(-1).tolist()'''
 
 
-                print(regex)
-                print(answer_dict)
-                print(predict_dict)
-                print(len(regex))
-                print(len(answer_dict))
-                print(len(predict_dict))
+                #print(regex)
+                #print(answer_dict)
+                #print(predict_dict)
+                #print(len(regex))
+                #print(len(answer_dict))
+                #print(len(predict_dict))
 
 
 
@@ -200,6 +201,16 @@ class Evaluator(object):
                             correct_seq_re += 1
                         #print()
 
+
+                ans = []
+                for i in range(10):
+                    ans.append(tgt_variables[0,i].to(device='cuda'))
+                #print(ans)
+
+                pre = []
+                for i in range(10):
+                    pre.append(seqlist[i][0])
+                #print(pre)
 
                 for step, step_output in enumerate(decoder_outputs):
                     target = tgt_variables[:, step].to(device='cuda')  # 총 10개의 스텝

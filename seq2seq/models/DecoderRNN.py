@@ -83,7 +83,7 @@ class DecoderRNN(BaseRNN):
         self.rnn1_hidden = None
         self.init_input = None
         self.masking= None
-        self.input_dropout_p= input_dropout_p
+        self.input_dropout_p = input_dropout_p
         if use_attention:
             self.attention = Attention(self.hidden_size, attn_mode)
 
@@ -103,7 +103,8 @@ class DecoderRNN(BaseRNN):
         hidden = (torch.cat((hidden[0], self.rnn1_hidden[0]), -1), torch.cat((hidden[1], self.rnn1_hidden[1]), -1)) # 2, 640, 256 of tuple2
         hidden = (self.hidden_out1(hidden[0]), self.hidden_out2(hidden[1]))
 
-        output, hidden = self.rnn(embedded, hidden)
+        output, hidden = self.rnn(embedded, hidden)  #(640,10,128)
+
 
         attn = None
         if self.use_attention:
