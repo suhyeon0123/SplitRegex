@@ -20,20 +20,11 @@ class Vocabulary:
 
 
 class CustomDataset(Dataset):
-    def __init__(self, file_path):
+    def __init__(self, file_path, device='cuda:0'):
         self.df = pd.read_csv(file_path, header=None, dtype=str)
         self.input = self.df[self.df.columns[:10]]
         self.output = self.df[self.df.columns[10:20]]
         self.regex = self.df[self.df.columns[20]]
-
-
-
-        '''print(torch.LongTensor([list(map(int, lst)) for lst in tmp]))
-        print(torch.LongTensor(list(map(lambda x: list(str(x)), list(self.input.iloc[0])))))
-
-        print(torch.LongTensor(list(self.input.iloc[0])))
-        exit()'''
-
 
         # Initialize vocabulary and build vocab
         self.vocab = Vocabulary()
@@ -79,7 +70,6 @@ class CustomDataset(Dataset):
             processed_list.append(tmp)
 
         numericalized_output = self.vocab.numericalize(processed_list)
-
 
         return numericalized_input, numericalized_output, self.regex.iloc[idx]
 

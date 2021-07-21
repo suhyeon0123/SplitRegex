@@ -130,9 +130,6 @@ class DecoderRNN(BaseRNN):
         inputs, batch_size, max_length = self._validate_args(inputs, encoder_hidden, encoder_outputs,
                                                              function, teacher_forcing_ratio)
 
-
-        #print(batch_size)
-        #print(max_length)
         # inputs -> (batch, 10, 10)
         # encoder_hidden -> (num_layer x num_dir, batch, hidden)
         #decoder_hidden = self._init_state(encoder_hidden)
@@ -152,11 +149,6 @@ class DecoderRNN(BaseRNN):
             symbols = decoder_outputs[-1].topk(1)[1]
             sequence_symbols.append(symbols)
 
-            '''eos_batches = symbols.data.eq(self.eos_id)
-            if eos_batches.dim() > 0:
-                eos_batches = eos_batches.cpu().view(-1).numpy()
-                update_idx = ((lengths > step) & eos_batches) != 0
-                lengths[update_idx] = len(sequence_symbols)'''
             return symbols
 
 
@@ -166,8 +158,6 @@ class DecoderRNN(BaseRNN):
         decoder_output, decoder_hidden, attn = self.forward_step(inputs, encoder_hidden,
                                                                       encoder_outputs,
                                                                       function=function)
-        #print(decoder_output.shape)
-        #print(decoder_output.size(1))
 
         for di in range(decoder_output.size(1)):
             step_output = decoder_output[:, di, :]

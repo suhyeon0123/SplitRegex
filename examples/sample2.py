@@ -72,8 +72,10 @@ else:
     train_path = "../data/train4.csv"
     valid_path = "../data/valid4.csv"
 
-    train = seq2seq.util.utils.get_loader(train_path, batch_size=256, shuffle=True)
-    dev = seq2seq.util.utils.get_loader(valid_path, batch_size=256, shuffle=False)
+    batch_size = 256
+
+    train = seq2seq.util.utils.get_loader(train_path, batch_size=batch_size, shuffle=True)
+    dev = seq2seq.util.utils.get_loader(valid_path, batch_size=batch_size, shuffle=False)
 
 
     # Prepare loss
@@ -111,7 +113,7 @@ else:
 
 
     # train
-    t = SupervisedTrainer(loss=loss, batch_size=256,
+    t = SupervisedTrainer(loss=loss, batch_size=batch_size,
                           checkpoint_every=1800,
                           print_every=100, expt_dir=expt_dir)
     

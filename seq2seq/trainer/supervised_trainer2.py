@@ -3,6 +3,7 @@ import logging
 import os
 import random
 import time
+import re
 import numpy as np
 import torch
 import torchtext
@@ -22,6 +23,9 @@ from seq2seq.util.utils import decomposing_regex
 
 
 from seq2seq.trainer.EarlyStopping import EarlyStopping
+
+def list_chunk(lst, n):
+    return [lst[i:i + n] for i in range(0, len(lst), n)]
 
 class SupervisedTrainer(object):
     """ The SupervisedTrainer class helps in setting up a training framework in a
@@ -52,6 +56,14 @@ class SupervisedTrainer(object):
         self.input_vocab = input_vocab
         self.output_vocab = output_vocab
 
+        self.match = 0
+        self.match_seqnum = 0
+        self.match_setnum = 0
+        self.total = 0
+        self.correct_seq_re = 0
+        self.correct_set_re = 0
+
+
         if not os.path.isabs(expt_dir):
             expt_dir = os.path.join(os.getcwd(), expt_dir)
         self.expt_dir = expt_dir
@@ -61,7 +73,7 @@ class SupervisedTrainer(object):
 
         self.logger = logging.getLogger(__name__)
 
-    def _train_batch(self, input_variable, input_lengths, target_variable, model, teacher_forcing_ratio):
+    def _train_batch(self, input_variable, input_lengths, target_variable, regex, model, teacher_forcing_ratio):
         loss = self.loss
         # Forward propagation
         decoder_outputs, decoder_hidden, other = model(input_variable, input_lengths, input_variable,
@@ -71,9 +83,64 @@ class SupervisedTrainer(object):
         # Get loss
         loss.reset()
 
+        # acc of comparing to input strings & loss calculating
+        seqlist = other['sequence']
+        seqlist2 = [i.tolist() for i in seqlist]
+        tmp = torch.Tensor(seqlist2).transpose(0, 1).squeeze(-1).tolist()
+        predict_dict = [dict(Counter(l)) for l in tmp]
+
+        # acc of comparing to regex
+        regex = list(map(lambda x: decomposing_regex(x), regex))
+
+        for batch_idx in range(len(regex)):
+            set_count = 0
+            for set_idx in range(10):
+                start = 0
+                all_match = True
+
+                src_seq = input_variable[batch_idx, set_idx].tolist()  # list of 10 alphabet
+                predict_seq_dict = predict_dict[
+                    batch_idx * 10 + set_idx]  # predict label. ex. {0.0: 2, 1.0: 1, 11.0: 7}
+
+                for regex_idx, subregex in enumerate(regex[batch_idx]):
+                    if float(regex_idx) in predict_seq_dict:
+                        len_subregex = predict_seq_dict[float(regex_idx)]
+                        predict_subregex = ''.join([str(a) for a in src_seq[start:start + len_subregex]])
+                        start = len_subregex
+                    else:
+                        predict_subregex = ''
+
+                    # print(subregex, predict_subregex, re.fullmatch(subregex, predict_subregex))
+                    if re.fullmatch(subregex, predict_subregex) is None:
+                        all_match = False
+                if all_match:
+                    self.correct_seq_re += 1
+                    set_count += 1
+            if set_count == 10:
+                self.correct_set_re += 1
+                # print()
+
+
         for step, step_output in enumerate(decoder_outputs):
             batch_size = target_variable.size(0)
-            loss.eval_batch(step_output.contiguous().view(batch_size, -1), target_variable[:, step].to(device='cuda'))
+            target = target_variable[:, step].to(device='cuda')  # 총 10개의 스텝
+            loss.eval_batch(step_output.contiguous().view(batch_size, -1), target)
+
+            if step == 0:
+                match_seq = seqlist[step].view(-1).eq(target).unsqueeze(-1)
+            else:
+                match_seq = torch.cat((match_seq, seqlist[step].view(-1).eq(target).unsqueeze(-1)), dim=1)
+
+            non_padding = target.ne(11)
+            self.match += seqlist[step].view(-1).eq(target).masked_select(non_padding).sum().item()
+            self.total += non_padding.sum().item()
+
+        result = torch.logical_or(match_seq, target_variable.eq(11).to(device='cuda'))
+        self.match_seqnum += [example.all() for example in result].count(True)
+
+        tmp = list_chunk([example.all() for example in result], 10)
+        self.match_setnum += [all(example) for example in tmp].count(True)
+
 
         # Backward propagation
         model.zero_grad()
@@ -88,6 +155,7 @@ class SupervisedTrainer(object):
 
         print_loss_total = 0  # Reset every print_every
         epoch_loss_total = 0  # Reset every epoch
+
 
         #device = torch.device('cuda:0') if torch.cuda.is_available() else -1
 
@@ -109,6 +177,13 @@ class SupervisedTrainer(object):
         for epoch in range(start_epoch, n_epochs + 1):
             log.debug("Epoch: %d, Step: %d" % (epoch, step))
 
+            self.match = 0
+            self.match_seqnum = 0
+            self.match_setnum = 0
+            self.total = 0
+            self.correct_seq_re = 0
+            self.correct_set_re = 0
+
             model.train(True)
             for inputs, outputs, regex in data:
 
@@ -125,16 +200,7 @@ class SupervisedTrainer(object):
                 inputs = inputs.permute(2, 0, 1)
                 outputs = outputs.permute(2, 0, 1)
 
-
-
-                '''for i in range(64):
-                    print(list(map(lambda x: decomposing_regex(x), regex))[i])
-                    print(inputs[i])
-                    print(outputs[i])
-                '''
-
-
-                loss = self._train_batch(inputs, None, outputs, model, teacher_forcing_ratio)
+                loss = self._train_batch(inputs, None, outputs, regex, model, teacher_forcing_ratio)
 
                 train_losses.append(loss)
 
@@ -156,17 +222,26 @@ class SupervisedTrainer(object):
 
             # clear lists to track next epoch
             train_losses = []
-            if step_elapsed == 0: continue
+            if step_elapsed == 0 : continue
 
             epoch_loss_avg = epoch_loss_total / min(steps_per_epoch, step - start_step)
             epoch_loss_total = 0
-            log_msg = "Finished epoch %d: Train %s: %.4f,  %.4f" % (epoch, self.loss.name, epoch_loss_avg, train_loss)
+
+
+            accuracyT = self.match / self.total
+            acc_seqT = self.match_seqnum / 1000000
+            acc_seq_reT = self.correct_seq_re / 1000000
+            acc_setT = self.match_setnum / 100000
+            acc_set_reT = self.correct_set_re / 100000
+            train_log = "Train %s: %.4f, Accuracy: %.4f, Accuracy of seq: %.4f, Accuracy of seq(RE): %.4f, Accuracy of set: %.4f, Accuracy of set(RE): %.4f" % (self.loss.name, epoch_loss_avg, accuracyT, acc_seqT, acc_seq_reT, acc_setT, acc_set_reT)
+
+
 
 
             if dev_data is not None:
-                dev_loss, accuracy, acc_seq, acc_set = self.evaluator.evaluate(model, dev_data)
+                dev_loss, accuracy, acc_seq, acc_seq_re, acc_set, acc_set_re = self.evaluator.evaluate(model, dev_data)
                 avg_valid_losses.append(dev_loss)
-                log_msg += ", Dev %s: %.4f, Accuracy: %.4f, Accuracy of seq: %.4f, Accuracy of set: %.4f" % (self.loss.name, dev_loss, accuracy, acc_seq, acc_set)
+                valid_log = "Dev %s: %.4f, Accuracy: %.4f, Accuracy of seq: %.4f, Accuracy of seq(RE): %.4f, Accuracy of set: %.4f, Accuracy of set(RE): %.4f" % (self.loss.name, dev_loss, accuracy, acc_seq, acc_seq_re, acc_set, acc_set_re)
                 early_stopping(dev_loss, model, self.optimizer, epoch, step, self.input_vocab, self.output_vocab, self.expt_dir)
                 self.optimizer.update(dev_loss, epoch)
                 if accuracy > best_acc:
@@ -179,7 +254,10 @@ class SupervisedTrainer(object):
             if early_stopping.early_stop:
                 print("Early Stopping")
                 break
-            log.info(log_msg)
+
+            log.info('Finished epoch %d:' % epoch)
+            log.info(train_log)
+            log.info(valid_log)
         return avg_train_losses, avg_valid_losses
 
 
