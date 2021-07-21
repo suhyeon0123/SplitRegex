@@ -69,8 +69,8 @@ if opt.load_checkpoint is not None:
     output_vocab = checkpoint.output_vocab
 else:
     # Prepare dataset
-    train_path = "/home/ksh/PycharmProjects/train4.csv"
-    valid_path = "/home/ksh/PycharmProjects/valid4.csv"
+    train_path = "../data/train4.csv"
+    valid_path = "../data/valid4.csv"
 
     train = seq2seq.util.utils.get_loader(train_path, batch_size=64, shuffle=True)
     dev = seq2seq.util.utils.get_loader(valid_path, batch_size=64, shuffle=False)
