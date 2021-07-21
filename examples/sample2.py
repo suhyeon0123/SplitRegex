@@ -72,8 +72,8 @@ else:
     train_path = "../data/train4.csv"
     valid_path = "../data/valid4.csv"
 
-    train = seq2seq.util.utils.get_loader(train_path, batch_size=64, shuffle=True)
-    dev = seq2seq.util.utils.get_loader(valid_path, batch_size=64, shuffle=False)
+    train = seq2seq.util.utils.get_loader(train_path, batch_size=256, shuffle=True)
+    dev = seq2seq.util.utils.get_loader(valid_path, batch_size=256, shuffle=False)
 
 
     # Prepare loss
@@ -85,7 +85,7 @@ else:
     optimizer = None
     if not opt.resume:
         # Initialize model
-        hidden_size = 128
+        hidden_size = 512
         bidirectional = opt.bidirectional
         encoder = EncoderRNN(12, 10, hidden_size, dropout_p=0.25, input_dropout_p=0.25,
                              bidirectional=bidirectional, n_layers=2, variable_lengths=True)
@@ -111,7 +111,7 @@ else:
 
 
     # train
-    t = SupervisedTrainer(loss=loss, batch_size=64,
+    t = SupervisedTrainer(loss=loss, batch_size=256,
                           checkpoint_every=1800,
                           print_every=100, expt_dir=expt_dir)
     
