@@ -14,7 +14,6 @@ __pycache__/
 .tablereg
 # Distribution / packaging
 .Python
-data/
 venv/
 env/
 build/
@@ -85,3 +84,4 @@ target/
 # trained_checkpoint
 supervised/
 vocab_pickle
+/_hidden_128/
