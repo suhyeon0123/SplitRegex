@@ -16,7 +16,7 @@ Generating labeled examples from examples
 ## New dataset download
     $python data_generater/make_dataset.py --data_path $DATA_PATH --number $NUMBER
 
-## Usage
+## Train model
     #$python examples/sample.py --train_path ../data/train.csv --dev_path ../data/valid.csv
     
     
