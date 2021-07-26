@@ -7,7 +7,7 @@ Generating labeled examples from examples
 - This product refers to set2regex module from https://github.com/woaksths/set2regex
 
 ## Dataset download
-    To generate new dataset.
+To generate new dataset.
     $python data_generater/make_dataset.py --data_path $DATA_PATH --number $NUMBER
 
 ## Usage
