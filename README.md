@@ -20,11 +20,13 @@ Regular expression : 0^* 1^? 0
 
 
 ## Install
-    python3 -m venv venv
-    source venv/bin/activate
-    pip install -r requirements.txt
-    python setup.py install
-    python fado-python3/setup.py install
+```console
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+python setup.py install
+python fado-python3/setup.py install
+```
     
 ## New dataset download
     python data_generater/make_dataset.py --data_path $DATA_PATH --number $NUMBER
