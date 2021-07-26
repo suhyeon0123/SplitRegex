@@ -10,7 +10,7 @@ Generating set of labelled strings from set of strings by spliting each string t
 - Data is given as (10pos, 10label, regular expression)
 - Acc means accuracy between data and prediction, while Acc(RE) means accuracy between sub regular expression and prediction.
 ## Example
-Regular expression : $`0^* 1^? 0 `$
+Regular expression : _0 ^* 1 ^? 0_
 |String|Labelled string|
 |------|---|
 |0001|0001|
