@@ -37,6 +37,6 @@ Regular expression : 0^* 1^? 0
 ![model_architecture_set2label](https://user-images.githubusercontent.com/64397574/126556989-92c30f72-bca6-4a66-8ba9-b6d90261b085.PNG)
 
 ## To-Do
-- evaluation.py 
-- add set2regex, AlphaRegex module to generate sub regex
-- generate overall module of synthesizing regex using set2label
+- [] evaluation.py 
+- [] add set2regex, AlphaRegex module to generate sub regex
+- [] generate overall module of synthesizing regex using set2label
