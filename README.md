@@ -1,20 +1,41 @@
 # set2label
-Generating labeled examples from examples
+Generating set of labelled strings from set of strings by spliting each string to determine the boundaries of sub expression .
 
 - Copyright [IBM]
 - This product includes software (seq2seq base model) developed at https://github.com/IBM/pytorch-seq2seq
+- This product use fado module from https://github.com/0xnurl/fado-python3
+- This product refers to set2regex module from https://github.com/woaksths/set2regex
 
-## Dataset download
-> ./data_generater/random_bench_concat_decompostion.py
->  Datafile's location is defined at the bottom of the file.
->  run.
->  Choose the data file to train, at the sample.py: line 73
+## Example
+Regular expression : 0^* 1^? 0
+|String|Labelled string|
+|------|---|
+|0001|0001|
+|0010|0012|
+|10|12|
+|000|002|
 
-## Usage
-    # Before running this command, check the training option via $python examples/sample.py --help
-    #$python examples/sample.pyd --train_path $TRAIN_PATH --dev_path $DEV_PATH --expt_dir $EXPT_DIR
-    #$python examples/evaluation.py --train_path $TRAIN_PATH --test_path $TEST_PATH --checkpoint $CHECKPOINT
+## Description
+- 
+
+## Install
+    python3 -m venv venv
+    source venv/bin/activate
+    pip install -r requirements.txt
+    python setup.py install
+    python fado-python3/setup.py install
+    
+## New dataset download
+    python data_generater/make_dataset.py --data_path $DATA_PATH --number $NUMBER
+
+## Train model
+    python examples/sample.py --train_path ../data/train.csv --dev_path ../data/valid.csv
     
     
+## Model architecture
 ![model_architecture_set2label](https://user-images.githubusercontent.com/64397574/126556989-92c30f72-bca6-4a66-8ba9-b6d90261b085.PNG)
 
+## To-Do
+- evaluation.py 
+- add set2regex, AlphaRegex module to generate sub regex
+- generate overall module of synthesizing regex using set2label
