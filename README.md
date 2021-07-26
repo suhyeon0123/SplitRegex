@@ -1,4 +1,4 @@
-# set2label
+# Regular Expression Synthesis via Divide-and-Conquer Approach
 Generating set of labelled strings from set of strings by spliting each string to determine the boundaries of sub expression .
 
 - Copyright [IBM]
