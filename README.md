@@ -1,10 +1,13 @@
 # set2label
-Generating labeled examples from examples
+Generating set of labelled strings from set of strings by spliting each string to determine the boundaries of sub expression .
 
 - Copyright [IBM]
 - This product includes software (seq2seq base model) developed at https://github.com/IBM/pytorch-seq2seq
 - This product use fado module from https://github.com/0xnurl/fado-python3
 - This product refers to set2regex module from https://github.com/woaksths/set2regex
+
+## Description
+- 
 
 ## Install
     $python3 -m venv venv
@@ -17,6 +20,7 @@ Generating labeled examples from examples
     $python data_generater/make_dataset.py --data_path $DATA_PATH --number $NUMBER
 
 ## Train model
+    # 'sample.py' train and save a split model.
     #$python examples/sample.py --train_path ../data/train.csv --dev_path ../data/valid.csv
     
     
