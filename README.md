@@ -15,8 +15,6 @@ Regular expression : 0^* 1^? 0
 |10|12|
 |000|002|
 
-## Description
-- 
 
 ## Install
     python3 -m venv venv
