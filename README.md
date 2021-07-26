@@ -6,6 +6,9 @@ Generating set of labelled strings from set of strings by spliting each string t
 - This product use fado module from https://github.com/0xnurl/fado-python3
 - This product refers to set2regex module from https://github.com/woaksths/set2regex
 
+## Description
+- Data is given as (10pos, 10label, regular expression)
+- Acc means accuracy between data and prediction, while Acc(RE) means accuracy between sub regular expression and prediction.
 ## Example
 Regular expression : 0^* 1^? 0
 |String|Labelled string|
