@@ -6,8 +6,7 @@ Generating labeled examples from examples
 - This product use fado module from https://github.com/0xnurl/fado-python3
 - This product refers to set2regex module from https://github.com/woaksths/set2regex
 
-## Dataset download
-To generate new dataset.
+## New dataset download
     $python data_generater/make_dataset.py --data_path $DATA_PATH --number $NUMBER
 
 ## Usage
