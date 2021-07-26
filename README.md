@@ -8,9 +8,7 @@ Generating labeled examples from examples
 
 ## Dataset download
 > To generate new dataset.
-> ./data_generater/random_bench_concat_decompostion.py
->  run.
->  Choose the data file to train, at the sample.py: line 73
+    $python data_generater/make_dataset.py --data_path $DATA_PATH --number $NUMBER
 
 ## Usage
     #$python examples/sample.py --train_path ../data/train.csv --dev_path ../data/valid.csv
