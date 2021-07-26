@@ -27,7 +27,7 @@ Regular expression : 0^* 1^? 0
     python data_generater/make_dataset.py --data_path $DATA_PATH --number $NUMBER
 
 ## Train model
-    python examples/sample.py --train_path ../data/train.csv --dev_path ../data/valid.csv
+    python examples/sample.py --train_path ./data/train.csv --dev_path ./data/valid.csv
     
     
 ## Model architecture
