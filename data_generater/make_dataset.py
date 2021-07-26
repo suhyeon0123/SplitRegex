@@ -1,4 +1,4 @@
-from parsetree_makesplit import*
+from parsetree import*
 from xeger import Xeger
 
 
@@ -12,8 +12,7 @@ def rand_example(limit):
 
 # len(pos_example) <=10
 def get_train_data(bench_num, file_name):
-    f = open(file_name + ".txt", 'w')
-    f2 = open(file_name + "regex.txt", 'w')
+    f = open(file_name, 'w')
 
     bench_count = 0
     while bench_count < bench_num:
@@ -43,10 +42,8 @@ def get_train_data(bench_num, file_name):
                 posset.add(tmpexample)
             endcount += 1
         pos = [example.strip("'") for example in list(posset)]
-        if len(pos) == 0:
+        if len(pos) != 10:
             continue
-        print(pos)
-        #print(pos[0])
 
 
         # Tag 전처리
@@ -80,11 +77,8 @@ def get_train_data(bench_num, file_name):
             else:
                 saved_decomposed_regex[-1] = saved_decomposed_regex[-1]+letter
 
-        print('x :', saved_decomposed_regex)
-
-
         regex = "".join(str_list)
-        print(regex)
+        save = regex
 
 
 
@@ -112,29 +106,32 @@ def get_train_data(bench_num, file_name):
 
 
 
-
         result = ''
-
         for i in range(10):
             if len(pos) > i:
-                f.write(pos[i].replace(""," ")[1:-1] + '\t')
-                result = result + pos[i].replace(""," ")[1:-1] + '\t'
+                f.write(pos[i] + ', ')
+                result = result + pos[i] + ', '
             else:
-                f.write('<pad>' + '\t')
-                result = result + '<pad>' + '\t'
+                f.write('<pad>' + ', ')
+                result = result + '<pad>' + ', '
 
         for i in range(10):
             if len(templete) > i:
-                f.write(templete[i].replace("", " ")[1:-1] + '\t')
-                result += templete[i].replace("", " ")[1:-1] + '\t'
+                f.write(templete[i] + ', ')
+                result += templete[i] + ', '
             else:
-                f.write('<pad>' + '\t')
-                result += '<pad>' + '\t'
-        f.write(str(bench_count))
+                f.write('<pad>' + ', ')
+                result += '<pad>' + ', '
+        #f.write(str(bench_count))
         #f.write(''.join(list(map(lambda x: x+" ", list(str(bench_count))))))
-        f.write('\n')
 
-        f2.write(str(saved_decomposed_regex) + '\n')
+
+        f.write(str(save) + '\n')
+        result += str(save) + '\n'
+
+        #f.write(str(saved_decomposed_regex) + '\n')
+        #result += str(saved_decomposed_regex) + '\n'
+
 
         print(result)
         print(bench_count)
@@ -144,6 +141,5 @@ def get_train_data(bench_num, file_name):
     #save in txt file
 
 
-get_train_data(100000, "/home/ksh/PycharmProjects/train4")
-get_train_data(20000, "/home/ksh/PycharmProjects/valid4")
-
+get_train_data(100000, "./data/train.csv")
+get_train_data(20000, "./data/valid.csv")

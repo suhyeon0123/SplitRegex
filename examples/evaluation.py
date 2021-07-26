@@ -3,6 +3,7 @@
 
 from __future__ import print_function, division
 
+from collections import Counter
 import torch
 import torchtext
 import argparse
@@ -10,64 +11,39 @@ import time
 import seq2seq
 import subprocess
 import re
+from seq2seq.dataset.dataset import decomposing_regex, Vocabulary
+
 
 from regexDFAEquals import regex_equiv_from_raw, unprocess_regex, regex_equiv
 from seq2seq.optim import Optimizer
 from seq2seq.models import EncoderRNN, DecoderRNN,Seq2seq
 from seq2seq.loss import NLLLoss
 from seq2seq.util.checkpoint import Checkpoint
-from seq2seq.dataset import SourceField, TargetField
 from seq2seq.evaluator import Predictor
 from seq2seq.util.string_preprocess import get_set_num,pad_tensor, count_star, decode_tensor_input, decode_tensor_target
 from seq2seq.util.regex_operation import pos_membership_test, neg_membership_test, preprocess_regex, regex_equal, regex_inclusion, valid_regex, or_exception
-
+import seq2seq.dataset.dataset
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--train_path', action='store', dest='train_path', help='path to train data')
-parser.add_argument('--test_path', action='store', dest='test_path', help='path to test data')
+parser.add_argument('--data_path', action='store', dest='data_path', help='path to data')
 parser.add_argument('--checkpoint', action='store', dest='checkpoint', help='path to checkpoint')
 opt = parser.parse_args()
 
-opt.checkpoint = '/home/ksh/PycharmProjects/split/set2regex/_hidden_128/best_model/checkpoints'
+opt.checkpoint = '../_hidden_512/best_model/checkpoints'
 latest_check_point = Checkpoint.get_latest_checkpoint(opt.checkpoint)
 checkpoint = Checkpoint.load(latest_check_point)
-input_vocab = checkpoint.input_vocab
-output_vocab = checkpoint.output_vocab
+
 
 model = checkpoint.model
 optimizer = checkpoint.optimizer
-weight = torch.ones(len(output_vocab))
-pad = output_vocab.stoi['<pad>']
-loss = NLLLoss(weight, pad)
+loss = NLLLoss()
 batch_size = 1 
 print(model)
 
-train_file = opt.train_path
-test_file = opt.test_path
-set_num = get_set_num(train_file)
-set_num = int(set_num/2)
-src = SourceField()
-tgt = TargetField()
 
-
-train = torchtext.data.TabularDataset(
-    path=train_file, format='tsv',
-    fields=[('src{}'.format(i + 1), src) for i in range(set_num)] + [('tgt{}'.format(i + 1), tgt) for i in
-                                                                     range(set_num)])
-
-test_data = torchtext.data.TabularDataset(
-    path=test_file, format='tsv',
-    fields=[('src{}'.format(i + 1), src) for i in range(set_num)] + [('tgt{}'.format(i + 1), tgt) for i in
-                                                                     range(set_num)])
-
-src.build_vocab(train, max_size=500)
-tgt.build_vocab(train, max_size=500)
-
+data = seq2seq.dataset.dataset.get_loader(opt.data_path, batch_size=batch_size, shuffle=False)
 device = torch.device('cuda:0') if torch.cuda.is_available() else -1
-batch_iterator = torchtext.data.BucketIterator(
-    dataset=test_data, batch_size=1,
-    sort=False, sort_within_batch=False,
-    device=device, repeat=False, shuffle=False)
+
 
 model.eval()
 loss.reset()
@@ -77,108 +53,71 @@ match = 0
 total = 0
 num_samples = 0
 
-tgt_vocab = test_data.fields['tgt1'].vocab
-pad = tgt_vocab.stoi[test_data.fields['tgt1'].pad_token]
 
 with torch.no_grad():
     with open('{}_error_analysis.txt'.format(opt.checkpoint), 'w') as fw:
         statistics = [{'cnt':0,'hit': 0,'string_equal':0,'dfa_equal':0, 'membership_equal':0, 'invalid_regex':0} for _ in range(4)]
-        for batch in batch_iterator:
+
+        for inputs, outputs, regex in data:
             num_samples = num_samples + 1
 
-            src_variables = [[] for i in range(batch.batch_size)]
-            tgt_variables = [[] for i in range(batch.batch_size)]
-            lengths = [[] for i in range(batch.batch_size)]
+            # data preprocessing
+            for batch_idx in range(len(inputs)):
+                inputs[batch_idx] = torch.stack(inputs[batch_idx], dim=0)
+                outputs[batch_idx] = torch.stack(outputs[batch_idx], dim=0)
 
-            set_size = len(batch.fields) / 2
-            max_len_within_batch = -1
+            inputs = torch.stack(inputs, dim=0)
+            outputs = torch.stack(outputs, dim=0)
+
+            inputs = inputs.permute(2, 0, 1)
+            outputs = outputs.permute(2, 0, 1)
+
+            decoder_outputs, decoder_hidden, other = model(inputs, None, outputs)
+            tgt_variables = outputs.contiguous().view(-1, 10)
+            tgt_variables = tgt_variables.view(-1, 10)
+
+            regex = list(map(lambda x: decomposing_regex(x), regex))
+
+            answer_dict = [dict(Counter(l)) for l in tgt_variables.tolist()]
+
+            seqlist = other['sequence']
+            seqlist2 = [i.tolist() for i in seqlist]
+            tmp = torch.Tensor(seqlist2).transpose(0, 1).squeeze(-1).tolist()
+            predict_dict = [dict(Counter(l)) for l in tmp]
 
 
-            for idx in range(batch.batch_size):
-                for src_idx in range(1, int(set_size) + 1):
-                    src, src_len = getattr(batch, 'src{}'.format(src_idx))
-                    src_variables[idx].append(src[idx])
-                    tgt, tgt_len = getattr(batch, 'tgt{}'.format(src_idx))
-                    tgt_variables[idx].append(tgt[idx])
-                    lengths[idx].append(src_len[idx])
 
-                lengths[idx] = torch.stack(lengths[idx], dim=0)
-
-                if max_len_within_batch < torch.max(lengths[idx].view(-1)).item():
-                    max_len_within_batch = torch.max(lengths[idx].view(-1)).item()
-
-            '''for idx in range(batch.batch_size):
-                for src_idx in range(1, int(set_size/2)+1):
-                    src, src_len = getattr(batch, 'pos{}'.format(src_idx))
-                    pos_input_variables[idx].append(src[idx])
-                    pos_input_lengths[idx].append(src_len[idx])
-                    
-                for src_idx in range(1, int(set_size/2)+1):
-                    src, src_len = getattr(batch, 'neg{}'.format(src_idx))
-                    neg_input_variables[idx].append(src[idx])
-                    neg_input_lengths[idx].append(src_len[idx])
-                    
-                pos_input_lengths[idx] = torch.stack(pos_input_lengths[idx], dim =0)
-                neg_input_lengths[idx] = torch.stack(neg_input_lengths[idx], dim =0)
-                    
-                if max_len_within_batch <  torch.max(pos_input_lengths[idx].view(-1)).item():
-                    max_len_within_batch = torch.max(pos_input_lengths[idx].view(-1)).item()
-                    
-                if max_len_within_batch <  torch.max(neg_input_lengths[idx].view(-1)).item():
-                    max_len_within_batch = torch.max(neg_input_lengths[idx].view(-1)).item()'''
-
-            for batch_idx in range(len(src_variables)):
-                for set_idx in range(int(set_size)):
-                    src_variables[batch_idx][set_idx] = pad_tensor(src_variables[batch_idx][set_idx],
-                                                                   max_len_within_batch, input_vocab)
-
-                    tgt_variables[batch_idx][set_idx] = pad_tensor(tgt_variables[batch_idx][set_idx],
-                                                                   max_len_within_batch, tgt_vocab)
-
-                src_variables[batch_idx] = torch.stack(src_variables[batch_idx], dim=0)
-                tgt_variables[batch_idx] = torch.stack(tgt_variables[batch_idx], dim=0)
-            '''for batch_idx in range(len(pos_input_variables)):
-                for set_idx in range(int(set_size/2)):
-                    pos_input_variables[batch_idx][set_idx] = pad_tensor(pos_input_variables[batch_idx][set_idx],
-                                                                         max_len_within_batch, input_vocab)
-                    neg_input_variables[batch_idx][set_idx] = pad_tensor(neg_input_variables[batch_idx][set_idx],
-                                                                         max_len_within_batch, input_vocab)
-                        
-                pos_input_variables[batch_idx] = torch.stack(pos_input_variables[batch_idx], dim=0)
-                neg_input_variables[batch_idx] = torch.stack(neg_input_variables[batch_idx], dim=0)'''
-
-            src_variables = torch.stack(src_variables, dim=0)
-            tgt_variables = torch.stack(tgt_variables, dim=0)
-            lengths = torch.stack(lengths, dim=0)
-            
+            # generate output
             with torch.no_grad():
-                softmax_list, _, other =model(src_variables, tgt_variables)
-        
+                softmax_list, _, other =model(inputs, tgt_variables)
+
+
+            vocab = Vocabulary()
+
             length = other['length'][0]
             tgt_id_seq = [other['sequence'][di][0].data[0] for di in range(length)]
-            tgt_seq = [output_vocab.itos[tok] for tok in tgt_id_seq]
+            tgt_seq = [vocab.itos[tok] for tok in tgt_id_seq]
 
             # calculate NLL accuracy
-            non_padding = target_variables.view(-1)[1:].ne(pad).type(torch.LongTensor)
+            non_padding = tgt_variables.view(-1)[1:].ne(11).type(torch.LongTensor)
             predict_var = torch.stack(tgt_id_seq)
-            target_var = target_variables.view(-1)[1:]
+            target_var = tgt_variables.view(-1)[1:]
             max_len = max(len(predict_var), len(target_var))
-            padded_predict_var = pad_tensor(predict_var, max_len, output_vocab)
-            padded_target_var = pad_tensor(target_var, max_len, output_vocab)
-            padded_non_padding = pad_tensor(non_padding, max_len, output_vocab).type(torch.bool)
+            padded_predict_var = pad_tensor(predict_var, max_len, vocab)
+            padded_target_var = pad_tensor(target_var, max_len, vocab)
+            padded_non_padding = pad_tensor(non_padding, max_len, vocab).type(torch.bool)
             correct = padded_predict_var.eq(padded_target_var).masked_select(padded_non_padding).sum().item()
 
             match += correct
             total += non_padding.sum().item()
 
             predict_regex = ' '.join(tgt_seq[:-1])
-            target_regex = decode_tensor_target(target_variables, output_vocab)
+            target_regex = decode_tensor_target(tgt_variables, vocab)
             target_tokens = target_regex.split()
             predict_tokens = predict_regex.split()
             target_regex, predict_regex = preprocess_regex(target_regex, predict_regex)
             
-            pos_input =  decode_tensor_input(input_variables[0], input_vocab)
-            neg_input =  decode_tensor_input(input_variables[1], input_vocab)
+            pos_input =  decode_tensor_input(inputs, vocab)
 
             star_cnt = count_star(target_regex)
             statistics[star_cnt]['cnt'] +=1
@@ -192,12 +131,11 @@ with torch.no_grad():
                 elif regex_equal(target_regex, predict_regex):
                     statistics[star_cnt]['hit'] +=1
                     statistics[star_cnt]['dfa_equal'] +=1
-                elif pos_membership_test(predict_regex, pos_input) and neg_membership_test(predict_regex,neg_input):
+                elif pos_membership_test(predict_regex, pos_input):
                     statistics[star_cnt]['hit'] +=1 
                     statistics[star_cnt]['membership_equal'] +=1
                 else: 
                     fw.write('pos_input : ' + ' '.join(pos_input)+'\n')
-                    fw.write('neg_input : ' + ' '.join(neg_input)+'\n')
                     fw.write('target_regex : ' + target_regex  +'\n')
                     fw.write('predict_regex : ' + predict_regex + '\n\n')
             

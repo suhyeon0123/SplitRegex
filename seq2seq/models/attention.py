@@ -41,54 +41,11 @@ class Attention(nn.Module):
     def __init__(self, dim, attn_mode):
         super(Attention, self).__init__()
         self.mask = None
-        self.mask1 = None
-        self.mask2 = None
         self.attn_mode = attn_mode # True (attention both pos and neg) # False (attention only pos samples)
         if self.attn_mode:
             self.linear_out = nn.Linear(dim*3, dim)
         else:
             self.linear_out = nn.Linear(dim*2, dim)
-
-    def set_mask(self, mask):
-        """
-        Sets indices to be masked
-
-        Args:
-            mask (torch.Tensor): tensor containing indices to be masked
-        """
-        self.mask = mask
-        self.mask1 = mask[0] # masking for positive samples
-        self.mask2 = mask[1] # masking for negative samples
-
-        
-    def first_attention(self, dec_hidden, encoder_hiddens, mask):
-        attn_output = None
-        batch_size = dec_hidden.size(0)
-        set_size = encoder_hiddens.size(1)
-        enc_len = encoder_hiddens.size(2)
-        dec_len = dec_hidden.size(1)
-        encoder_hiddens_temp = encoder_hiddens.view(batch_size, set_size*enc_len, -1)
-        encoder_hiddens_temp = encoder_hiddens_temp.transpose(1,2)
-        attn = torch.bmm(dec_hidden, encoder_hiddens_temp)
-        attn = attn.view(batch_size, -1, set_size, enc_len)
-        if mask is not None:
-            mask = mask.unsqueeze(1)
-            attn = attn.data.masked_fill(mask, -float('inf'))
-        attn = torch.softmax(attn, dim=-1)
-        attn_output = attn
-        encoder_hiddens = encoder_hiddens.reshape(batch_size*set_size, enc_len, -1)
-        attn = attn.transpose(1,2)
-        attn = attn.reshape(batch_size*set_size, -1, enc_len)
-        c_t = torch.bmm(attn, encoder_hiddens)
-        c_t = c_t.reshape(batch_size, set_size, dec_len, -1)
-        c_t = c_t.transpose(1,2)
-        return c_t, attn_output
-    
-    
-    def second_attention(self, dec_hidden, encoder_hiddens):
-        attn = torch.bmm(dec_hidden, encoder_hiddens.transpose(1,2))
-        attn = torch.softmax(attn, dim=-1)
-        return attn
     
     
     def forward(self, output, context):

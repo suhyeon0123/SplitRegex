@@ -2,15 +2,10 @@ from __future__ import print_function, division
 
 from collections import Counter
 import re
-import numpy as np
 import torch
-import torchtext
-from seq2seq.dataset import SourceField
 
-import seq2seq
 from seq2seq.loss import NLLLoss
-from seq2seq.util.string_preprocess import pad_tensor
-from seq2seq.util.utils import decomposing_regex
+from seq2seq.dataset.dataset import decomposing_regex
 
 
 def list_chunk(lst, n):

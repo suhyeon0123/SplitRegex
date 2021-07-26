@@ -8,7 +8,7 @@ from torch.optim.lr_scheduler import StepLR, ReduceLROnPlateau
 import torchtext
 
 import seq2seq
-from seq2seq.trainer.supervised_trainer2 import SupervisedTrainer
+from seq2seq.trainer.supervised_trainer import SupervisedTrainer
 from seq2seq.models import EncoderRNN, DecoderRNN, Seq2seq
 from seq2seq.loss import Perplexity, NLLLoss
 from seq2seq.optim import Optimizer
@@ -16,46 +16,26 @@ from seq2seq.dataset import SourceField, TargetField
 from seq2seq.evaluator import Predictor
 from seq2seq.util.checkpoint import Checkpoint
 from seq2seq.util.string_preprocess import get_set_num, get_regex_list
-import seq2seq.util.utils
+import seq2seq.dataset.dataset
 
 try:
     raw_input          # Python 2
 except NameError:
     raw_input = input  # Python 3
 
-# Sample usage:
-#     # training
-#     python examples/sample.py --train_path $TRAIN_PATH --dev_path $DEV_PATH --expt_dir $EXPT_PATH
-#     # resuming from the latest checkpoint of the experiment
-#      python examples/sample.py --train_path $TRAIN_PATH --dev_path $DEV_PATH --expt_dir $EXPT_PATH --resume
-#      # resuming from a specific checkpoint
-#      python examples/sample.py --train_path $TRAIN_PATH --dev_path $DEV_PATH --expt_dir $EXPT_PATH --load_checkpoint $CHECKPOINT_DIR
+# Synthesizer usage:
+#     # synthesize regex from positive, negative strings
+#     python examples/synthesizer.py --data_path $DATA_PATH
+
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--train_path', action='store', dest='train_path',
-                    help='Path to train data')
-parser.add_argument('--dev_path', action='store', dest='dev_path',
-                    help='Path to dev data')
-parser.add_argument('--expt_dir', action='store', dest='expt_dir', default='./experiment',
-                    help='Path to experiment directory. If load_checkpoint is True, then path to checkpoint directory has to be provided')
-parser.add_argument('--load_checkpoint', action='store', dest='load_checkpoint',
-                    help='The name of the checkpoint to load, usually an encoded time string')
-parser.add_argument('--resume', action='store_true', dest='resume',
-                    default=False,
-                    help='Indicates if training has to be resumed from the latest checkpoint')
+parser.add_argument('--data_path', action='store', dest='data_path',
+                    help='Path to data')
 parser.add_argument('--log-level', dest='log_level',
                     default='info',
                     help='Logging level.')
-parser.add_argument('--bidirectional', action='store_true', dest='bidirectional',
-                    default=False,
-                    help='Indicates if training model is bidirectional model or not')
-
-parser.add_argument('--use_attn', action='store_true', dest='use_attn', default = False, help='use attention or not')
-parser.add_argument('--attn_mode', action='store_true', dest='attn_mode', default = False, help='choose attention mode')
-
 
 opt = parser.parse_args()
-opt.expt_dir = '/home/ksh/PycharmProjects/split/set2regex/'
 LOG_FORMAT = '%(asctime)s %(name)-12s %(levelname)-8s %(message)s'
 logging.basicConfig(format=LOG_FORMAT, level=getattr(logging, opt.log_level.upper()))
 logging.info(opt)
@@ -69,13 +49,24 @@ if opt.load_checkpoint is not None:
     output_vocab = checkpoint.output_vocab
 else:
     # Prepare dataset
-    train_path = "../data/train4.csv"
-    valid_path = "../data/valid4.csv"
+    train_path = "../data/train.csv"
+    valid_path = "../data/valid.csv"
 
     batch_size = 256
 
-    train = seq2seq.util.utils.get_loader(train_path, batch_size=batch_size, shuffle=True)
-    dev = seq2seq.util.utils.get_loader(valid_path, batch_size=batch_size, shuffle=False)
+    data_loader = seq2seq.dataset.dataset.get_loader(train_path, batch_size=batch_size, shuffle=False)
+
+    # Partitioning positive strings
+    latest_check_point = Checkpoint.get_latest_checkpoint(opt.checkpoint)
+    checkpoint = Checkpoint.load(latest_check_point)
+    model = checkpoint.model
+
+
+    softmax_list, _, other = model(input_variables, input_lengths)
+
+    splitted_pos = split_strings(data_loader)
+
+    # generate subregex
 
 
     # Prepare loss
