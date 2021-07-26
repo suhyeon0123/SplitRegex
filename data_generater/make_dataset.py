@@ -1,6 +1,6 @@
 from parsetree import*
 from xeger import Xeger
-
+import argparse
 
 limit = 6
 def rand_example(limit):
@@ -140,6 +140,11 @@ def get_train_data(bench_num, file_name):
 
     #save in txt file
 
+parser = argparse.ArgumentParser()
+parser.add_argument('--data_path', action='store', dest='data_path',
+                    help='Path to save data', default='./data/train_custom.csv')
+parser.add_argument('--number', action='store', dest='number',
+                    help='the number of data samples', default=100000)
+opt = parser.parse_args()
 
-get_train_data(100000, "./data/train.csv")
-get_train_data(20000, "./data/valid.csv")
+get_train_data(opt.number, opt.data_path)
