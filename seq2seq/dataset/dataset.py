@@ -101,3 +101,19 @@ def decomposing_regex(regex):
             saved_decomposed_regex[-1] = saved_decomposed_regex[-1] + letter
 
     return list(map(lambda x: x[6:], saved_decomposed_regex))
+
+
+def batch_preprocess(inputs, outputs, regex):
+    for batch_idx in range(len(inputs)):
+        inputs[batch_idx] = torch.stack(inputs[batch_idx], dim=0)
+        outputs[batch_idx] = torch.stack(outputs[batch_idx], dim=0)
+
+    inputs = torch.stack(inputs, dim=0)
+    outputs = torch.stack(outputs, dim=0)
+
+    inputs = inputs.permute(2, 0, 1)
+    outputs = outputs.permute(2, 0, 1)
+
+    regex = list(map(lambda x: decomposing_regex(x), regex))
+
+    return inputs, outputs, regex

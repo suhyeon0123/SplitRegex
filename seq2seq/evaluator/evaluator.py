@@ -5,7 +5,7 @@ import re
 import torch
 
 from seq2seq.loss import NLLLoss
-from seq2seq.dataset.dataset import decomposing_regex
+from seq2seq.dataset.dataset import batch_preprocess
 
 
 def list_chunk(lst, n):
@@ -49,22 +49,10 @@ class Evaluator(object):
         with torch.no_grad():
             for inputs, outputs, regex in data:
 
-                # data preprocessing
-                for batch_idx in range(len(inputs)):
-                    inputs[batch_idx] = torch.stack(inputs[batch_idx], dim=0)
-                    outputs[batch_idx] = torch.stack(outputs[batch_idx], dim=0)
-
-                inputs = torch.stack(inputs, dim=0)
-                outputs = torch.stack(outputs, dim=0)
-
-                inputs = inputs.permute(2, 0, 1)
-                outputs = outputs.permute(2, 0, 1)
+                inputs, outputs, regex = batch_preprocess(inputs, outputs, regex)
 
                 decoder_outputs, decoder_hidden, other = model(inputs, None, outputs)
                 tgt_variables = outputs.contiguous().view(-1, 10)
-                tgt_variables = tgt_variables.view(-1, 10)
-
-                regex = list(map(lambda x: decomposing_regex(x), regex))
 
                 answer_dict = [dict(Counter(l)) for l in tgt_variables.tolist()]
 

@@ -68,18 +68,19 @@ class EncoderRNN(BaseRNN):
         masking = get_mask(input_var)  # batch, set_size, seq_len
 
         src_output, src_hidden = self.rnn1(src_embedded) # (batch x set_size, seq_len, hidden), # (num_layer x num_dir, batch*set_size, hidden)
-        rnn1_hidden = src_hidden # (num_layer x num_dir, batch*set_size, hidden)
+        rnn1_hidden = src_hidden  # (num_layer x num_dir, batch*set_size, hidden)
 
-        src_output = src_output.view(batch_size, set_size, src_output.size(1), -1) # batch, set_size, seq_len, hidden)
-        set_embedded = src_hidden[0].view(self.n_layers, -1, batch_size*set_size, self.hidden_size) # num_layer(2), num_direction, batch x set_size, hidden
+        src_output = src_output.view(batch_size, set_size, src_output.size(1), -1)  # batch, set_size, seq_len, hidden)
+        src_single_hidden = src_hidden[0].view(self.n_layers, -1, batch_size*set_size, self.hidden_size) # num_layer(2), num_direction, batch x set_size, hidden
 
         # use hidden state of final_layer
-        set_embedded = set_embedded[-1, :,:,:] # num_direction, batch x set_size, hidden
+        set_embedded = src_single_hidden[-1, :,:,:]  # num_direction, batch x set_size, hidden
+
 
         if self.bidirectional:
             set_embedded = torch.cat((set_embedded[0], set_embedded[1]), dim=-1) # batch x set_size, num_direction x hidden
         else:
-            set_embedded = set_embedded.squeeze(0) # batch x set_size, hidden
+            set_embedded = set_embedded.squeeze(0)  # batch x set_size, hidden
 
         set_embedded = set_embedded.view(batch_size, set_size, -1) # batch, set_size, hidden
         set_output, set_hidden = self.rnn2(set_embedded) # (batch, set_size, hidden), # (num_layer*num_dir, batch, hidden) 2개 tuple 구성

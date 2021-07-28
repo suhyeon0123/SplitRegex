@@ -101,6 +101,8 @@ class DecoderRNN(BaseRNN):
 
         hidden = (hidden[0].repeat_interleave(10, dim=1), hidden[1].repeat_interleave(10, dim=1))  # 2, 640, 128 of tuple2
         hidden = (torch.cat((hidden[0], self.rnn1_hidden[0]), -1), torch.cat((hidden[1], self.rnn1_hidden[1]), -1)) # 2, 640, 256 of tuple2
+
+
         hidden = (self.hidden_out1(hidden[0]), self.hidden_out2(hidden[1]))
 
         output, hidden = self.rnn(embedded, hidden)  #(640,10,128)
@@ -118,7 +120,7 @@ class DecoderRNN(BaseRNN):
     def forward(self, inputs=None, encoder_hidden=None, encoder_outputs=None,
                     function=F.log_softmax, teacher_forcing_ratio=0, masking=None, rnn1_hidden = None):
 
-        self.rnn1_hidden = rnn1_hidden
+
 
         ret_dict = dict()
         if self.use_attention:
@@ -132,7 +134,8 @@ class DecoderRNN(BaseRNN):
 
         # inputs -> (batch, 10, 10)
         # encoder_hidden -> (num_layer x num_dir, batch, hidden)
-        #decoder_hidden = self._init_state(encoder_hidden)
+        decoder_hidden, rnn1_hidden = self._init_state(encoder_hidden, rnn1_hidden)
+        self.rnn1_hidden = rnn1_hidden
         # decoder_hidden -> if bidirecional: (num_layer, batch, 2 x hidden) else : (num_layer x num_dir, batch, hidden)
 
 
@@ -155,7 +158,7 @@ class DecoderRNN(BaseRNN):
         #decoder_input = inputs[:, 0].unsqueeze(1)  # (batch, 1) # (batch, set, len) -> (batch,1,len)
         #print(inputs.shape) # input variable 64,10,10
         #print(max_length)   # 10
-        decoder_output, decoder_hidden, attn = self.forward_step(inputs, encoder_hidden,
+        decoder_output, decoder_hidden, attn = self.forward_step(inputs, decoder_hidden,
                                                                       encoder_outputs,
                                                                       function=function)
 
@@ -177,15 +180,18 @@ class DecoderRNN(BaseRNN):
         ret_dict[DecoderRNN.KEY_LENGTH] = lengths.tolist()
         return decoder_outputs, decoder_hidden, ret_dict
 
-    def _init_state(self, encoder_hidden):
+    def _init_state(self, encoder_hidden, sub_hidden):
         """ Initialize the encoder hidden state. """
         if encoder_hidden is None:
             return None
         if isinstance(encoder_hidden, tuple):
             encoder_hidden = tuple([self._cat_directions(h) for h in encoder_hidden])
+            sub_hidden = tuple([self._cat_directions(h) for h in sub_hidden])
         else:
             encoder_hidden = self._cat_directions(encoder_hidden)
-        return encoder_hidden
+            sub_hidden = self._cat_directions(sub_hidden)
+
+        return encoder_hidden, sub_hidden
 
     def _cat_directions(self, h):
         """ If the encoder is bidirectional, do the following transformation.

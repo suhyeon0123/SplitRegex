@@ -42,7 +42,7 @@ parser.add_argument('--bidirectional', action='store_true', dest='bidirectional'
                     default=False,
                     help='Indicates if training model is bidirectional model or not')
 
-parser.add_argument('--use_attn', action='store_true', dest='use_attn', default=False, help='use attention or not')
+parser.add_argument('--use_attn', action='store_true', dest='use_attn', default=True, help='use attention or not')
 parser.add_argument('--attn_mode', action='store_true', dest='attn_mode', default=False, help='choose attention mode')
 
 
