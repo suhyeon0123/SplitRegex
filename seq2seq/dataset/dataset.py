@@ -6,20 +6,21 @@ import torch
 
 class Vocabulary:
     def __init__(self):
-        self.itos = {11: '<pad>', 12: '<unk>'}
-        self.itos.update({i: str(i) for i in range(10)})
-
-        self.stoi = {'<pad>': 11, '<unk>': 12}
-        self.stoi.update({str(i): i for i in range(10)})
+        self.itos = [
+                '0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
+                '<pad>', '<unk>']
+        self.stoi = dict((x, i) for i, x in enumerate(self.itos))
 
     def __len__(self):
         return len(self.itos)
 
-    def numericalize(self, text):
-        return list(map(lambda x: [torch.tensor(self.stoi[token]) for token in x], text))
+    def text2idx(self, text):
+        return list(map(self.stoi.get, text))
+
 
 NUM_EXAMPLES = 10
 MAX_SEQUENCE_LENGTH = 10
+
 
 class CustomDataset(Dataset):
     INPUT_COL = 0
@@ -38,31 +39,17 @@ class CustomDataset(Dataset):
     def __len__(self):
         return len(self.df)
 
+    def _translate_sequences(self, sequences):
+        processed_list = []
+        for sequence in map(str.strip, sequences):
+            tmp = list(sequence) + ['<pad>'] * (MAX_SEQUENCE_LENGTH - len(sequence))
+            processed_list.append(self.vocab.text2idx(tmp[:MAX_SEQUENCE_LENGTH]))
+        return processed_list
+
     def __getitem__(self, idx):
-
-        items = [self.input.iloc[idx], self.output.iloc[idx]]
-        numericalized_items = []
-
-        for item_idx, item in enumerate(items):
-            processed_list = []
-            for ix, sequence in enumerate(list(item)):
-                if ix == 0 and item_idx == 0:
-                    listed_sequence = list(str(sequence))
-                else:
-                    listed_sequence = list(str(sequence[1:]))
-                tmp = []
-
-                for i in range(MAX_SEQUENCE_LENGTH):
-                    if i < len(listed_sequence):
-                        tmp.append(listed_sequence[i])
-                    else:
-                        tmp.append('<pad>')
-
-                processed_list.append(tmp)
-
-            numericalized_items.append(self.vocab.numericalize(processed_list))
-
-        return numericalized_items[0], numericalized_items[1], self.regex.iloc[idx]
+        return (self._translate_sequences(self.input.iloc[idx]),
+                self._translate_sequences(self.output.iloc[idx]),
+                self.regex.iloc[idx])
 
 
 class MyCollate:
