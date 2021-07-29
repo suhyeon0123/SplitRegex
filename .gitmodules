@@ -1,0 +1,12 @@
+[submodule "set2regex"]
+	path = set2regex
+	url = https://github.com/woaksths/set2regex.git
+[submodule "AlphaRegexPublic"]
+	path = AlphaRegexPublic
+	url = https://github.com/kupl/AlphaRegexPublic.git
+[submodule "submodels/AlphaRegexPublic"]
+	path = submodels/AlphaRegexPublic
+	url = https://github.com/kupl/AlphaRegexPublic.git
+[submodule "submodels/set2regex"]
+	path = submodels/set2regex
+	url = https://github.com/woaksths/set2regex.git

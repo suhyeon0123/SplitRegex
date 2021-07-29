@@ -104,6 +104,7 @@ def decomposing_regex(regex):
 
 
 def batch_preprocess(inputs, outputs, regex):
+
     for batch_idx in range(len(inputs)):
         inputs[batch_idx] = torch.stack(inputs[batch_idx], dim=0)
         outputs[batch_idx] = torch.stack(outputs[batch_idx], dim=0)
@@ -114,9 +115,6 @@ def batch_preprocess(inputs, outputs, regex):
     inputs = inputs.permute(2, 0, 1)
     outputs = outputs.permute(2, 0, 1)
 
-    if '?P<t' in regex:
-        regex = list(map(lambda x: decomposing_regex(x), regex))
-    else:
-        regex = regex
+    regex = list(map(lambda x: decomposing_regex(x), regex))
 
     return inputs, outputs, regex
