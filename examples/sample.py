@@ -12,7 +12,7 @@ from seq2seq.loss import NLLLoss
 from seq2seq.optim import Optimizer
 from seq2seq.evaluator import Predictor
 from seq2seq.util.checkpoint import Checkpoint
-import seq2seq.dataset.dataset
+import seq2seq.dataset.dataset as dataset
 
 
 # Sample usage:
@@ -51,11 +51,15 @@ LOG_FORMAT = '%(asctime)s %(name)-12s %(levelname)-8s %(message)s'
 logging.basicConfig(format=LOG_FORMAT, level=getattr(logging, opt.log_level.upper()))
 logging.info(opt)
 
+s2smodel = None
+input_vocab = None
+output_vocab = None
+
 if opt.load_checkpoint is not None:
     logging.info("loading checkpoint from {}".format(os.path.join(opt.expt_dir, Checkpoint.CHECKPOINT_DIR_NAME, opt.load_checkpoint)))
     checkpoint_path = os.path.join(opt.expt_dir, Checkpoint.CHECKPOINT_DIR_NAME, opt.load_checkpoint)
     checkpoint = Checkpoint.load(checkpoint_path)
-    seq2seq = checkpoint.model
+    s2smodel = checkpoint.model
     input_vocab = checkpoint.input_vocab
     output_vocab = checkpoint.output_vocab
 else:
@@ -66,15 +70,18 @@ else:
 
     batch_size = 256
 
-    train = seq2seq.dataset.dataset.get_loader(train_path, batch_size=batch_size, shuffle=True)
-    dev = seq2seq.dataset.dataset.get_loader(valid_path, batch_size=batch_size, shuffle=False)
+    train = dataset.get_loader(train_path, batch_size=batch_size, shuffle=True)
+    dev = dataset.get_loader(valid_path, batch_size=batch_size, shuffle=False)
+
+    input_vocab = train.dataset.vocab
+    output_vocab = train.dataset.vocab
 
     # Prepare loss
     loss = NLLLoss()
     if torch.cuda.is_available():
         loss.cuda()
 
-    seq2seq = None
+    s2smodel = None
     optimizer = None
     if not opt.resume:
         # Initialize model
@@ -86,18 +93,18 @@ else:
                              dropout_p=0.2, input_dropout_p=0.25, use_attention=True, bidirectional=bidirectional, n_layers=2,
                              attn_mode=opt.attn_mode)
 
-        seq2seq = Seq2seq(encoder, decoder)
+        s2smodel = Seq2seq(encoder, decoder)
         
         if torch.cuda.is_available():
-            seq2seq.cuda()
+            s2smodel.cuda()
 
-        for param in seq2seq.parameters():
+        for param in s2smodel.parameters():
             param.data.uniform_(-0.1, 0.1)
 
         # Optimizer and learning rate scheduler can be customized by
         # explicitly constructing the objects and pass to the trainer.
         
-        optimizer = Optimizer(torch.optim.Adam(seq2seq.parameters(), lr=0.001), max_grad_norm=0.5)
+        optimizer = Optimizer(torch.optim.Adam(s2smodel.parameters(), lr=0.001), max_grad_norm=0.5)
         scheduler = ReduceLROnPlateau(optimizer.optimizer, 'min', factor=0.1, verbose=True, patience=10)
         optimizer.set_scheduler(scheduler)
     expt_dir = opt.expt_dir + '/hidden_{}'.format(hidden_size)
@@ -109,7 +116,7 @@ else:
                           print_every=100, expt_dir=expt_dir)
     
     start_time = time.time()
-    seq2seq = t.train(seq2seq, train,
+    s2smodel = t.train(s2smodel, train,
                       num_epochs=50, dev_data=dev,
                       optimizer=optimizer,
                       teacher_forcing_ratio=0.5,
@@ -117,4 +124,4 @@ else:
     end_time = time.time()
     print('total time > ', end_time-start_time)
     
-predictor = Predictor(seq2seq, input_vocab, output_vocab)
+predictor = Predictor(s2smodel, input_vocab, output_vocab)
