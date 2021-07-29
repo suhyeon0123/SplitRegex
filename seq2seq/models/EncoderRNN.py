@@ -63,7 +63,7 @@ class EncoderRNN(BaseRNN):
 
         batch_size, set_size, seq_len = input_var.size(0), input_var.size(1), input_var.size(2)
 
-        one_hot = F.one_hot(input_var.to(device='cuda'))
+        one_hot = F.one_hot(input_var.to(device='cuda'), num_classes = self.vocab_size)
         src_embedded = one_hot.view(batch_size*set_size,seq_len, -1).float()
         masking = get_mask(input_var)  # batch, set_size, seq_len
 

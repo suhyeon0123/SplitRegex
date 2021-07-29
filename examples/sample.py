@@ -87,11 +87,15 @@ else:
         # Initialize model
         hidden_size = 512
         bidirectional = opt.bidirectional
-        encoder = EncoderRNN(12, 10, hidden_size, dropout_p=0.25, input_dropout_p=0.25,
-                             bidirectional=bidirectional, n_layers=2, variable_lengths=True)
-        decoder = DecoderRNN(12, 10, hidden_size * 2 if bidirectional else hidden_size,
-                             dropout_p=0.2, input_dropout_p=0.25, use_attention=True, bidirectional=bidirectional, n_layers=2,
-                             attn_mode=opt.attn_mode)
+        encoder = EncoderRNN(
+                len(input_vocab), dataset.NUM_EXAMPLES, hidden_size,
+                dropout_p=0.25, input_dropout_p=0.25,
+                bidirectional=bidirectional, n_layers=2,
+                variable_lengths=True)
+        decoder = DecoderRNN(
+                len(input_vocab), dataset.NUM_EXAMPLES, hidden_size * (2 if bidirectional else 1),
+                dropout_p=0.2, input_dropout_p=0.25, use_attention=True,
+                bidirectional=bidirectional, n_layers=2, attn_mode=opt.attn_mode)
 
         s2smodel = Seq2seq(encoder, decoder)
         

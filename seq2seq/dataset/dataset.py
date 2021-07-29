@@ -18,13 +18,19 @@ class Vocabulary:
     def numericalize(self, text):
         return list(map(lambda x: [torch.tensor(self.stoi[token]) for token in x], text))
 
+NUM_EXAMPLES = 10
+MAX_SEQUENCE_LENGTH = 10
 
 class CustomDataset(Dataset):
+    INPUT_COL = 0
+    OUTPUT_COL = INPUT_COL + NUM_EXAMPLES
+    REGEX_COL = OUTPUT_COL + NUM_EXAMPLES
+
     def __init__(self, file_path):
         self.df = pd.read_csv(file_path, header=None, dtype=str)
-        self.input = self.df[self.df.columns[:10]]
-        self.output = self.df[self.df.columns[10:20]]
-        self.regex = self.df[self.df.columns[20]]
+        self.input = self.df[self.df.columns[CustomDataset.INPUT_COL:CustomDataset.OUTPUT_COL]]
+        self.output = self.df[self.df.columns[CustomDataset.OUTPUT_COL:CustomDataset.REGEX_COL]]
+        self.regex = self.df[self.df.columns[CustomDataset.REGEX_COL]]
 
         # Initialize vocabulary and build vocab
         self.vocab = Vocabulary()
@@ -46,7 +52,7 @@ class CustomDataset(Dataset):
                     listed_sequence = list(str(sequence[1:]))
                 tmp = []
 
-                for i in range(10):
+                for i in range(MAX_SEQUENCE_LENGTH):
                     if i < len(listed_sequence):
                         tmp.append(listed_sequence[i])
                     else:
