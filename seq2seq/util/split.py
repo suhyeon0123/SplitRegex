@@ -1,7 +1,8 @@
 import torch
 from collections import Counter
+from submodels.SoftConsiceNormalFrom.synthesizer import synthesis
+from submodels.SoftConsiceNormalFrom.examples import Examples
 
-#pos, other['sequence']
 def split(strings, label):
     label = [i.tolist() for i in label]
     tmp = torch.Tensor(label).transpose(0, 1).squeeze(-1).tolist()
@@ -30,4 +31,32 @@ def split(strings, label):
         batch.append(set)
 
     return batch
+
+def generate_split_regex(splited_pos, splited_neg):
+
+    print(splited_neg)
+    print(splited_pos)
+
+    regex = []
+    for sub_id in range(len(splited_pos[0])):
+        pos = []
+        neg = []
+
+        for set_idx in range(len(splited_pos)):
+            pos.append(splited_pos[set_idx][sub_id])
+            neg.append(splited_neg[set_idx][sub_id])
+
+        print(list(filter(lambda x : x != '', pos)))
+        print(list(filter(lambda x : x != '', neg)))
+        tmp = synthesis(Examples(pos=list(filter(lambda x : x != '', pos)), neg=list(filter(lambda x : x != '', pos))), 5000)
+        regex.append(tmp)
+        print(tmp)
+
+    return ''.join(regex)
+
+
+
+
+
+
 

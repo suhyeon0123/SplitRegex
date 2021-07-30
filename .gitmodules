@@ -10,3 +10,6 @@
 [submodule "submodels/set2regex"]
 	path = submodels/set2regex
 	url = https://github.com/woaksths/set2regex.git
+[submodule "submodels/SoftConsiceNormalFrom"]
+	path = submodels/SoftConsiceNormalFrom
+	url = https://github.com/suhyeon0123/SoftConsiceNormalFrom.git

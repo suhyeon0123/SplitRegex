@@ -2,13 +2,13 @@ import argparse
 import torch
 from seq2seq.dataset import dataset
 from seq2seq.util.checkpoint import Checkpoint
-from seq2seq.util.split import split
+from seq2seq.util.split import split, generate_split_regex
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--data_path', action='store', dest='data_path',
                     help='Path to data')
 parser.add_argument('--batch_size', action='store', dest='batch_size',
-                    help='batch size', default=64)
+                    help='batch size', default=4)
 parser.add_argument('--checkpoint_pos', action='store', dest='checkpoint_pos',
                     help='path to checkpoint for splitting positive strings ')
 parser.add_argument('--checkpoint_neg', action='store', dest='checkpoint_neg',
@@ -38,6 +38,9 @@ with torch.no_grad():
         _, _, other = neg_split_model(neg)
         splited_neg = split(neg, other['sequence'])  # batch, set, seq
 
-        sub_regex = sub_model(splited_pos, splited_neg)
+        batch_predict = []
+        for batch_idx in range(len(pos)):
+            batch_predict.append(generate_split_regex(splited_pos[batch_idx], splited_neg[batch_idx]))
 
-        predict = sub_regex.sum()
+        print(batch_predict)
+
