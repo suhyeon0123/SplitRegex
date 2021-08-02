@@ -27,6 +27,10 @@ pip install -r requirements.txt
 python setup.py install
 python fado-python3/setup.py install
 ```
+
+## Download submodules (after clone)
+    cd submodels  
+    git submodule update --init --recursive
     
 ## New dataset download
     python data_generater/make_dataset.py --data_path $DATA_PATH --number $NUMBER
