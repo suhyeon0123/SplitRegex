@@ -5,13 +5,13 @@ from seq2seq.util.checkpoint import Checkpoint
 from seq2seq.util.split import split, generate_split_regex
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--data_path', action='store', dest='data_path',
+parser.add_argument('--data_path', default='./data/train.csv', dest='data_path',
                     help='Path to data')
 parser.add_argument('--batch_size', action='store', dest='batch_size',
                     help='batch size', default=4)
-parser.add_argument('--checkpoint_pos', action='store', dest='checkpoint_pos',
+parser.add_argument('--checkpoint_pos', default='./saved_models/hidden_512/best_model', dest='checkpoint_pos',
                     help='path to checkpoint for splitting positive strings ')
-parser.add_argument('--checkpoint_neg', action='store', dest='checkpoint_neg',
+parser.add_argument('--checkpoint_neg', default='./saved_models/hidden_512/best_model', dest='checkpoint_neg',
                     help='path to checkpoint for splitting negative strings ')
 parser.add_argument('--sub_model', action='store', dest='sub_model', default='set2regex',
                     help='sub model used in generating sub regex from sub strings')
