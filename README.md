@@ -28,7 +28,8 @@ python setup.py install
 python fado-python3/setup.py install
 ```
 
-## Download submodules
+## Download submodules (after clone)
+    cd submodels  
     git submodule update --init --recursive
     
 ## New dataset download
