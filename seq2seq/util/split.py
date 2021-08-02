@@ -11,15 +11,14 @@ def split(strings, label, no_split=False):
     
     batch = []
     
-    if no_split:
-        seq = []
-        for batch_idx in range(len(strings)):
-            set = []                
-            for set_idx in range(10):
+    if no_split:   
+        for batch_idx in range(len(strings)): 
+            set = []   
+            for set_idx in range(10):                  
+                seq = []
                 seq.append(''.join(map(str, strings[batch_idx, set_idx][strings[batch_idx, set_idx] != strings.max()].tolist())))
-            
-            set.append(seq)
-        batch.append(set)
+                set.append(seq)
+            batch.append(set)
         return batch
     
     
@@ -69,8 +68,8 @@ def generate_split_regex(splited_pos, splited_neg):
 
         sub_neg_set -= sub_pos_set
         
-        print('Splited Positive Strings:', sub_pos_set)
-        print('Splited Negative Strings:', sub_neg_set)
+        #print('Splited Positive Strings:', sub_pos_set)
+        #print('Splited Negative Strings:', sub_neg_set)
 
         tmp = synthesis(Examples(pos=sub_pos_set, neg=sub_neg_set), 5000)
         if tmp is None:
