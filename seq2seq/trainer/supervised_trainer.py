@@ -13,7 +13,7 @@ from seq2seq.loss import NLLLoss
 from seq2seq.optim import Optimizer
 from seq2seq.util.checkpoint import Checkpoint
 from seq2seq.util.visualize import visualize_loss
-from seq2seq.dataset.dataset import decomposing_regex
+from seq2seq.dataset.dataset import batch_preprocess
 
 
 
@@ -85,7 +85,6 @@ class SupervisedTrainer(object):
         predict_dict = [dict(Counter(l)) for l in tmp]
 
         # acc of comparing to regex
-        regex = list(map(lambda x: decomposing_regex(x), regex))
 
         for batch_idx in range(len(regex)):
             set_count = 0
@@ -185,15 +184,7 @@ class SupervisedTrainer(object):
                 step += 1
                 step_elapsed += 1
 
-                for batch_idx in range(len(inputs)):
-                    inputs[batch_idx] = torch.stack(inputs[batch_idx], dim=0)
-                    outputs[batch_idx] = torch.stack(outputs[batch_idx], dim=0)
-
-                inputs = torch.stack(inputs, dim=0)
-                outputs = torch.stack(outputs, dim=0)
-
-                inputs = inputs.permute(2, 0, 1)
-                outputs = outputs.permute(2, 0, 1)
+                inputs, outputs, regex = batch_preprocess(inputs, outputs, regex)
 
                 loss = self._train_batch(inputs, None, outputs, regex, model, teacher_forcing_ratio)
 
