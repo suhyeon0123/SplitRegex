@@ -29,7 +29,7 @@ def print_tensor_set(tensor_set):
     for i in range(1, tensor_set.shape[0]):
         output_strings += ', ' + ''.join(map(str, tensor_set[i][tensor_set[i] != tensor_set.max()].tolist()))
 
-    print(output_strings)
+    return output_strings
 
 
 def main():
@@ -43,14 +43,21 @@ def main():
 
     pos_split_model.eval()
     neg_split_model.eval()
+    
+    
+    dc_time_total = 0
+    direct_time_total = 0
+    
+    dc_win = 0
 
-    for pos, neg, regex in data:
+    for count, (pos, neg, regex) in enumerate(data):
         pos, neg, regex = pos_neg_dataset.batch_preprocess(pos, neg, regex)
-        print('Positive Strings')
-        print_tensor_set(pos[0])
-        print('Negative Strings')
-        print_tensor_set(neg[0])
+        
+        print('-'*50)
+        print('Positive Strings:', print_tensor_set(pos[0]))
+        print('Negative Strings:', print_tensor_set(neg[0]))
         print('Target Regex:', ''.join(regex[0]))
+        print('-'*50)
 
         start_time = time.time()
 
@@ -65,8 +72,11 @@ def main():
             batch_predict.append(generate_split_regex(splited_pos[batch_idx], splited_neg[batch_idx]))
 
         end_time = time.time()
-
-        print('Generated Regex (via DC):', batch_predict[0], 'Time Taken: ', end_time - start_time)
+        
+        dc_time_taken = end_time - start_time
+        dc_time_total += dc_time_taken
+        
+        print(f'{count}th Generated Regex (via DC):', batch_predict[0], 'Time Taken: ', end_time - start_time)
 
         start_time = time.time()
 
@@ -82,8 +92,16 @@ def main():
             batch_predict.append(generate_split_regex(splited_pos[batch_idx], splited_neg[batch_idx]))
 
         end_time = time.time()
+        
+        direct_time_taken = end_time - start_time
+        direct_time_total += direct_time_taken
+        
+        if direct_time_taken > dc_time_taken:
+            dc_win += 1
 
-        print('Generated Regex (direct):', batch_predict[0], 'Time Taken: ', end_time - start_time)
+        print(f'{count}th Generated Regex (direct):', batch_predict[0], ', Time Taken: ', direct_time_taken)     
+        print(f'Divide-and-conquer win rate over Direct: {dc_win / (count + 1):.4f}%, Direct Total Time: {direct_time_total:.4f}, DC Total Time: {dc_time_total:.4f}')
+        print('-'*50)
 
 
 if __name__ == "__main__":
