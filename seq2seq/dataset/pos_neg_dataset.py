@@ -6,10 +6,10 @@ import torch
 
 class Vocabulary:
     def __init__(self):
-        self.itos = {11: '<pad>', 12: '<unk>'}
+        self.itos = {10: '<pad>', 11: '<unk>'}
         self.itos.update({i: str(i) for i in range(10)})
 
-        self.stoi = {'<pad>': 11, '<unk>': 12}
+        self.stoi = {'<pad>': 10, '<unk>': 11}
         self.stoi.update({str(i): i for i in range(10)})
 
     def __len__(self):
@@ -115,6 +115,6 @@ def batch_preprocess(inputs, outputs, regex):
     inputs = inputs.permute(2, 0, 1)
     outputs = outputs.permute(2, 0, 1)
 
-    regex = list(map(lambda x: decomposing_regex(x), regex))
+    #regex = list(map(lambda x: decomposing_regex(x), regex))
 
     return inputs, outputs, regex

@@ -122,6 +122,7 @@ class Checkpoint(object):
         Returns:
              str: path to the last saved checkpoint's subdirectory
         """
+
         checkpoints_path = os.path.join(experiment_path, cls.CHECKPOINT_DIR_NAME)
         all_times = sorted(os.listdir(checkpoints_path), reverse=True)
         return os.path.join(checkpoints_path, all_times[0])

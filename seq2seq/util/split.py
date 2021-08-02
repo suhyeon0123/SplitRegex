@@ -7,17 +7,31 @@ from collections import Counter
 from submodels.SoftConsiceNormalFrom.synthesizer import synthesis
 from submodels.SoftConsiceNormalFrom.examples import Examples
 
-def split(strings, label):
+def split(strings, label, no_split=False):
+    
+    batch = []
+    
+    if no_split:
+        seq = []
+        for batch_idx in range(len(strings)):
+            set = []                
+            for set_idx in range(10):
+                seq.append(''.join(map(str, strings[batch_idx, set_idx][strings[batch_idx, set_idx] != strings.max()].tolist())))
+            
+            set.append(seq)
+        batch.append(set)
+        return batch
+    
+    
     label = [i.tolist() for i in label]
     tmp = torch.LongTensor(label).transpose(0, 1).squeeze(-1).tolist()
     predict_dict = [dict(Counter(l)) for l in tmp]
 
-    batch = []
     for batch_idx in range(len(strings)):
         set = []                
         for set_idx in range(10):
             
-            split_size = strings[batch_idx][strings[batch_idx] != 10].max().item() + 1
+            split_size = torch.tensor(label)[torch.tensor(label) != 10].max().item() + 1
             
             src_seq = strings[batch_idx, set_idx].tolist()  # list of 10 alphabet
             #print(src_seq)
@@ -37,10 +51,7 @@ def split(strings, label):
 
     return batch
 
-def generate_split_regex(splited_pos, splited_neg):
-    
-    
-
+def generate_split_regex(splited_pos, splited_neg):        
     regex = []
     for sub_id in range(len(splited_pos[0])):
         pos = []
@@ -48,13 +59,13 @@ def generate_split_regex(splited_pos, splited_neg):
 
         for set_idx in range(len(splited_pos)):
             pos.append(splited_pos[set_idx][sub_id])
-            neg.append(splited_neg[set_idx][sub_id])    
+            if len(splited_neg[set_idx]) > sub_id:
+                neg.append(splited_neg[set_idx][sub_id])
+            else:
+                neg.append('')
 
         sub_pos_set = set(list(filter(lambda x : x != '', pos)))
         sub_neg_set = set(list(filter(lambda x : x != '', neg)))
-
-        #print(sub_pos_set)
-        #print(sub_neg_set)
 
         sub_neg_set -= sub_pos_set
         
@@ -65,7 +76,6 @@ def generate_split_regex(splited_pos, splited_neg):
         if tmp is None:
             return None
         regex.append(tmp)
-        #print(tmp)        
 
     return ''.join(regex)
 
