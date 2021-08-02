@@ -107,7 +107,6 @@ def batch_preprocess(inputs, outputs, regex):
     inputs = inputs.permute(2, 0, 1)
     outputs = outputs.permute(2, 0, 1)
 
-    if '?P<t' in regex[0]:
-        regex = list(map(lambda x: decomposing_regex(x), regex))
+    regex = list(map(lambda x: decomposing_regex(x), regex))
 
     return inputs, outputs, regex
