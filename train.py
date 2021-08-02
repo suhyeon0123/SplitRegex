@@ -24,9 +24,9 @@ import seq2seq.dataset.dataset as dataset
 #      python examples/sample.py --train_path $TRAIN_PATH --dev_path $DEV_PATH --expt_dir $EXPT_PATH --load_checkpoint $CHECKPOINT_DIR
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--train_path', default='./data/train.csv', dest='train_path',
+parser.add_argument('--train_path', default='./data/train_custom.csv', dest='train_path',
                     help='Path to train data')
-parser.add_argument('--dev_path', default='./data/valid.csv', dest='dev_path',
+parser.add_argument('--dev_path', default='./data/valid_custom.csv', dest='dev_path',
                     help='Path to dev data')
 parser.add_argument('--expt_dir', action='store', dest='expt_dir', default='./saved_models',
                     help='Path to experiment directory. If load_checkpoint is True, then path to checkpoint directory has to be provided')
