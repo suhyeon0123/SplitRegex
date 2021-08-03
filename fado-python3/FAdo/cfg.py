@@ -39,7 +39,7 @@ from builtins import *
 from builtins import object
 import re
 import string
-from types import StringType
+from types import *
 from random import randint
 from . import common
 

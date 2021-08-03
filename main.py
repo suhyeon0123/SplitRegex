@@ -53,17 +53,17 @@ def main():
 
     dc_time_total = 0
     direct_time_total = 0
-    
+
     dc_correct_count = 0
     dc_correct = False
     direct_correct = False
-    
+
     dc_win = 0
     direct_win = 0
 
     for count, (pos, neg, regex) in enumerate(data):
         pos, neg, regex = pos_neg_dataset.batch_preprocess(pos, neg, regex)
-        
+
         pos_set = print_tensor_set(pos[0])
         neg_set = print_tensor_set(neg[0])
 
@@ -89,12 +89,12 @@ def main():
 
         dc_time_taken = end_time - start_time
         dc_time_total += dc_time_taken
-        
+
         if batch_predict[0] is not None:
             dc_correct = is_solution(batch_predict[0], Examples(pos=pos_set, neg=neg_set), membership)
         else:
             dc_correct = False
-        
+
         if dc_correct:
             dc_correct_count += 1
 
@@ -117,7 +117,7 @@ def main():
 
         direct_time_taken = end_time - start_time
         direct_time_total += direct_time_taken
-        
+
         if batch_predict[0] is not None:
             direct_correct = True
         else:
@@ -129,7 +129,7 @@ def main():
                     dc_win += 1
                 else:
                     direct_win += 1
-            else:            
+            else:
                 dc_win += 1
         elif direct_correct:
             direct_win += 1
