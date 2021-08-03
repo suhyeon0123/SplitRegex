@@ -28,7 +28,7 @@ parser.add_argument('--train_path', action='store', dest='train_path',
                     help='Path to train data')
 parser.add_argument('--dev_path', action='store', dest='dev_path',
                     help='Path to dev data')
-parser.add_argument('--expt_dir', action='store', dest='expt_dir', default='../experiment',
+parser.add_argument('--expt_dir', action='store', dest='expt_dir', default='./experiment',
                     help='Path to experiment directory. If load_checkpoint is True, then path to checkpoint directory has to be provided')
 parser.add_argument('--load_checkpoint', action='store', dest='load_checkpoint',
                     help='The name of the checkpoint to load, usually an encoded time string')
@@ -109,7 +109,7 @@ else:
         # explicitly constructing the objects and pass to the trainer.
         
         optimizer = Optimizer(torch.optim.Adam(s2smodel.parameters(), lr=0.001), max_grad_norm=0.5)
-        scheduler = ReduceLROnPlateau(optimizer.optimizer, 'min', factor=0.1, verbose=True, patience=10)
+        scheduler = ReduceLROnPlateau(optimizer.optimizer, 'min', factor=0.1, verbose=True, patience=5)
         optimizer.set_scheduler(scheduler)
     expt_dir = opt.expt_dir + '/hidden_{}'.format(hidden_size)
 
@@ -121,7 +121,7 @@ else:
     
     start_time = time.time()
     s2smodel = t.train(s2smodel, train,
-                      num_epochs=50, dev_data=dev,
+                      num_epochs=10, dev_data=dev,
                       optimizer=optimizer,
                       teacher_forcing_ratio=0.5,
                       resume=opt.resume)
