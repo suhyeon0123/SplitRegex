@@ -24,9 +24,9 @@ import seq2seq.dataset.dataset as dataset
 #      python examples/sample.py --train_path $TRAIN_PATH --dev_path $DEV_PATH --expt_dir $EXPT_PATH --load_checkpoint $CHECKPOINT_DIR
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--train_path', default='./data/train_custom.csv', dest='train_path',
+parser.add_argument('--train_path', default='./data/train_5.csv', dest='train_path',
                     help='Path to train data')
-parser.add_argument('--dev_path', default='./data/valid_custom.csv', dest='dev_path',
+parser.add_argument('--dev_path', default='./data/valid_5.csv', dest='dev_path',
                     help='Path to dev data')
 parser.add_argument('--expt_dir', action='store', dest='expt_dir', default='./saved_models',
                     help='Path to experiment directory. If load_checkpoint is True, then path to checkpoint directory has to be provided')
@@ -43,7 +43,7 @@ parser.add_argument('--bidirectional', action='store_true', dest='bidirectional'
                     help='Indicates if training model is bidirectional model or not')
 
 parser.add_argument('--use_attn', action='store_true', dest='use_attn', default=True, help='use attention or not')
-parser.add_argument('--attn_mode', action='store_true', dest='attn_mode', default=True, help='choose attention mode')
+parser.add_argument('--attn_mode', action='store_true', dest='attn_mode', default=False, help='choose attention mode')
 
 
 opt = parser.parse_args()
@@ -68,7 +68,7 @@ else:
     train_path = opt.train_path
     valid_path = opt.dev_path
 
-    batch_size = 256
+    batch_size = 512
 
     train = dataset.get_loader(train_path, batch_size=batch_size, shuffle=True)
     dev = dataset.get_loader(valid_path, batch_size=batch_size, shuffle=False)

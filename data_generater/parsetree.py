@@ -52,18 +52,18 @@ class RE:
     def spreadRand(self):
         if self.type == Type.K or self.type == Type.Q:
             if self.r.type == Type.HOLE:
-                self.r = Character('0') if random.random() < 0.5 else Character('1')
+                self.r = rand_char()
             else:
                 self.r.spreadRand()
         elif self.type == Type.C or self.type == Type.U:
             for index, regex in enumerate(self.list):
                 if regex.type == Type.HOLE:
-                    self.list[index] = Character('0') if random.random() < 0.5 else Character('1')
+                    self.list[index] = rand_char()
                 else:
                     self.list[index].spreadRand()
         elif self.type == Type.REGEX:
             if self.r.type == Type.HOLE:
-                self.r = Character('0') if random.random() < 0.5 else Character('1')
+                self.r = rand_char()
             else:
                 self.r.spreadRand()
 
@@ -627,11 +627,7 @@ def get_rand_re(depth):
         cha = False
 
     if cha:
-        case = random.randrange(0, 2)
-        if case == 0:
-            return Character('0')
-        else:
-            return Character('1')
+        return rand_char()
     else:
         case = random.randrange(0, 5)
         if case <= 0:
@@ -644,3 +640,7 @@ def get_rand_re(depth):
             return Question()
         else:
             return Hole()
+        
+def rand_char(alpha_size=5):     
+    case = random.randrange(0, alpha_size)
+    return Character(str(case))

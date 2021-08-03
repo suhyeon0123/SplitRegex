@@ -2,7 +2,16 @@ from parsetree import*
 from xeger import Xeger
 import argparse
 
+
+parser = argparse.ArgumentParser()
+parser.add_argument('--data_path', action='store', dest='data_path',
+                    help='Path to save data', default='./data/pos_neg_5.csv')
+parser.add_argument('--number', action='store', dest='number',
+                    help='the number of data samples', default=1000)
+opt = parser.parse_args()
+
 limit = 6
+
 def rand_example(limit):
     regex = REGEX()
     for count in range(limit):
@@ -32,7 +41,7 @@ def get_train_data(bench_num, file_name):
         endcount = 0
         while endcount < 50 and len(posset) < 10:
             tmpexample = x.xeger(repr(regex))
-            if len(tmpexample) <= (10 + 2) and len(tmpexample) >= 3:
+            if len(tmpexample) <= 10 and len(tmpexample) >= 3:
                 posset.add(tmpexample)
             endcount += 1
         pos = [example.strip("'") for example in list(posset)]
@@ -46,11 +55,8 @@ def get_train_data(bench_num, file_name):
             # random regex생성
             str_list = []
 
-            for j in range(0, random.randrange(1, 15)):
-                if random.random() < 0.5:
-                    str_list.append('0')
-                else:
-                    str_list.append('1')
+            for j in range(0, random.randrange(1, 10)):
+                str_list.append(str(random.randrange(0, 5)))
             tmp = ''.join(str_list)
 
             # random regex가 맞지 않다면 추가
@@ -70,10 +76,10 @@ def get_train_data(bench_num, file_name):
         for i in range(10):
             if len(pos) > i:
                 f.write(pos[i] + ', ')
-                result = result + pos[i] + ', '
+                result += pos[i] + ', '
             else:
                 f.write('<pad>' + ', ')
-                result = result + '<pad>' + ', '
+                result += '<pad>' + ', '
 
         for i in range(10):
             if len(neg) > i:
@@ -94,11 +100,9 @@ def get_train_data(bench_num, file_name):
 
     #save in txt file
 
-parser = argparse.ArgumentParser()
-parser.add_argument('--data_path', action='store', dest='data_path',
-                    help='Path to save data', default='../data/pos_neg.csv')
-parser.add_argument('--number', action='store', dest='number',
-                    help='the number of data samples', default=10000)
-opt = parser.parse_args()
+def main():
+    get_train_data(opt.number, opt.data_path)
 
-get_train_data(opt.number, opt.data_path)
+
+if __name__ == "__main__":
+    main()

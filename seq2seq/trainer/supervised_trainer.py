@@ -177,12 +177,14 @@ class SupervisedTrainer(object):
             self.total = 0
             self.correct_seq_re = 0
             self.correct_set_re = 0
+            self.total_data_size = 0
 
             model.train(True)
             for inputs, outputs, regex in data:
 
                 step += 1
                 step_elapsed += 1
+                self.total_data_size += len(regex)
 
                 inputs, outputs, regex = batch_preprocess(inputs, outputs, regex)
 
@@ -213,12 +215,14 @@ class SupervisedTrainer(object):
             epoch_loss_avg = epoch_loss_total / min(steps_per_epoch, step - start_step)
             epoch_loss_total = 0
 
+            print(self.total_data_size)
+
 
             accuracyT = self.match / self.total
-            acc_seqT = self.match_seqnum / 1000000
-            acc_seq_reT = self.correct_seq_re / 1000000
-            acc_setT = self.match_setnum / 100000
-            acc_set_reT = self.correct_set_re / 100000
+            acc_seqT = self.match_seqnum / (self.total_data_size * 10)
+            acc_seq_reT = self.correct_seq_re / (self.total_data_size * 10)
+            acc_setT = self.match_setnum / self.total_data_size
+            acc_set_reT = self.correct_set_re / self.total_data_size
             train_log = "Train %s: %.4f, Accuracy: %.4f, Accuracy of seq: %.4f, Accuracy of seq(RE): %.4f, Accuracy of set: %.4f, Accuracy of set(RE): %.4f" % (self.loss.name, epoch_loss_avg, accuracyT, acc_seqT, acc_seq_reT, acc_setT, acc_set_reT)
 
 

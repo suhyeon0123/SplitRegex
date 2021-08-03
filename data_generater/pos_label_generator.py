@@ -2,7 +2,18 @@ from parsetree import*
 from xeger import Xeger
 import argparse
 
+
+parser = argparse.ArgumentParser()
+parser.add_argument('--data_path', action='store', dest='data_path',
+                    help='Path to save data', default='./data/valid_5.csv')
+parser.add_argument('--number', action='store', dest='number', type=int,
+                    help='the number of data samples', default=10000)
+opt = parser.parse_args()
+
 limit = 6
+alpha_size = 5
+
+
 def rand_example(limit):
     regex = REGEX()
     for count in range(limit):
@@ -25,7 +36,7 @@ def get_train_data(bench_num, file_name):
             continue
         if regex.starnormalform() or regex.redundant_concat1() or regex.redundant_concat2() or regex.KCK() or regex.KCQ() or regex.QC() or regex.OQ() or regex.orinclusive() or regex.prefix() or regex.sigmastar():
             continue
-        print(regex)
+        #print(regex)
         saved_regex = regex
         regex = regex.repr_labeled()
         print(regex)
@@ -140,11 +151,10 @@ def get_train_data(bench_num, file_name):
 
     #save in txt file
 
-parser = argparse.ArgumentParser()
-parser.add_argument('--data_path', action='store', dest='data_path',
-                    help='Path to save data', default='./data/train_custom.csv')
-parser.add_argument('--number', action='store', dest='number',
-                    help='the number of data samples', default=100000)
-opt = parser.parse_args()
 
-get_train_data(opt.number, opt.data_path)
+def main():
+    get_train_data(opt.number, opt.data_path)
+
+
+if __name__ == "__main__":
+    main()

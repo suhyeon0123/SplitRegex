@@ -45,9 +45,12 @@ class Evaluator(object):
         total = 0
         correct_seq_re = 0
         correct_set_re = 0
+        total_data_size = 0
 
         with torch.no_grad():
             for inputs, outputs, regex in data:
+
+                total_data_size += len(regex)
 
                 inputs, outputs, regex = batch_preprocess(inputs, outputs, regex)
 
@@ -109,10 +112,10 @@ class Evaluator(object):
                 tmp = list_chunk([example.all() for example in result], 10)
                 match_setnum += [all(example) for example in tmp].count(True)
 
-        acc_seq = match_seqnum / 200000
-        acc_seq_re = correct_seq_re / 200000
-        acc_set = match_setnum / 20000
-        acc_set_re = correct_set_re / 20000
+        acc_seq = match_seqnum / (total_data_size * 10)
+        acc_seq_re = correct_seq_re / (total_data_size * 10)
+        acc_set = match_setnum / total_data_size
+        acc_set_re = correct_set_re / total_data_size
 
         if total == 0:
             accuracy = float('nan')

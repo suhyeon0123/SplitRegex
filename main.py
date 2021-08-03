@@ -1,19 +1,25 @@
 import argparse
 import time
 import torch
+import os, sys
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), 'submodels', 'SoftConsiceNormalFrom' )))
+
+from util import *
+from examples import *
 
 from seq2seq.dataset import pos_neg_dataset
 from seq2seq.util.checkpoint import Checkpoint
 from seq2seq.util.split import split, generate_split_regex
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--data_path', default='./data/pos_neg.csv', dest='data_path',
+parser.add_argument('--data_path', default='./data/pos_neg_5.csv', dest='data_path',
                     help='Path to data')
 parser.add_argument('--batch_size', action='store', dest='batch_size',
                     help='batch size', default=1)
-parser.add_argument('--checkpoint_pos', default='./saved_models/experiment/hidden_512/best_model', dest='checkpoint_pos',
+parser.add_argument('--checkpoint_pos', default='./saved_models/hidden_512/best_accuracy', dest='checkpoint_pos',
                     help='path to checkpoint for splitting positive strings ')
-parser.add_argument('--checkpoint_neg', default='./saved_models/experiment/hidden_512/best_model', dest='checkpoint_neg',
+parser.add_argument('--checkpoint_neg', default='./saved_models/hidden_512/best_accuracy', dest='checkpoint_neg',
                     help='path to checkpoint for splitting negative strings ')
 parser.add_argument('--sub_model', action='store', dest='sub_model', default='set2regex',
                     help='sub model used in generating sub regex from sub strings')
@@ -25,9 +31,9 @@ opt = parser.parse_args()
 
 
 def print_tensor_set(tensor_set):
-    output_strings = ''.join(map(str, tensor_set[0][tensor_set[0] != tensor_set.max()].tolist()))
-    for i in range(1, tensor_set.shape[0]):
-        output_strings += ', ' + ''.join(map(str, tensor_set[i][tensor_set[i] != tensor_set.max()].tolist()))
+    output_strings = []
+    for i in range(tensor_set.shape[0]):
+        output_strings.append(''.join(map(str, tensor_set[i][tensor_set[i] != tensor_set.max()].tolist())))
 
     return output_strings
 
@@ -43,19 +49,27 @@ def main():
 
     pos_split_model.eval()
     neg_split_model.eval()
-    
-    
+
+
     dc_time_total = 0
     direct_time_total = 0
     
+    dc_correct_count = 0
+    dc_correct = False
+    direct_correct = False
+    
     dc_win = 0
+    direct_win = 0
 
     for count, (pos, neg, regex) in enumerate(data):
         pos, neg, regex = pos_neg_dataset.batch_preprocess(pos, neg, regex)
         
+        pos_set = print_tensor_set(pos[0])
+        neg_set = print_tensor_set(neg[0])
+
         print('-'*50)
-        print('Positive Strings:', print_tensor_set(pos[0]))
-        print('Negative Strings:', print_tensor_set(neg[0]))
+        print('Positive Strings:', ', '.join(pos_set))
+        print('Negative Strings:', ', '.join(neg_set))
         print('Target Regex:', ''.join(regex[0]))
         print('-'*50)
 
@@ -72,11 +86,19 @@ def main():
             batch_predict.append(generate_split_regex(splited_pos[batch_idx], splited_neg[batch_idx]))
 
         end_time = time.time()
-        
+
         dc_time_taken = end_time - start_time
         dc_time_total += dc_time_taken
         
-        print(f'{count}th Generated Regex (via DC):', batch_predict[0], 'Time Taken: ', end_time - start_time)
+        if batch_predict[0] is not None:
+            dc_correct = is_solution(batch_predict[0], Examples(pos=pos_set, neg=neg_set), membership)
+        else:
+            dc_correct = False
+        
+        if dc_correct:
+            dc_correct_count += 1
+
+        print(f'{count}th Generated Regex (via DC): {batch_predict[0]} ({dc_correct}), Time Taken: ', end_time - start_time)
 
         start_time = time.time()
 
@@ -92,15 +114,28 @@ def main():
             batch_predict.append(generate_split_regex(splited_pos[batch_idx], splited_neg[batch_idx]))
 
         end_time = time.time()
-        
+
         direct_time_taken = end_time - start_time
         direct_time_total += direct_time_taken
         
-        if direct_time_taken > dc_time_taken:
-            dc_win += 1
+        if batch_predict[0] is not None:
+            direct_correct = True
+        else:
+            direct_correct = False
 
-        print(f'{count}th Generated Regex (direct):', batch_predict[0], ', Time Taken: ', direct_time_taken)     
-        print(f'Divide-and-conquer win rate over Direct: {dc_win / (count + 1):.4f}%, Direct Total Time: {direct_time_total:.4f}, DC Total Time: {dc_time_total:.4f}')
+        if dc_correct:
+            if direct_correct:
+                if direct_time_taken > dc_time_taken:
+                    dc_win += 1
+                else:
+                    direct_win += 1
+            else:            
+                dc_win += 1
+        elif direct_correct:
+            direct_win += 1
+
+        print(f'{count}th Generated Regex (direct): {batch_predict[0]}, Time Taken: ', direct_time_taken)
+        print(f'Divide-and-conquer win rate over Direct: {dc_win / (dc_win + direct_win + 1e-9) * 100:.4f}%, Direct Total Time: {direct_time_total:.4f}, DC Total Time: {dc_time_total:.4f}')
         print('-'*50)
 
 
