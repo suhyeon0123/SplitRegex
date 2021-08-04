@@ -34,7 +34,10 @@ python setup.py install
     git submodule update --init --recursive
     
 ## New dataset download
-    python data_generater/make_dataset.py --data_path $DATA_PATH --number $NUMBER
+    python data_generater/pos_label_generator.py --data_path train.csv --number $NUMBER
+    python data_generater/pos_label_generator.py --data_path valid.csv --number $NUMBER
+    python data_generater/pos_neg_generator.py --data_path pos_neg.csv --number $NUMBER
+    
 
 ## Train model
     python examples/sample.py --train_path ./data/train.csv --dev_path ./data/valid.csv
