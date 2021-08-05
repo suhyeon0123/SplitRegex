@@ -12,8 +12,8 @@ from seq2seq.dataset import pos_neg_dataset
 from seq2seq.util.checkpoint import Checkpoint
 from split import split, generate_split_regex
 
-from submodels.SoftConsiceNormalFrom.examples import Examples
-from submodels.SoftConsiceNormalFrom.util import *
+from submodels.SoftConciseNormalForm.examples import Examples
+from submodels.SoftConciseNormalForm.util import *
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--data_path', default='./data/pos_neg_5.csv', dest='data_path',

@@ -1,11 +1,11 @@
 import torch
 
 import os, sys
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), 'submodels', 'SoftConsiceNormalFrom' )))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), 'submodels', 'SoftConciseNormalForm' )))
 
 from collections import Counter
-from submodels.SoftConsiceNormalFrom.synthesizer import synthesis
-from submodels.SoftConsiceNormalFrom.examples import Examples
+from submodels.SoftConciseNormalForm.synthesizer import synthesis
+from submodels.SoftConciseNormalForm.examples import Examples
 
 def split(strings, label, no_split=False):
 
