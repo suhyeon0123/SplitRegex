@@ -5,10 +5,11 @@ Generating set of labelled strings from set of strings by spliting each string t
 - This product use fado module from https://github.com/0xnurl/fado-python3
 - This product refers to set2regex module from https://github.com/woaksths/set2regex
 
-## Description
+### Description
 - Data is given as (10pos, 10label, regular expression)
-- Acc means accuracy between data and prediction, while Acc(RE) means accuracy between sub regular expression and prediction.
-## Example
+- Acc means accuracy between data and prediction, while Acc (RE) means accuracy between sub regular expression and prediction.
+
+### Example
 Regular expression : _<img src="https://render.githubusercontent.com/render/math?math=0^* 1^? 0">_
 |String|Labelled string|
 |------|---|
@@ -18,7 +19,7 @@ Regular expression : _<img src="https://render.githubusercontent.com/render/math
 |000|002|
 
 
-## Install
+### Install
 ```shell
 python3 -m venv venv
 source venv/bin/activate
@@ -28,29 +29,29 @@ cd submodels/fado-python3
 python setup.py install
 ```
 
-## Download submodules (after clone)
+### Download submodules (after clone)
     cd submodels  
     git submodule update --init --recursive
     
-## New dataset download
+### New dataset download
     python data_generater/pos_label_generator.py --data_path train.csv --number $NUMBER
     python data_generater/pos_label_generator.py --data_path valid.csv --number $NUMBER
     python data_generater/pos_neg_generator.py --data_path pos_neg.csv --number $NUMBER
     
 
-## Train model
+### Train model
     python train.py --train_path ./data/train.csv --dev_path ./data/valid.csv
     
     
-## Model architecture
+### Model architecture
 ![model_architecture_set2label](https://user-images.githubusercontent.com/64397574/126556989-92c30f72-bca6-4a66-8ba9-b6d90261b085.PNG)
 
-## To-Do
+### To-Do
 - [x] add AlphaRegex module for generating generate sub regex
 - [x] generate overall module of synthesizing regex using set2label
 - [ ] implement evaluation.py 
 - [ ] add set2regex submodule for generating sub regex
 
-## License
+### License
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
