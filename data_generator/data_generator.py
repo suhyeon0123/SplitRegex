@@ -3,12 +3,12 @@ from xeger import Xeger
 import argparse
 
 parser = argparse.ArgumentParser()
+parser.add_argument('--data_type', action='store', dest='data_type',
+                    help='data type - pos_label or pos_neg', default='pos_label')
+parser.add_argument('--regex_path', action='store', dest='regex_path',
+                    help='Path to save data', default='./data/random_regex')
 parser.add_argument('--data_path', action='store', dest='data_path',
                     help='Path to save data', default='./data/valid_5.csv')
-parser.add_argument('--number', action='store', dest='number', type=int,
-                    help='the number of data samples', default=10000)
-parser.add_argument('--always_concat', action='store_true', dest='always_concat',
-                    help='Indicate if the root of regex is always concat or not', default=False)
 
 opt = parser.parse_args()
 
@@ -25,24 +25,14 @@ def rand_example(limit):
 
 
 # len(pos_example) <=10
-def get_train_data(bench_num, file_name):
-    f = open(file_name, 'w')
+def make_pos_label(regex_file, save_file):
+    regex_file = open(regex_file, 'r')
+    regexes = [x.strip() for x in regex_file.readlines()]
 
-    bench_count = 0
-    while bench_count < bench_num:
+    save_file = open(save_file + '.csv', 'w')
 
-        # REGEX 생성
-        regex = rand_example(limit)
-
-        # regex의 leaf노드가 Concat이도록 함
-        if opt.always_concat and regex.r.type != Type.C:
-            continue
-
-        if regex.starnormalform() or regex.redundant_concat1() or regex.redundant_concat2() or regex.KCK() or regex.KCQ() or regex.QC() or regex.OQ() or regex.orinclusive() or regex.prefix() or regex.sigmastar():
-            continue
-
-        regex = regex.repr_labeled()
-
+    for regex in regexes:
+        print(regex)
         # pos examples 생성
         x = Xeger()
         posset = set()
@@ -124,14 +114,80 @@ def get_train_data(bench_num, file_name):
 
         result += str(save) + '\n'
 
-        print(bench_count)
+        print(result)
+        save_file.write(result)
+
+
+
+def make_pos_neg(regex_file, save_file):
+    regex_file = open(regex_file, 'r')
+    regexes = [x.strip() for x in regex_file.readlines()]
+
+    f = open(save_file + '.csv', 'w')
+
+    for regex in regexes:
+
+        # pos examples 생성
+        x = Xeger()
+        posset = set()
+
+        for i in range(50):
+            example = x.xeger(repr(regex)).strip("'")
+            if 0 < len(example) <= 10:
+                posset.add(example)
+            if len(posset) == 10:
+                break
+
+        pos = list(posset)
+        if len(pos) != 10:
+            continue
+
+        # neg examples 생성
+        negset = set()
+        for i in range(0, 1000):
+            # random regex생성
+            str_list = []
+
+            for j in range(0, random.randrange(1, 10)):
+                str_list.append(str(random.randrange(0, 5)))
+            tmp = ''.join(str_list)
+
+            # random regex가 맞지 않다면 추가
+            if not bool(re.fullmatch(repr(regex), tmp)):
+                negset.add(tmp)
+
+            if len(negset) == 10:
+                break
+
+        if not len(negset) == 10:
+            continue
+        neg = list(negset)
+
+        # save as csv file
+        result = ''
+        for i in range(10):
+            if len(pos) > i:
+                result += pos[i] + ', '
+            else:
+                result += '<pad>' + ', '
+
+        for i in range(10):
+            if len(neg) > i:
+                result += neg[i] + ', '
+            else:
+                result += '<pad>' + ', '
+
+        result += str(regex) + '\n'
+
         print(result)
         f.write(result)
-        bench_count += 1
 
 
 def main():
-    get_train_data(opt.number, opt.data_path)
+    if opt.data_type == 'pos_label':
+        make_pos_label(opt.regex_path, opt.data_path)
+    else:
+        make_pos_neg(opt.regex_path, opt.data_path)
 
 
 if __name__ == "__main__":
