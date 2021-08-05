@@ -49,7 +49,7 @@ python setup.py install
 - [ ] evaluation.py 
 - [ ] add set2regex, AlphaRegex module to generate sub regex
 - [ ] generate overall module of synthesizing regex using set2label
--
+
 ## License
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
