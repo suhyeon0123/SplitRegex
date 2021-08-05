@@ -1,15 +1,9 @@
-[submodule "set2regex"]
-	path = set2regex
-	url = https://github.com/woaksths/set2regex.git
-[submodule "AlphaRegexPublic"]
-	path = AlphaRegexPublic
-	url = https://github.com/kupl/AlphaRegexPublic.git
-[submodule "submodels/AlphaRegexPublic"]
-	path = submodels/AlphaRegexPublic
-	url = https://github.com/kupl/AlphaRegexPublic.git
 [submodule "submodels/set2regex"]
 	path = submodels/set2regex
 	url = https://github.com/woaksths/set2regex.git
 [submodule "submodels/SoftConsiceNormalFrom"]
 	path = submodels/SoftConsiceNormalFrom
 	url = https://github.com/suhyeon0123/SoftConsiceNormalFrom.git
+[submodule "submodels/automatark"]
+	path = submodels/automatark
+	url = https://github.com/narame7/automatark.git

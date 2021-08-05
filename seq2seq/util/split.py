@@ -77,7 +77,7 @@ def generate_split_regex(splited_pos, splited_neg, neg_set, split_model=False):
         print('Splited Positive Strings:', sub_pos_set)
         print('Splited Negative Strings:', sub_neg_set)
 
-        tmp = synthesis(Examples(pos=sub_pos_set, neg=neg_set), 2000, start_with_no_concat=split_model)
+        tmp = synthesis(Examples(pos=sub_pos_set, neg=neg_set), 500, start_with_no_concat=split_model)
         if tmp is None:
             return None, 0
         regex.append('(' + tmp + ')')
