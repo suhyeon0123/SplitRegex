@@ -107,7 +107,6 @@ def main():
         # direct
         start_time = time.time()
 
-<<<<<<< HEAD
         _, _, other = pos_split_model(pos, None, regex)
         splited_pos = split(pos, other['sequence'], no_split=True)  # batch, set, seq
 
@@ -119,9 +118,6 @@ def main():
         for batch_idx in range(len(pos)):
             result, split_size = generate_split_regex(splited_pos[batch_idx], splited_neg[batch_idx], neg_set, False)
             batch_predict.append(result)
-=======
-        batch_predict = synthesis(Examples(pos=pos_set, neg=neg_set), 5000, start_with_no_concat=False)
->>>>>>> 116389d0a5439d1e4e127163cbef02a1c4345f57
 
         end_time = time.time()
 
