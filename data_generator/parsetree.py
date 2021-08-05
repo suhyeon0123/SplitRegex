@@ -598,7 +598,7 @@ def is_inclusive(superset, subset):
     if repr(superset) == repr(subset) and not superset.hasHole():
         return True
     # R -> (0+1)*   sup-nohole sub-hole
-    if repr(superset) == '(0|1)*':
+    if repr(superset) == '(0|1|2|3|4)*':
         return True
     # made of 0s -> 0*, made of 1s -> 1* - nohole
     if repr(superset) == '0*' and '1' not in repr(subset) and not subset.hasHole():
