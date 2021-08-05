@@ -118,7 +118,6 @@ def make_pos_label(regex_file, save_file):
         save_file.write(result)
 
 
-
 def make_pos_neg(regex_file, save_file):
     regex_file = open(regex_file, 'r')
     regexes = [x.strip() for x in regex_file.readlines()]
