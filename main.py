@@ -41,7 +41,7 @@ def print_tensor_set(tensor_set):
 
 
 def main():
-    data = pos_neg_dataset.get_loader(opt.data_path, batch_size=opt.batch_size, shuffle=False)
+    data = pos_neg_dataset.get_loader(opt.data_path, batch_size=opt.batch_size, shuffle=True)
 
     pos_checkpoint = Checkpoint.load(Checkpoint.get_latest_checkpoint(opt.checkpoint_pos))
     neg_checkpoint = Checkpoint.load(Checkpoint.get_latest_checkpoint(opt.checkpoint_neg))
@@ -124,7 +124,7 @@ def main():
         direct_time_taken = end_time - start_time
         direct_time_total += direct_time_taken
 
-        if batch_predict is not None:
+        if batch_predict[0] is not None:
             direct_correct = True
         else:
             direct_correct = False
@@ -140,7 +140,7 @@ def main():
         elif direct_correct:
             direct_win += 1
 
-        print(f'{count}th Generated Regex (direct): {batch_predict}, Time Taken: ', direct_time_taken)
+        print(f'{count}th Generated Regex (direct): {batch_predict[0]}, Time Taken: ', direct_time_taken)
         print(f'Divide-and-conquer win rate over Direct: {dc_win / (dc_win + direct_win + 1e-9) * 100:.4f}%, Direct Total Time: {direct_time_total:.4f}, DC Total Time: {dc_time_total:.4f}')
         print('-'*50)
 
