@@ -26,11 +26,11 @@ def split(strings, label, no_split=False):
     tmp = torch.LongTensor(label).transpose(0, 1).squeeze(-1).tolist()
     predict_dict = [dict(Counter(l)) for l in tmp]
 
+    split_size = torch.tensor(label)[torch.tensor(label) != 10].max().item() + 1
+
     for batch_idx in range(len(strings)):
         set = []
         for set_idx in range(10):
-
-            split_size = torch.tensor(label)[torch.tensor(label) != 10].max().item() + 1
 
             src_seq = strings[batch_idx, set_idx].tolist()  # list of 10 alphabet
             #print(src_seq)
@@ -50,7 +50,7 @@ def split(strings, label, no_split=False):
 
     return batch
 
-def generate_split_regex(splited_pos, splited_neg, neg_set, split_model=False, count_limit=1000):
+def generate_split_regex(splited_pos, splited_neg, split_model=False, count_limit=1000):
     regex = []
 
     split_size = len(splited_pos[0])
@@ -62,22 +62,22 @@ def generate_split_regex(splited_pos, splited_neg, neg_set, split_model=False, c
 
         for set_idx in range(len(splited_pos)):
             pos.append(splited_pos[set_idx][sub_id])
-            if len(splited_neg[set_idx]) > sub_id:
-                neg.append(splited_neg[set_idx][sub_id])
-            else:
-                neg.append('')
+            #if len(splited_neg[set_idx]) > sub_id:
+            neg.append(splited_neg[set_idx][0])
+            #else:
+            #    neg.append('')
 
         sub_pos_set = set(pos)
         sub_neg_set = set(neg)
-        neg_set = set(neg_set)
+        #neg_set = set(neg_set)
 
         sub_neg_set -= sub_pos_set
-        neg_set -= sub_pos_set
+        #neg_set -= sub_pos_set
 
         print('Splited Positive Strings:', sub_pos_set)
         print('Splited Negative Strings:', sub_neg_set)
 
-        tmp = synthesis(Examples(pos=sub_pos_set, neg=neg_set), count_limit, start_with_no_concat=split_model)
+        tmp = synthesis(Examples(pos=sub_pos_set, neg=sub_neg_set), count_limit, start_with_no_concat=split_model)
         if tmp is None:
             return None, 0
         regex.append('(' + tmp + ')')

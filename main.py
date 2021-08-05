@@ -86,12 +86,12 @@ def main():
         _, _, other = pos_split_model(pos, None, regex)
         splited_pos = split(pos, other['sequence'])  # batch, set, seq
 
-        _, _, other = neg_split_model(neg)
-        splited_neg = split(neg, other['sequence'])  # batch, set, seq
+        #_, _, other = neg_split_model(neg)
+        splited_neg = split(neg, other['sequence'], no_split=True)  # batch, set, seq
 
         batch_predict = []
         for batch_idx in range(len(pos)):
-            result, split_size = generate_split_regex(splited_pos[batch_idx], splited_neg[batch_idx], neg_set, True, count_limit)
+            result, split_size = generate_split_regex(splited_pos[batch_idx], splited_neg[batch_idx], True, count_limit)
             batch_predict.append(result)
 
         end_time = time.time()
@@ -112,16 +112,16 @@ def main():
         # direct
         start_time = time.time()
 
-        _, _, other = pos_split_model(pos, None, regex)
+        #_, _, other = pos_split_model(pos, None, regex)
         splited_pos = split(pos, other['sequence'], no_split=True)  # batch, set, seq
 
-        _, _, other = neg_split_model(neg)
+        #_, _, other = neg_split_model(neg)
         splited_neg = split(neg, other['sequence'], no_split=True)  # batch, set, seq
 
 
         batch_predict = []
         for batch_idx in range(len(pos)):
-            result, split_size = generate_split_regex(splited_pos[batch_idx], splited_neg[batch_idx], neg_set, False, count_limit)
+            result, split_size = generate_split_regex(splited_pos[batch_idx], splited_neg[batch_idx], False, count_limit)
             batch_predict.append(result)
 
         end_time = time.time()
