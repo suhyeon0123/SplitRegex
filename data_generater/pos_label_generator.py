@@ -32,8 +32,9 @@ def get_train_data(bench_num, file_name):
         regex = rand_example(limit)
 
         # regex의 leaf노드가 Concat이도록 함
-        if regex.r.type != Type.C:
-            continue
+        if random.random() > 0.2:
+            if regex.r.type != Type.C:
+                continue
         if regex.starnormalform() or regex.redundant_concat1() or regex.redundant_concat2() or regex.KCK() or regex.KCQ() or regex.QC() or regex.OQ() or regex.orinclusive() or regex.prefix() or regex.sigmastar():
             continue
         #print(regex)

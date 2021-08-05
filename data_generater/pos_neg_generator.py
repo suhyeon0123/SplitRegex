@@ -28,6 +28,10 @@ def get_train_data(bench_num, file_name):
 
         # REGEX 생성
         regex = rand_example(limit)
+        
+        if random.random() > 0.2:
+            if regex.r.type != Type.C:
+                continue
 
         if regex.starnormalform() or regex.redundant_concat1() or regex.redundant_concat2() or regex.KCK() or regex.KCQ() or regex.QC() or regex.OQ() or regex.orinclusive() or regex.prefix() or regex.sigmastar():
             continue

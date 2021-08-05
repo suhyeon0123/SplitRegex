@@ -83,7 +83,8 @@ def main():
 
         batch_predict = []
         for batch_idx in range(len(pos)):
-            batch_predict.append(generate_split_regex(splited_pos[batch_idx], splited_neg[batch_idx]))
+            result, split_size = generate_split_regex(splited_pos[batch_idx], splited_neg[batch_idx], neg_set, True)
+            batch_predict.append(result)
 
         end_time = time.time()
 
@@ -111,7 +112,8 @@ def main():
 
         batch_predict = []
         for batch_idx in range(len(pos)):
-            batch_predict.append(generate_split_regex(splited_pos[batch_idx], splited_neg[batch_idx]))
+            result, split_size = generate_split_regex(splited_pos[batch_idx], splited_neg[batch_idx], neg_set, False)
+            batch_predict.append(result)
 
         end_time = time.time()
 
