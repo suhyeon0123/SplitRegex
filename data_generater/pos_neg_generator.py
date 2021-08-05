@@ -1,16 +1,19 @@
-from parsetree import*
+from parsetree import *
 from xeger import Xeger
 import argparse
-
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--data_path', action='store', dest='data_path',
                     help='Path to save data', default='./data/pos_neg_5.csv')
-parser.add_argument('--number', action='store', dest='number',
+parser.add_argument('--number', action='store', dest='number', type=int,
                     help='the number of data samples', default=1000)
+parser.add_argument('--always_concat', action='store_true', dest='always_concat',
+                    help='Indicate if the root of regex is always concat or not', default=False)
+
 opt = parser.parse_args()
 
 limit = 6
+
 
 def rand_example(limit):
     regex = REGEX()
@@ -18,6 +21,7 @@ def rand_example(limit):
         regex.make_child(1)
     regex.spreadRand()
     return regex
+
 
 # len(pos_example) <=10
 def get_train_data(bench_num, file_name):
@@ -33,25 +37,29 @@ def get_train_data(bench_num, file_name):
             if regex.r.type != Type.C:
                 continue
 
+        # regex의 leaf노드가 Concat이도록 함
+        if opt.always_concat and regex.r.type != Type.C:
+            continue
+
         if regex.starnormalform() or regex.redundant_concat1() or regex.redundant_concat2() or regex.KCK() or regex.KCQ() or regex.QC() or regex.OQ() or regex.orinclusive() or regex.prefix() or regex.sigmastar():
             continue
+
         print(regex)
-
-
 
         # pos examples 생성
         x = Xeger()
         posset = set()
-        endcount = 0
-        while endcount < 50 and len(posset) < 10:
-            tmpexample = x.xeger(repr(regex))
-            if len(tmpexample) <= 10 and len(tmpexample) >= 3:
-                posset.add(tmpexample)
-            endcount += 1
-        pos = [example.strip("'") for example in list(posset)]
+
+        for i in range(50):
+            example = x.xeger(repr(regex)).strip("'")
+            if 0 < len(example) <= 10:
+                posset.add(example)
+            if len(posset) == 10:
+                break
+
+        pos = list(posset)
         if len(pos) != 10:
             continue
-
 
         # neg examples 생성
         negset = set()
@@ -74,35 +82,27 @@ def get_train_data(bench_num, file_name):
             continue
         neg = list(negset)
 
-
-
+        # save as csv file
         result = ''
         for i in range(10):
             if len(pos) > i:
-                f.write(pos[i] + ', ')
                 result += pos[i] + ', '
             else:
-                f.write('<pad>' + ', ')
                 result += '<pad>' + ', '
 
         for i in range(10):
             if len(neg) > i:
-                f.write(neg[i] + ', ')
                 result += neg[i] + ', '
             else:
-                f.write('<pad>' + ', ')
                 result += '<pad>' + ', '
 
+        result += str(regex) + '\n'
 
-        f.write(str(regex) + '\n')
-        result += str(regex) +'\n'
-
-        print(result)
         print(bench_count)
+        print(result)
+        f.write(result)
         bench_count += 1
-        print(' ')
 
-    #save in txt file
 
 def main():
     get_train_data(opt.number, opt.data_path)

@@ -11,6 +11,8 @@ from examples import *
 from seq2seq.dataset import pos_neg_dataset
 from seq2seq.util.checkpoint import Checkpoint
 from seq2seq.util.split import split, generate_split_regex
+from submodels.SoftConsiceNormalFrom.synthesizer import synthesis
+from submodels.SoftConsiceNormalFrom.examples import Examples
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--data_path', default='./data/pos_neg_5.csv', dest='data_path',
@@ -73,6 +75,7 @@ def main():
         print('Target Regex:', ''.join(regex[0]))
         print('-'*50)
 
+        # via DC
         start_time = time.time()
 
         _, _, other = pos_split_model(pos, None, regex)
@@ -101,8 +104,10 @@ def main():
 
         print(f'{count}th Generated Regex (via DC): {batch_predict[0]} ({dc_correct}), Time Taken: ', end_time - start_time)
 
+        # direct
         start_time = time.time()
 
+<<<<<<< HEAD
         _, _, other = pos_split_model(pos, None, regex)
         splited_pos = split(pos, other['sequence'], no_split=True)  # batch, set, seq
 
@@ -114,13 +119,16 @@ def main():
         for batch_idx in range(len(pos)):
             result, split_size = generate_split_regex(splited_pos[batch_idx], splited_neg[batch_idx], neg_set, False)
             batch_predict.append(result)
+=======
+        batch_predict = synthesis(Examples(pos=pos_set, neg=neg_set), 5000, start_with_no_concat=False)
+>>>>>>> 116389d0a5439d1e4e127163cbef02a1c4345f57
 
         end_time = time.time()
 
         direct_time_taken = end_time - start_time
         direct_time_total += direct_time_taken
 
-        if batch_predict[0] is not None:
+        if batch_predict is not None:
             direct_correct = True
         else:
             direct_correct = False
@@ -136,7 +144,7 @@ def main():
         elif direct_correct:
             direct_win += 1
 
-        print(f'{count}th Generated Regex (direct): {batch_predict[0]}, Time Taken: ', direct_time_taken)
+        print(f'{count}th Generated Regex (direct): {batch_predict}, Time Taken: ', direct_time_taken)
         print(f'Divide-and-conquer win rate over Direct: {dc_win / (dc_win + direct_win + 1e-9) * 100:.4f}%, Direct Total Time: {direct_time_total:.4f}, DC Total Time: {dc_time_total:.4f}')
         print('-'*50)
 

@@ -1,13 +1,15 @@
-from parsetree import*
+from parsetree import *
 from xeger import Xeger
 import argparse
-
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--data_path', action='store', dest='data_path',
                     help='Path to save data', default='./data/valid_5.csv')
 parser.add_argument('--number', action='store', dest='number', type=int,
                     help='the number of data samples', default=10000)
+parser.add_argument('--always_concat', action='store_true', dest='always_concat',
+                    help='Indicate if the root of regex is always concat or not', default=False)
+
 opt = parser.parse_args()
 
 limit = 6
@@ -21,6 +23,7 @@ def rand_example(limit):
     regex.spreadRand()
     return regex
 
+
 # len(pos_example) <=10
 def get_train_data(bench_num, file_name):
     f = open(file_name, 'w')
@@ -32,31 +35,34 @@ def get_train_data(bench_num, file_name):
         regex = rand_example(limit)
 
         # regex의 leaf노드가 Concat이도록 함
+<<<<<<< HEAD
         if random.random() > 0.2:
             if regex.r.type != Type.C:
                 continue
+=======
+        if opt.always_concat and regex.r.type != Type.C:
+            continue
+
+>>>>>>> 116389d0a5439d1e4e127163cbef02a1c4345f57
         if regex.starnormalform() or regex.redundant_concat1() or regex.redundant_concat2() or regex.KCK() or regex.KCQ() or regex.QC() or regex.OQ() or regex.orinclusive() or regex.prefix() or regex.sigmastar():
             continue
-        #print(regex)
-        saved_regex = regex
-        regex = regex.repr_labeled()
-        print(regex)
 
+        regex = regex.repr_labeled()
 
         # pos examples 생성
         x = Xeger()
         posset = set()
-        endcount = 0
-        while endcount < 50 and len(posset) < 10:
-            tmpexample = x.xeger(repr(regex))
-            #print(tmpexample)
-            if len(tmpexample) <= (10 + 2) and len(tmpexample) >= 3:
-                posset.add(tmpexample)
-            endcount += 1
-        pos = [example.strip("'") for example in list(posset)]
+
+        for i in range(50):
+            example = x.xeger(repr(regex)).strip("'")
+            if 0 < len(example) <= 10:
+                posset.add(example)
+            if len(posset) == 10:
+                break
+
+        pos = list(posset)
         if len(pos) != 10:
             continue
-
 
         # Tag 전처리
         str_list = []
@@ -87,24 +93,17 @@ def get_train_data(bench_num, file_name):
                     saved_decomposed_regex[-1] = saved_decomposed_regex[-1] + letter
                 bracket -= 1
             else:
-                saved_decomposed_regex[-1] = saved_decomposed_regex[-1]+letter
+                saved_decomposed_regex[-1] = saved_decomposed_regex[-1] + letter
 
         regex = "".join(str_list)
         save = regex
-
-
-
-
 
         # templetes 생성
         templete = []
         for example in pos:
             str_list = []
-            print(regex)
-            print(example)
             dic = re.fullmatch(regex, example).groupdict()
-            print(dic)
-            for i in range(1, len(dic)+1):
+            for i in range(1, len(dic) + 1):
                 key = "t" + str(i)
                 targetstring = dic[key]
                 if targetstring == None:
@@ -112,45 +111,29 @@ def get_train_data(bench_num, file_name):
                 else:
                     count = len(targetstring)
                 for _ in range(count):
-                    str_list.append(str(i-1))
+                    str_list.append(str(i - 1))
             templete.append("".join(str_list))
-        print(templete)
 
-
-
+        # save as csv file
         result = ''
         for i in range(10):
             if len(pos) > i:
-                f.write(pos[i] + ', ')
-                result = result + pos[i] + ', '
+                result += pos[i] + ', '
             else:
-                f.write('<pad>' + ', ')
-                result = result + '<pad>' + ', '
+                result += '<pad>' + ', '
 
         for i in range(10):
             if len(templete) > i:
-                f.write(templete[i] + ', ')
                 result += templete[i] + ', '
             else:
-                f.write('<pad>' + ', ')
                 result += '<pad>' + ', '
-        #f.write(str(bench_count))
-        #f.write(''.join(list(map(lambda x: x+" ", list(str(bench_count))))))
 
-
-        f.write(str(save) + '\n')
         result += str(save) + '\n'
 
-        #f.write(str(saved_decomposed_regex) + '\n')
-        #result += str(saved_decomposed_regex) + '\n'
-
-
-        print(result)
         print(bench_count)
+        print(result)
+        f.write(result)
         bench_count += 1
-        print(' ')
-
-    #save in txt file
 
 
 def main():
