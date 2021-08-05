@@ -1,5 +1,5 @@
 # Regular Expression Synthesis via Divide-and-Conquer Approach
-Generating set of labelled strings from set of strings by spliting each string to determine the boundaries of sub expression .
+Generating set of labelled strings from set of strings by spliting each string to determine the boundaries of sub expression.
 
 - This product includes software (seq2seq base model) developed at https://github.com/IBM/pytorch-seq2seq
 - This product use fado module from https://github.com/0xnurl/fado-python3
@@ -46,9 +46,10 @@ python setup.py install
 ![model_architecture_set2label](https://user-images.githubusercontent.com/64397574/126556989-92c30f72-bca6-4a66-8ba9-b6d90261b085.PNG)
 
 ## To-Do
-- [ ] evaluation.py 
-- [ ] add set2regex, AlphaRegex module to generate sub regex
-- [ ] generate overall module of synthesizing regex using set2label
+- [x] add AlphaRegex module for generating generate sub regex
+- [x] generate overall module of synthesizing regex using set2label
+- [ ] implement evaluation.py 
+- [ ] add set2regex submodule for generating sub regex
 
 ## License
 
