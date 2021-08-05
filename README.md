@@ -24,7 +24,7 @@ python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
 python setup.py install
-cd fado-python3
+cd submodels/fado-python3
 python setup.py install
 ```
 
