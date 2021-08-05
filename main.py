@@ -3,16 +3,17 @@ import time
 import torch
 import os, sys
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), 'submodels', 'SoftConsiceNormalFrom' )))
+#sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), 'submodels', 'SoftConsiceNormalFrom' )))
 
-from util import *
-from examples import *
+#from util import *
+#from examples import *
 
 from seq2seq.dataset import pos_neg_dataset
 from seq2seq.util.checkpoint import Checkpoint
-from seq2seq.util.split import split, generate_split_regex
-from submodels.SoftConsiceNormalFrom.synthesizer import synthesis
+from split import split, generate_split_regex
+
 from submodels.SoftConsiceNormalFrom.examples import Examples
+from submodels.SoftConsiceNormalFrom.util import *
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--data_path', default='./data/pos_neg_5.csv', dest='data_path',
@@ -63,6 +64,10 @@ def main():
     dc_win = 0
     direct_win = 0
 
+
+    count_limit = 2000
+
+
     for count, (pos, neg, regex) in enumerate(data):
         pos, neg, regex = pos_neg_dataset.batch_preprocess(pos, neg, regex)
 
@@ -86,7 +91,7 @@ def main():
 
         batch_predict = []
         for batch_idx in range(len(pos)):
-            result, split_size = generate_split_regex(splited_pos[batch_idx], splited_neg[batch_idx], neg_set, True)
+            result, split_size = generate_split_regex(splited_pos[batch_idx], splited_neg[batch_idx], neg_set, True, count_limit)
             batch_predict.append(result)
 
         end_time = time.time()
@@ -116,7 +121,7 @@ def main():
 
         batch_predict = []
         for batch_idx in range(len(pos)):
-            result, split_size = generate_split_regex(splited_pos[batch_idx], splited_neg[batch_idx], neg_set, False)
+            result, split_size = generate_split_regex(splited_pos[batch_idx], splited_neg[batch_idx], neg_set, False, count_limit)
             batch_predict.append(result)
 
         end_time = time.time()

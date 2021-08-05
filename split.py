@@ -1,7 +1,7 @@
 import torch
 
 import os, sys
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'submodels', 'SoftConsiceNormalFrom' )))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), 'submodels', 'SoftConsiceNormalFrom' )))
 
 from collections import Counter
 from submodels.SoftConsiceNormalFrom.synthesizer import synthesis
@@ -50,7 +50,7 @@ def split(strings, label, no_split=False):
 
     return batch
 
-def generate_split_regex(splited_pos, splited_neg, neg_set, split_model=False):
+def generate_split_regex(splited_pos, splited_neg, neg_set, split_model=False, count_limit=1000):
     regex = []
 
     split_size = len(splited_pos[0])
@@ -77,7 +77,7 @@ def generate_split_regex(splited_pos, splited_neg, neg_set, split_model=False):
         print('Splited Positive Strings:', sub_pos_set)
         print('Splited Negative Strings:', sub_neg_set)
 
-        tmp = synthesis(Examples(pos=sub_pos_set, neg=neg_set), 500, start_with_no_concat=split_model)
+        tmp = synthesis(Examples(pos=sub_pos_set, neg=neg_set), count_limit, start_with_no_concat=split_model)
         if tmp is None:
             return None, 0
         regex.append('(' + tmp + ')')
