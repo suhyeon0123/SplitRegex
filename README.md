@@ -5,7 +5,10 @@ Generating set of labelled strings from set of strings by spliting each string t
 - This product use fado module from https://github.com/0xnurl/fado-python3
 - This product refers to set2regex module from https://github.com/woaksths/set2regex
 
+## Split Model (train.py)
+
 ### Description
+- Given a set of strings generated from the regex, split model split each string by subregex.
 - Data is given as (10pos, 10label, regular expression)
 - Acc means accuracy between data and prediction, while Acc (RE) means accuracy between sub regular expression and prediction.
 
@@ -18,6 +21,10 @@ Regular expression : _<img src="https://render.githubusercontent.com/render/math
 |10|12|
 |000|002|
 
+### Model architecture
+![model_architecture_set2label](https://user-images.githubusercontent.com/64397574/126556989-92c30f72-bca6-4a66-8ba9-b6d90261b085.PNG)
+
+## Overall Synthesis Architecture
 
 ### Install
 ```shell
@@ -41,8 +48,7 @@ python setup.py install
     python train.py --train_path ./data/train.csv --dev_path ./data/valid.csv
     
     
-### Model architecture
-![model_architecture_set2label](https://user-images.githubusercontent.com/64397574/126556989-92c30f72-bca6-4a66-8ba9-b6d90261b085.PNG)
+
 
 ### To-Do
 - [x] add AlphaRegex module for generating generate sub regex
