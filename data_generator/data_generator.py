@@ -1,3 +1,6 @@
+import os, sys
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'submodels', 'SoftConciseNormalForm')))
 from parsetree import *
 from xeger import Xeger
 import argparse
