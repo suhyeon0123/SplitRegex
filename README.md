@@ -30,9 +30,6 @@ git submodule update --init --recursive
 cd fado-python3
 python setup.py install
 ```
-
-### Download submodules (after clone)
-    
     
 ### New dataset download
     python data_generater/pos_label_generator.py --data_path train.csv --number $NUMBER
