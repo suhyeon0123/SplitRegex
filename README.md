@@ -41,6 +41,10 @@ Regular expression : _<img src="https://render.githubusercontent.com/render/math
 2. generate subregex from substrings by the one of submodels.
 3. make regex by concatenating the subregexes.
 
+### Sub models
+- [SoftConciseNormalForm](https://github.com/suhyeon0123/SoftConciseNormalForm)
+- [set2regex](https://github.com/woaksths/set2regex)
+
 
 <br> <br>
 
@@ -59,13 +63,18 @@ python setup.py install
 ```
     
 ### New dataset download
-    python data_generater/pos_label_generator.py --data_path train.csv --number $NUMBER
-    python data_generater/pos_label_generator.py --data_path valid.csv --number $NUMBER
-    python data_generater/pos_neg_generator.py --data_path pos_neg.csv --number $NUMBER
+    python data_generator/random_regex.py --data_path $DATA_PATH --number $NUMBER
+    python data_generator/data_generator.py --data_type pos_label --regex_path $REGEX_PATH --data_path $DATA_PATH
+    python data_generator/data_generator.py --data_type pos_neg --regex_path $REGEX_PATH --data_path $DATA_PATH
     
 
 ### Train model
     python train.py --train_path ./data/train.csv --dev_path ./data/valid.csv
+    
+### Synthesis model
+    python main.py --data_path $DATA_PATH
+    
+
     
     
 
