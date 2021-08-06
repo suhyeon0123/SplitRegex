@@ -25,13 +25,14 @@ python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
 python setup.py install
-cd submodels/fado-python3
+cd submodels  
+git submodule update --init --recursive
+cd fado-python3
 python setup.py install
 ```
 
 ### Download submodules (after clone)
-    cd submodels  
-    git submodule update --init --recursive
+    
     
 ### New dataset download
     python data_generater/pos_label_generator.py --data_path train.csv --number $NUMBER
