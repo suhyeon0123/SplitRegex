@@ -1,5 +1,5 @@
 # Regular Expression Synthesis via Divide-and-Conquer Approach
-Generating set of labelled strings from set of strings by spliting each string to determine the boundaries of sub expression.
+
 
 - This product includes software (seq2seq base model) developed at https://github.com/IBM/pytorch-seq2seq
 - This product use fado module from https://github.com/0xnurl/fado-python3
@@ -10,8 +10,8 @@ Generating set of labelled strings from set of strings by spliting each string t
 ## Split Model (train.py)
 
 ### Description
-- Given a set of strings generated from the regex, split model split each string by subregex.
-- Data is given as (10pos, 10label, regular expression)
+- Generating set of labelled strings from set of strings by spliting each string to determine the boundaries of sub expression.
+- Data is given as (10pos, 10label, regular expression).
 - Acc means accuracy between data and prediction, while Acc (RE) means accuracy between sub regular expression and prediction.
 
 ### Example
@@ -31,7 +31,7 @@ Regular expression : _<img src="https://render.githubusercontent.com/render/math
 ## Overall Synthesis Architecture (main.py)
 
 ### Description
-- Generate the regex from positive strings and negative strings.
+- Generating the regex from set of positive strings and set of negative strings.
 - Data is given as (10pos, 10neg, regular expression).
 - Compare divide-and-conquer approach and naive synthesis approach in terms of time and success rate.
 
