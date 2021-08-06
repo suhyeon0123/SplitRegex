@@ -11,6 +11,9 @@ parser.add_argument('--number', action='store', dest='number', type=int,
                     help='the number of data samples', default=10000)
 parser.add_argument('--always_concat', action='store_true', dest='always_concat',
                     help='Indicate if the root of regex is always concat or not', default=False)
+parser.add_argument('--alphabet_size', action='store', dest='alphabet_size',
+                    help='define the alphabet size of the regex', default=5)
+
 
 opt = parser.parse_args()
 

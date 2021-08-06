@@ -1,12 +1,5 @@
 import argparse
 import time
-import torch
-import os, sys
-
-#sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), 'submodels', 'SoftConsiceNormalFrom' )))
-
-#from util import *
-#from examples import *
 
 from seq2seq.dataset import pos_neg_dataset
 from seq2seq.util.checkpoint import Checkpoint
