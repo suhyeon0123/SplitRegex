@@ -26,6 +26,8 @@ Regular expression : _<img src="https://render.githubusercontent.com/render/math
 ### Model architecture
 ![model_architecture_set2label](https://user-images.githubusercontent.com/64397574/126556989-92c30f72-bca6-4a66-8ba9-b6d90261b085.PNG)
 
+<br> <br>
+
 ## Overall Synthesis Architecture (main.py)
 
 ### Description
@@ -38,6 +40,8 @@ Regular expression : _<img src="https://render.githubusercontent.com/render/math
 2. generate subregex from substrings by the one of submodels.
 3. make regex by concatenating the subregexes.
 
+
+<br> <br>
 
 ## Code Execution
 
@@ -64,6 +68,9 @@ python setup.py install
     
     
 
+<br> <br>
+
+## ETC..
 
 ### To-Do
 - [x] add AlphaRegex module for generating generate sub regex
