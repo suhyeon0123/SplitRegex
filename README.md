@@ -25,7 +25,18 @@ Regular expression : _<img src="https://render.githubusercontent.com/render/math
 ### Model architecture
 ![model_architecture_set2label](https://user-images.githubusercontent.com/64397574/126556989-92c30f72-bca6-4a66-8ba9-b6d90261b085.PNG)
 
-## Overall Synthesis Architecture
+## Overall Synthesis Architecture (main.py)
+
+### Description
+- Generate the regex from positive strings and negative strings.
+- Data is given as (10pos, 10neg, regular expression).
+- Compare divide-and-conquer approach and naive synthesis approach in terms of time and success rate.
+
+### Synthesis process
+1. split each positive string and negative string using the trained split model.
+2. generate subregex from substrings by the one of submodels.
+3. make regex by concatenating the subregexes.
+
 
 ## Code Execution
 
