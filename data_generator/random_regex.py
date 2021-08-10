@@ -15,7 +15,7 @@ parser.add_argument('--number', action='store', dest='number', type=int,
 parser.add_argument('--always_concat', action='store_true', dest='always_concat',
                     help='Indicate if the root of regex is always concat or not', default=False)
 parser.add_argument('--alphabet_size', action='store', dest='alphabet_size',
-                    help='define the alphabet size of the regex', default=5)
+                    help='define the alphabet size of the regex', type=int, default=5)
 parser.add_argument('--is_compact', action='store_true', dest='is_compact',
                     help='use more compact regex', default=False)
 
@@ -23,14 +23,14 @@ parser.add_argument('--is_compact', action='store_true', dest='is_compact',
 
 opt = parser.parse_args()
 
-limit = 6
+max_depth = 4
 
 
-def rand_example(limit):
+def rand_example(alphabet_size=5):
     regex = REGEX()
-    for count in range(limit):
-        regex.make_child(1)
-    regex.spreadRand()
+    for count in range(max_depth):
+        regex.make_child(alphabet_size=alphabet_size)
+    regex.spreadRand(alphabet_size=alphabet_size)
     return regex
 
 
@@ -41,13 +41,13 @@ def get_regex_data(bench_num, file_name):
     while bench_count < bench_num:
 
         # REGEX 생성
-        regex = rand_example(limit)
+        regex = rand_example(opt.alphabet_size)
 
         # regex의 leaf노드가 Concat이도록 함
         if opt.always_concat and regex.r.type != Type.C:
             continue
 
-        if regex.starnormalform() or regex.redundant_concat1() or regex.redundant_concat2() or regex.KCK() or regex.KCQ() or regex.QC() or regex.OQ() or regex.orinclusive() or regex.prefix() or regex.sigmastar():
+        if regex.starnormalform() or regex.redundant_concat1() or regex.redundant_concat2(opt.alphabet_size) or regex.KCK(opt.alphabet_size) or regex.KCQ(opt.alphabet_size) or regex.QC() or regex.OQ() or regex.orinclusive(opt.alphabet_size) or regex.prefix() or regex.sigmastar(opt.alphabet_size):
             continue
 
         print(str(bench_count) + ': ' + regex.repr_labeled())
