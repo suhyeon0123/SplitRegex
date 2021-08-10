@@ -65,11 +65,11 @@ python setup.py install
 ### New dataset download
     python data_generator/random_regex.py --data_path data/random_regex_train --number 10000
     python data_generator/random_regex.py --data_path data/random_regex_vaild --number 1000
-    python data_generator/data_generator.py --data_type pos_label --regex_path data/random_regex_train --data_path data/train.csv
-    python data_generator/data_generator.py --data_type pos_label --regex_path data/random_regex_vaild --data_path data/valid.csv
+    python data_generator/data_generator.py --data_type pos_label --regex_path data/random_regex_train --data_path data/train
+    python data_generator/data_generator.py --data_type pos_label --regex_path data/random_regex_vaild --data_path data/valid
     
     python data_generator/random_regex.py --data_path data/random_regex_posneg --number 1000
-    python data_generator/data_generator.py --data_type pos_neg --regex_path data/random_regex_posneg --data_path data/posneg.csv
+    python data_generator/data_generator.py --data_type pos_neg --regex_path data/random_regex_posneg --data_path data/posneg
     
 
 ### Train model
