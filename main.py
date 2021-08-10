@@ -19,6 +19,9 @@ parser.add_argument('--checkpoint_neg', default='./saved_models/hidden_512/best_
                     help='path to checkpoint for splitting negative strings ')
 parser.add_argument('--sub_model', action='store', dest='sub_model', default='set2regex',
                     help='sub model used in generating sub regex from sub strings')
+parser.add_argument('--alphabet_size', action='store', dest='alphabet_size',
+                    help='define the alphabet size of the regex', type=int, default=5)
+
 
 opt = parser.parse_args()
 
@@ -84,7 +87,7 @@ def main():
 
         batch_predict = []
         for batch_idx in range(len(pos)):
-            result, split_size = generate_split_regex(splited_pos[batch_idx], splited_neg[batch_idx], True, count_limit)
+            result, split_size = generate_split_regex(splited_pos[batch_idx], splited_neg[batch_idx], True, count_limit, alphabet_size=opt.alphabet_size)
             batch_predict.append(result)
 
         end_time = time.time()
@@ -114,7 +117,7 @@ def main():
 
         batch_predict = []
         for batch_idx in range(len(pos)):
-            result, split_size = generate_split_regex(splited_pos[batch_idx], splited_neg[batch_idx], False, count_limit)
+            result, split_size = generate_split_regex(splited_pos[batch_idx], splited_neg[batch_idx], False, count_limit, alphabet_size=opt.alphabet_size)
             batch_predict.append(result)
 
         end_time = time.time()

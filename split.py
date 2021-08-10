@@ -50,7 +50,7 @@ def split(strings, label, no_split=False):
 
     return batch
 
-def generate_split_regex(splited_pos, splited_neg, split_model=False, count_limit=1000):
+def generate_split_regex(splited_pos, splited_neg, split_model=False, count_limit=1000, alphabet_size=5):
     regex = []
 
     split_size = len(splited_pos[0])
@@ -79,12 +79,12 @@ def generate_split_regex(splited_pos, splited_neg, split_model=False, count_limi
         print('Splited Positive Strings:', sub_pos_set)
         print('Splited Negative Strings:', sub_neg_set)
 
-        tmp = synthesis(Examples(pos=sub_pos_set, neg=sub_neg_set), count_limit, start_with_no_concat=split_model, prefix_for_neg_test=prefix, suffix_for_neg_test=None)
+        tmp = synthesis(Examples(pos=sub_pos_set, neg=sub_neg_set), count_limit, start_with_no_concat=split_model, prefix_for_neg_test=prefix, suffix_for_neg_test=None, alphabet_size=alphabet_size)
 
         if tmp is None:
             return None, 0
 
-        regex.append('(' + tmp + ')')
+        regex.append('(' + repr(tmp) + ')')
 
     return ''.join(regex), split_size
 
