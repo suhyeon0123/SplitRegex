@@ -41,7 +41,7 @@ def make_pos_label(regex_file, save_file):
         posset = set()
 
         for i in range(50):
-            example = x.xeger(repr(regex)).strip("'")
+            example = x.xeger(regex).strip("'")
             if 0 < len(example) <= 10:
                 posset.add(example)
             if len(posset) == 10:
@@ -133,8 +133,9 @@ def make_pos_neg(regex_file, save_file):
         x = Xeger()
         posset = set()
 
+
         for i in range(50):
-            example = x.xeger(repr(regex)).strip("'")
+            example = x.xeger(regex).strip("'")
             if 0 < len(example) <= 10:
                 posset.add(example)
             if len(posset) == 10:
@@ -155,7 +156,7 @@ def make_pos_neg(regex_file, save_file):
             tmp = ''.join(str_list)
 
             # random regex가 맞지 않다면 추가
-            if not bool(re.fullmatch(repr(regex), tmp)):
+            if not bool(re.fullmatch(regex, tmp)):
                 negset.add(tmp)
 
             if len(negset) == 10:
