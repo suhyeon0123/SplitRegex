@@ -99,11 +99,15 @@ class DecoderRNN(BaseRNN):
         embedded = one_hot.view(batch_size * set_size, seq_len, -1).float()
         embedded = self.input_dropout(embedded)
 
-        hidden = (hidden[0].repeat_interleave(10, dim=1), hidden[1].repeat_interleave(10, dim=1))  # 2, 640, 128 of tuple2
-        hidden = (torch.cat((hidden[0], self.rnn1_hidden[0]), -1), torch.cat((hidden[1], self.rnn1_hidden[1]), -1)) # 2, 640, 256 of tuple2
-
-
-        hidden = (self.hidden_out1(hidden[0]), self.hidden_out2(hidden[1]))
+        if self.rnn is nn.LSTM:
+            hidden = (hidden[0].repeat_interleave(10, dim=1), hidden[1].repeat_interleave(10, dim=1))  # 2, 640, 128 of tuple2
+            hidden = (torch.cat((hidden[0], self.rnn1_hidden[0]), -1), torch.cat((hidden[1], self.rnn1_hidden[1]), -1)) # 2, 640, 256 of tuple2
+            hidden = (self.hidden_out1(hidden[0]), self.hidden_out2(hidden[1]))
+        else:
+            hidden = hidden.repeat_interleave(10, dim=1)
+            hidden = torch.cat((hidden, self.rnn1_hidden), -1)
+            hidden = self.hidden_out1(hidden)
+        
 
         output, hidden = self.rnn(embedded, hidden)  #(640,10,128)
 

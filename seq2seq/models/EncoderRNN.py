@@ -68,10 +68,14 @@ class EncoderRNN(BaseRNN):
         masking = get_mask(input_var)  # batch, set_size, seq_len
 
         src_output, src_hidden = self.rnn1(src_embedded) # (batch x set_size, seq_len, hidden), # (num_layer x num_dir, batch*set_size, hidden)
-        rnn1_hidden = src_hidden  # (num_layer x num_dir, batch*set_size, hidden)
-
+        rnn1_hidden = src_hidden
+        
         src_output = src_output.view(batch_size, set_size, src_output.size(1), -1)  # batch, set_size, seq_len, hidden)
-        src_single_hidden = src_hidden[0].view(self.n_layers, -1, batch_size*set_size, self.hidden_size) # num_layer(2), num_direction, batch x set_size, hidden
+        
+        if self.rnn1 is nn.LSTM:
+            src_single_hidden = src_hidden[0].view(self.n_layers, -1, batch_size*set_size, self.hidden_size) # num_layer(2), num_direction, batch x set_size, hidden
+        else:
+            src_single_hidden = src_hidden.view(self.n_layers, -1, batch_size*set_size, self.hidden_size) # num_layer(2), num_direction, batch x set_size, hidden
 
         # use hidden state of final_layer
         set_embedded = src_single_hidden[-1, :,:,:]  # num_direction, batch x set_size, hidden
@@ -85,9 +89,12 @@ class EncoderRNN(BaseRNN):
         set_embedded = set_embedded.view(batch_size, set_size, -1) # batch, set_size, hidden
         set_output, set_hidden = self.rnn2(set_embedded) # (batch, set_size, hidden), # (num_layer*num_dir, batch, hidden) 2개 tuple 구성
 
-        last_hidden = set_hidden[0] # num_layer x num_dir, batch, hidden
-        last_cell = set_hidden[1] # num_layer x num_dir, batch, hidden
-
-        hiddens = (last_hidden, last_cell)
+        if self.rnn2 is nn.LSTM:
+            last_hidden = set_hidden[0] # num_layer x num_dir, batch, hidden
+            last_cell = set_hidden[1] # num_layer x num_dir, batch, hidden
+            hiddens = (last_hidden, last_cell)
+        else:         
+            hiddens = set_hidden # num_layer x num_dir, batch, hidden
+        
         outputs = (src_output, set_output)
         return outputs, hiddens, masking, rnn1_hidden
