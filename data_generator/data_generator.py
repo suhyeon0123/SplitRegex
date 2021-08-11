@@ -12,6 +12,8 @@ parser.add_argument('--regex_path', action='store', dest='regex_path',
                     help='Path to save data', default='./data/random_regex')
 parser.add_argument('--data_path', action='store', dest='data_path',
                     help='Path to save data', default='./data/valid_5.csv')
+parser.add_argument('--alphabet_size', action='store', dest='alphabet_size',
+                    help='define the alphabet size of the regex', type=int, default=5)
 
 opt = parser.parse_args()
 
@@ -152,7 +154,7 @@ def make_pos_neg(regex_file, save_file):
             str_list = []
 
             for j in range(0, random.randrange(1, 10)):
-                str_list.append(str(random.randrange(0, 5)))
+                str_list.append(str(random.randrange(0, opt.alphabet_size)))
             tmp = ''.join(str_list)
 
             # random regex가 맞지 않다면 추가
