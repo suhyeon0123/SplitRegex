@@ -24,7 +24,7 @@ import seq2seq.dataset.dataset as dataset
 #      python examples/sample.py --train_path $TRAIN_PATH --dev_path $DEV_PATH --expt_dir $EXPT_PATH --load_checkpoint $CHECKPOINT_DIR
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--train_path', default='./data/train_55.csv', dest='train_path',
+parser.add_argument('--train_path', default='./data/train_5000000.csv', dest='train_path',
                     help='Path to train data')
 parser.add_argument('--dev_path', default='./data/valid_5.csv', dest='dev_path',
                     help='Path to dev data')
@@ -76,6 +76,8 @@ else:
     input_vocab = train.dataset.vocab
     output_vocab = train.dataset.vocab
 
+    rnn_cell = 'gru'
+
     # Prepare loss
     loss = NLLLoss()
     if torch.cuda.is_available():
@@ -85,17 +87,17 @@ else:
     optimizer = None
     if not opt.resume:
         # Initialize model
-        hidden_size = 512
+        hidden_size = 128
         bidirectional = opt.bidirectional
         encoder = EncoderRNN(
                 len(input_vocab), dataset.NUM_EXAMPLES, hidden_size,
                 dropout_p=0.25, input_dropout_p=0.25,
-                bidirectional=bidirectional, n_layers=2,
+                bidirectional=bidirectional, n_layers=1, rnn_cell=rnn_cell,
                 variable_lengths=True)
         decoder = DecoderRNN(
                 len(input_vocab), dataset.NUM_EXAMPLES, hidden_size * (2 if bidirectional else 1),
                 dropout_p=0.2, input_dropout_p=0.25, use_attention=True,
-                bidirectional=bidirectional, n_layers=2, attn_mode=opt.attn_mode)
+                bidirectional=bidirectional, rnn_cell=rnn_cell, n_layers=1, attn_mode=opt.attn_mode)
 
         s2smodel = Seq2seq(encoder, decoder)
 
@@ -111,7 +113,7 @@ else:
         optimizer = Optimizer(torch.optim.Adam(s2smodel.parameters(), lr=0.001), max_grad_norm=0.5)
         scheduler = ReduceLROnPlateau(optimizer.optimizer, 'min', factor=0.1, verbose=True, patience=10)
         optimizer.set_scheduler(scheduler)
-    expt_dir = opt.expt_dir + '/hidden_{}'.format(hidden_size)
+    expt_dir = opt.expt_dir + '/rnntype_{}_hidden_{}'.format(rnn_cell, hidden_size)
 
 
     # train
