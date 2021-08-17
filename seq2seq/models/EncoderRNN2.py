@@ -6,7 +6,7 @@ from seq2seq.util.string_preprocess import preprocessing, get_set_lengths, get_m
 
 from .baseRNN import BaseRNN
 
-class EncoderRNN(BaseRNN):
+class EncoderRNN2(BaseRNN):
     r"""
     Applies a multi-layer RNN to an input sequence.
 
@@ -40,7 +40,7 @@ class EncoderRNN(BaseRNN):
                  input_dropout_p=0, dropout_p=0,
                  n_layers=1, bidirectional=False, rnn_cell='LSTM', variable_lengths=False,
                  embedding=None, update_embedding=True, vocab=None):
-        super(EncoderRNN, self).__init__(vocab_size, max_len, hidden_size,
+        super(EncoderRNN2, self).__init__(vocab_size, max_len, hidden_size,
                 input_dropout_p, dropout_p, n_layers, rnn_cell)
 
         self.vocab_size = vocab_size
@@ -57,6 +57,13 @@ class EncoderRNN(BaseRNN):
 
         self.rnn2 = self.rnn_cell(hidden_size*2 if self.bidirectional else hidden_size, hidden_size, n_layers,
                                  batch_first=True, bidirectional=bidirectional, dropout=dropout_p)
+
+
+        self.conv1 = nn.Conv1d(10, 5, 3, padding=1)
+        self.relu = nn.ReLU()
+        self.conv2 = nn.Conv1d(5, 3, 3, padding=1)
+
+        self.avg_pool = nn.AdaptiveAvgPool2d((1, hidden_size * 2))
 
     def forward(self, input_var, input_lengths=None, embedding=None):
 
@@ -88,14 +95,24 @@ class EncoderRNN(BaseRNN):
             set_embedded = set_embedded.squeeze(0)  # batch x set_size, hidden
 
         set_embedded = set_embedded.view(batch_size, set_size, -1) # batch, set_size, hidden
-        set_output, set_hidden = self.rnn2(set_embedded) # (batch, set_size, hidden), # (num_layer*num_dir, batch, hidden) 2개 tuple 구성
 
-        if self.rnn2 is nn.LSTM:
-            last_hidden = set_hidden[0] # num_layer x num_dir, batch, hidden
-            last_cell = set_hidden[1] # num_layer x num_dir, batch, hidden
-            hiddens = (last_hidden, last_cell)
+
+        set_embedded = self.relu(self.conv1(set_embedded))
+        set_output = self.avg_pool(self.relu(self.conv2(set_embedded))).squeeze(1)
+
+        #set_output = self.avg_pool(set_embedded).squeeze(1)
+
+        #print(self.avg_pool(set_embedded).shape, self.conv(set_embedded).shape)
+
+        # set_output : batch_size x (hidden_dim * 2)
+
+        #set_output, set_hidden = self.rnn2(set_embedded) # (batch, set_size, hidden), # (num_layer*num_dir, batch, hidden) 2개 tuple 구성
+
+
+        if self.bidirectional:
+            hiddens = torch.stack([set_output[:,:self.hidden_size], set_output[:,self.hidden_size:]], 0)
         else:
-            hiddens = set_hidden # num_layer x num_dir, batch, hidden
+            hiddens = set_output.unsqueeze(0) # num_layer x num_dir, batch, hidden
 
-        outputs = (src_output, set_output)
+        outputs = (src_output, set_embedded)
         return outputs, hiddens, masking, rnn1_hidden

@@ -74,6 +74,8 @@ class DecoderRNN(BaseRNN):
                 n_layers, rnn_cell)
 
         self.bidirectional_encoder = bidirectional
+        self.embed_size = 4
+
         #self.rnn = self.rnn_cell(hidden_size, hidden_size*2, n_layers, batch_first=True, dropout=dropout_p)
         self.rnn = self.rnn_cell(vocab_size, hidden_size, n_layers, batch_first=True, dropout=dropout_p)
         self.output_size = vocab_size
@@ -91,13 +93,19 @@ class DecoderRNN(BaseRNN):
         self.hidden_out1 = nn.Linear(self.hidden_size*2, self.hidden_size)
         self.hidden_out2 = nn.Linear(self.hidden_size*2, self.hidden_size)
 
-    def forward_step(self, input_var, hidden, encoder_outputs, function):
+    def forward_step(self, input_var, embedding, hidden, encoder_outputs, function):
 
         batch_size, set_size, seq_len = input_var.size(0), input_var.size(1), input_var.size(2)
 
         one_hot = F.one_hot(input_var.to(device='cuda'), num_classes=self.vocab_size)
-        embedded = one_hot.view(batch_size * set_size, seq_len, -1).float()
+        embedded = one_hot.view(batch_size*set_size,seq_len, -1).float()
+        #embedded = embedding(input_var.reshape(batch_size * set_size, seq_len))
         embedded = self.input_dropout(embedded)
+        
+        # hidden : num_layers x batch_size x (hidden_dim * 2)
+        # encoder_outputs[0] : batch_size x set_size x seq_len x hidden_dim
+        # encoder_outputs[1] : batch_size x set_size x hidden_dim
+        # rnn1_dim : num_layers x (batch_size * set_size) x hidden_dim
 
         if self.rnn is nn.LSTM:
             hidden = (hidden[0].repeat_interleave(10, dim=1), hidden[1].repeat_interleave(10, dim=1))  # 2, 640, 128 of tuple2
@@ -107,10 +115,8 @@ class DecoderRNN(BaseRNN):
             hidden = hidden.repeat_interleave(10, dim=1)
             hidden = torch.cat((hidden, self.rnn1_hidden), -1)
             hidden = self.hidden_out1(hidden)
-        
 
         output, hidden = self.rnn(embedded, hidden)  #(640,10,128)
-
 
         attn = None
         if self.use_attention:
@@ -121,11 +127,8 @@ class DecoderRNN(BaseRNN):
         return predicted_softmax, hidden, attn
 
 
-    def forward(self, inputs=None, encoder_hidden=None, encoder_outputs=None,
+    def forward(self, inputs=None, embedding=None, encoder_hidden=None, encoder_outputs=None,
                     function=F.log_softmax, teacher_forcing_ratio=0, masking=None, rnn1_hidden = None):
-
-
-
         ret_dict = dict()
         if self.use_attention:
             ret_dict[DecoderRNN.KEY_ATTN_SCORE] = list()
@@ -142,7 +145,6 @@ class DecoderRNN(BaseRNN):
         self.rnn1_hidden = rnn1_hidden
         # decoder_hidden -> if bidirecional: (num_layer, batch, 2 x hidden) else : (num_layer x num_dir, batch, hidden)
 
-
         decoder_outputs = []
         sequence_symbols = []
         lengths = np.array([max_length] * batch_size)
@@ -158,11 +160,10 @@ class DecoderRNN(BaseRNN):
 
             return symbols
 
-
         #decoder_input = inputs[:, 0].unsqueeze(1)  # (batch, 1) # (batch, set, len) -> (batch,1,len)
         #print(inputs.shape) # input variable 64,10,10
         #print(max_length)   # 10
-        decoder_output, decoder_hidden, attn = self.forward_step(inputs, decoder_hidden,
+        decoder_output, decoder_hidden, attn = self.forward_step(inputs, embedding, decoder_hidden,
                                                                       encoder_outputs,
                                                                       function=function)
 
