@@ -35,15 +35,16 @@ def compatible(M, p, q):
 def make_trie(pos, neg):
     A = fa.DFA()
     M = dict()
+    M[None] = STATE_UNKNOWN
     A.setInitial(A.addState(''))
 
     for s in list(pos) + list(neg):
-        state = ''
+        state = A.States[A.Initial]
         for c in s:
             A.addTransition(
                     A.stateIndex(state),
                     c,
-                     A.stateIndex(state + c, autoCreate=True))
+                    A.stateIndex(state + c, autoCreate=True))
             state += c
 
     for s in A.States:
@@ -62,6 +63,7 @@ def merge(A, M, p, q, visited=list()):
     A: fa.DFA
     M: dict[state->unk/acc/rej]
     p, q: states
+    merge q into p
     """
 
     if p == q:
@@ -189,10 +191,10 @@ def pred_notnone(x):
     return x is not None
 
 
-def blue_fringe(pos, neg):
+def blue_fringe(pos, neg, count_limit=None, neg_prefix='', neg_suffix=''):
     A, M = make_trie(pos, neg)
 
-    red = set([''])
+    red = set([A.States[A.Initial]])
     blue = set(A.States[p]
             for p in filter(
                 pred_notnone, 
@@ -203,7 +205,12 @@ def blue_fringe(pos, neg):
     visited = set()
 
     merged = None
-    while len(blue) > 0:
+
+    iter_count = 0
+
+    while len(blue) > 0 and (count_limit is None or iter_count < count_limit):
+        iter_count += 1
+
         for q in blue:
             merged = False
             for p in red:
@@ -246,16 +253,29 @@ class REPR_FADO_REGEX():
         return self.s
 
 
-def synthesis(examples, *args, **kwargs):
-    A = blue_fringe(examples.pos, examples.neg)
+def synthesis(examples, count_limit=None, prefix_for_neg_test=None, suffix_for_neg_test=None, *args, **kwargs):
+    """
+    Params:
+        examples: {pos, neg}
+        count_limit: # states to be merged at most.
+        prefix/suffix_for_neg_test additional regex
+    """
+    if prefix_for_neg_test is None:
+        prefix_for_neg_test = ''
+    if suffix_for_neg_test is None:
+        suffix_for_neg_test = ''
+
+    A = blue_fringe(examples.pos, examples.neg,
+            count_limit = count_limit,
+            neg_prefix = prefix_for_neg_test,
+            neg_suffix = suffix_for_neg_test)
+
     return REPR_FADO_REGEX(A.regexp())
 
 
 if __name__ == '__main__':
-
     class Ex:
         def __init__(self, pos, neg):
-            assert len(set(pos) & set(neg)) == 0
             self.pos = set(pos)
             self.neg = set(neg)
 
@@ -266,7 +286,7 @@ if __name__ == '__main__':
         return st
 
     def test(pos, neg):
-        A = blue_fringe(pos, neg)
+        A = blue_fringe(pos, neg, count_limit = None)
 
         for s in pos:
             st = FA_run(A, s)
@@ -278,7 +298,8 @@ if __name__ == '__main__':
             if st in A.Final:
                 print(s, 'failed; expected: negative')
 
-        print(repr(synthesis(Ex(pos, neg))))
+        print(repr(synthesis(Ex(pos, neg), count_limit = None)))
+        print(repr(synthesis(Ex(pos, neg), count_limit = 0)))
 
     test(['0', '01', '010', '0101', '01010'],
          ['1', '10', '101', '1010', '10101'])
