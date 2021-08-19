@@ -1,4 +1,5 @@
 import FAdo.fa as fa
+import FAdo.reex as reex
 import itertools
 
 STATE_UNKNOWN = 1
@@ -30,6 +31,42 @@ def compatible(M, p, q):
     if M[p] == STATE_UNKNOWN or M[q] == STATE_UNKNOWN:
         return True
     return M[p] == M[q]
+
+
+def make_fa(pos, neg, neg_prefix, neg_suffix):
+    N = reex.str2regexp(neg_prefix + '(' + '+'.join(neg) + ')' + neg_suffix).toDFA()
+    P = reex.str2regexp('+'.join(pos)).toDFA()
+
+    A = N & ~P
+    A = A.trim()
+
+    # rename states
+    for i in range(len(A.States)):
+        A.States[i] = str(i)
+    M = dict()
+    M[None] = STATE_UNKNOWN
+
+    for s in list(pos):
+        state = A.Initial
+        for c in s:
+            nxt = A.Delta(state, c)
+            if nxt is None:
+                nxt = A.addState()
+                A.addTransition(state, c, nxt)
+            state = nxt
+
+        M[A.States[state]] = STATE_ACCEPT
+
+    for s in A.Final:
+        M[A.States[s]] = STATE_REJECT
+
+    for s in A.States:
+        if s not in M:
+            M[s] = STATE_UNKNOWN
+
+    A.delFinals()
+
+    return A, M
 
 
 def make_trie(pos, neg):
@@ -117,9 +154,14 @@ def merge(A, M, p, q, visited=list()):
     return Aret, Mret
 
 
+#cache
 def mergible(A, M, p, q, visited=list()):
-    if p == q: return True
-    if (p, q) in visited: return True
+    stack = list()
+
+    pp = A.stateIndex(p)
+    qq = A.stateIndex(q)
+
+    if pp == qq: return True
 
     if not compatible(M, p, q):
         return False
@@ -139,6 +181,7 @@ def mergible(A, M, p, q, visited=list()):
     return True
 
 
+# cache!
 def equivScore(A, M, p, q, visited=set()):
     s = 0
 
@@ -158,7 +201,7 @@ def equivScore(A, M, p, q, visited=set()):
         np = A.Delta(A.stateIndex(p), c)
         nq = A.Delta(A.stateIndex(q), c)
 
-        if np is not None and nq is not None:
+        if np is not None and nq is not None and np != nq:
             s += equivScore(A, M, A.States[np], A.States[nq], visited)
 
     return s
@@ -192,7 +235,7 @@ def pred_notnone(x):
 
 
 def blue_fringe(pos, neg, count_limit=None, neg_prefix='', neg_suffix=''):
-    A, M = make_trie(pos, neg)
+    A, M = make_trie(pos, neg)#, neg_prefix=neg_prefix, neg_suffix=neg_suffix)
 
     red = set([A.States[A.Initial]])
     blue = set(A.States[p]
@@ -285,8 +328,8 @@ if __name__ == '__main__':
             st = A.Delta(st, c)
         return st
 
-    def test(pos, neg):
-        A = blue_fringe(pos, neg, count_limit = None)
+    def test(pos, neg, neg_prefix=''):
+        A = blue_fringe(pos, neg, count_limit = None, neg_prefix = neg_prefix)
 
         for s in pos:
             st = FA_run(A, s)
@@ -306,3 +349,7 @@ if __name__ == '__main__':
 
     test(['0', '00', '000', '000000', '00000'],
          ['1', '11', '111', '1111', '11111'])
+
+    test(['0', '00', '000', '0000'],
+        ['0', '00', '000', '0000'],
+        '1*')
