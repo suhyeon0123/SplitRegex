@@ -14,9 +14,6 @@ from seq2seq.optim import Optimizer
 from seq2seq.util.checkpoint import Checkpoint
 from seq2seq.util.visualize import visualize_loss
 from seq2seq.dataset.dataset import batch_preprocess
-
-
-
 from seq2seq.trainer.EarlyStopping import EarlyStopping
 
 def list_chunk(lst, n):
@@ -57,7 +54,6 @@ class SupervisedTrainer(object):
         self.total = 0
         self.correct_seq_re = 0
         self.correct_set_re = 0
-
 
         if not os.path.isabs(expt_dir):
             expt_dir = os.path.join(os.getcwd(), expt_dir)
@@ -114,7 +110,6 @@ class SupervisedTrainer(object):
                 self.correct_set_re += 1
                 # print()
 
-
         for step, step_output in enumerate(decoder_outputs):
             batch_size = target_variable.size(0)
             target = target_variable[:, step].to(device='cuda')  # 총 10개의 스텝
@@ -135,7 +130,6 @@ class SupervisedTrainer(object):
         tmp = list_chunk([example.all() for example in result], 10)
         self.match_setnum += [all(example) for example in tmp].count(True)
 
-
         # Backward propagation
         model.zero_grad()
         loss.backward()
@@ -149,7 +143,6 @@ class SupervisedTrainer(object):
 
         print_loss_total = 0  # Reset every print_every
         epoch_loss_total = 0  # Reset every epoch
-
 
         #device = torch.device('cuda:0') if torch.cuda.is_available() else -1
 
@@ -166,7 +159,7 @@ class SupervisedTrainer(object):
         avg_train_losses = []
         # to track the average validtation loss per epoch as the model trains
         avg_valid_losses = []
-        early_stopping = EarlyStopping(patience = 100, verbose=True)
+        early_stopping = EarlyStopping(patience=10, verbose=True)
 
         for epoch in range(start_epoch, n_epochs + 1):
             log.debug("Epoch: %d, Step: %d" % (epoch, step))
@@ -188,7 +181,7 @@ class SupervisedTrainer(object):
 
                 inputs, outputs, regex = batch_preprocess(inputs, outputs, regex)
 
-                loss = self._train_batch(inputs, None, outputs, regex, model, teacher_forcing_ratio)
+                loss = self._train_batch(inputs.to(device="cuda"), None, outputs, regex, model, teacher_forcing_ratio)
 
                 train_losses.append(loss)
 
@@ -224,9 +217,6 @@ class SupervisedTrainer(object):
             acc_setT = self.match_setnum / self.total_data_size
             acc_set_reT = self.correct_set_re / self.total_data_size
             train_log = "Train %s: %.4f, Accuracy: %.4f, Accuracy of seq: %.4f, Accuracy of seq(RE): %.4f, Accuracy of set: %.4f, Accuracy of set(RE): %.4f" % (self.loss.name, epoch_loss_avg, accuracyT, acc_seqT, acc_seq_reT, acc_setT, acc_set_reT)
-
-
-
 
             if dev_data is not None:
                 dev_loss, accuracy, acc_seq, acc_seq_re, acc_set, acc_set_re = self.evaluator.evaluate(model, dev_data)

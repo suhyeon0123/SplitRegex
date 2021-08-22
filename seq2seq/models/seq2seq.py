@@ -38,6 +38,8 @@ class Seq2seq(nn.Module):
         self.encoder = encoder
         self.decoder = decoder
         self.decode_function = decode_function
+        self.embed_size = 4
+        self.shared_embedding = nn.Embedding(encoder.vocab_size, self.embed_size)
 
     def flatten_parameters(self):
         self.encoder.rnn1.flatten_parameters()
@@ -47,9 +49,9 @@ class Seq2seq(nn.Module):
     def forward(self, input_variable, input_lengths=None, target_variable=None,
                 teacher_forcing_ratio=0):
 
-        encoder_outputs, encoder_hidden, masking, rnn1_hidden = self.encoder(input_variable, input_lengths)
+        encoder_outputs, encoder_hidden, masking, rnn1_hidden = self.encoder(input_variable, input_lengths, self.shared_embedding)
 
-        result = self.decoder(inputs=input_variable,
+        result = self.decoder(inputs=input_variable, embedding=self.shared_embedding,
                               encoder_hidden=encoder_hidden,
                               encoder_outputs=encoder_outputs,
                               function=self.decode_function,
