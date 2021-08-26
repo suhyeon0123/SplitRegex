@@ -1,9 +1,11 @@
 import FAdo.fa as fa
+import FAdo.reex as reex
 import itertools
 
 STATE_UNKNOWN = 1
 STATE_ACCEPT = 2
 STATE_REJECT = 3
+
 
 class Argmax():
     def __init__(self):
@@ -32,6 +34,43 @@ def compatible(M, p, q):
     return M[p] == M[q]
 
 
+def make_fa(pos, neg, neg_prefix, neg_suffix):
+    N = reex.str2regexp(neg_prefix + '(' + '+'.join(neg) + ')' +
+                        neg_suffix).toDFA()
+    P = reex.str2regexp('+'.join(pos)).toDFA()
+
+    A = N & ~P
+    A.trim()
+
+    # rename states
+    for i in range(len(A.States)):
+        A.States[i] = str(i)
+    M = dict()
+    M[None] = STATE_UNKNOWN
+
+    for s in list(pos):
+        state = A.Initial
+        for c in s:
+            nxt = A.Delta(state, c)
+            if nxt is None:
+                nxt = A.addState()
+                A.addTransition(state, c, nxt)
+            state = nxt
+
+        M[A.States[state]] = STATE_ACCEPT
+
+    for s in A.Final:
+        M[A.States[s]] = STATE_REJECT
+
+    for s in A.States:
+        if s not in M:
+            M[s] = STATE_UNKNOWN
+
+    A.delFinals()
+
+    return A, M
+
+
 def make_trie(pos, neg):
     A = fa.DFA()
     M = dict()
@@ -41,10 +80,8 @@ def make_trie(pos, neg):
     for s in list(pos) + list(neg):
         state = A.States[A.Initial]
         for c in s:
-            A.addTransition(
-                    A.stateIndex(state),
-                    c,
-                    A.stateIndex(state + c, autoCreate=True))
+            A.addTransition(A.stateIndex(state), c,
+                            A.stateIndex(state + c, autoCreate=True))
             state += c
 
     for s in A.States:
@@ -90,7 +127,8 @@ def merge(A, M, p, q, visited=list()):
         nq = Aret.Delta(Aret.stateIndex(q), s)
 
         if np is not None and nq is not None and np != nq:
-            Aret, Mret = merge(Aret, Mret, Aret.States[np], Aret.States[nq], visited)
+            Aret, Mret = merge(Aret, Mret, Aret.States[np], Aret.States[nq],
+                               visited)
             if Aret is False:
                 visited.pop()
                 return False, False
@@ -118,8 +156,11 @@ def merge(A, M, p, q, visited=list()):
 
 
 def mergible(A, M, p, q, visited=list()):
-    if p == q: return True
-    if (p, q) in visited: return True
+    pp = A.stateIndex(p)
+    qq = A.stateIndex(q)
+
+    if pp == qq:
+        return True
 
     if not compatible(M, p, q):
         return False
@@ -158,7 +199,7 @@ def equivScore(A, M, p, q, visited=set()):
         np = A.Delta(A.stateIndex(p), c)
         nq = A.Delta(A.stateIndex(q), c)
 
-        if np is not None and nq is not None:
+        if np is not None and nq is not None and np != nq:
             s += equivScore(A, M, A.States[np], A.States[nq], visited)
 
     return s
@@ -192,14 +233,12 @@ def pred_notnone(x):
 
 
 def blue_fringe(pos, neg, count_limit=None, neg_prefix='', neg_suffix=''):
-    A, M = make_trie(pos, neg)
+    A, M = make_fa(pos, neg, neg_prefix=neg_prefix, neg_suffix=neg_suffix)
 
     red = set([A.States[A.Initial]])
-    blue = set(A.States[p]
-            for p in filter(
-                pred_notnone, 
-                (A.Delta(A.stateIndex(r), s)
-                    for r, s in itertools.product(red, A.Sigma)))) - red
+    blue = set(A.States[p] for p in filter(pred_notnone, (
+        A.Delta(A.stateIndex(r), s)
+        for r, s in itertools.product(red, A.Sigma)))) - red
 
     score = Argmax()
     visited = set()
@@ -231,11 +270,9 @@ def blue_fringe(pos, neg, count_limit=None, neg_prefix='', neg_suffix=''):
             score = Argmax()
             visited = set()
 
-        blue = set(A.States[p]
-                for p in filter(
-                    pred_notnone, 
-                    (A.Delta(A.stateIndex(r), s)
-                        for r, s in itertools.product(red, A.Sigma)))) - red
+        blue = set(A.States[p] for p in filter(pred_notnone, (
+            A.Delta(A.stateIndex(r), s)
+            for r, s in itertools.product(red, A.Sigma)))) - red
 
     for s in A.States:
         if M.get(s, STATE_UNKNOWN) == STATE_ACCEPT:
@@ -245,6 +282,7 @@ def blue_fringe(pos, neg, count_limit=None, neg_prefix='', neg_suffix=''):
     A = A.complete()
     return A
 
+
 class REPR_FADO_REGEX():
     def __init__(self, s):
         self.s = str(s).replace(' ', '')
@@ -253,7 +291,12 @@ class REPR_FADO_REGEX():
         return self.s
 
 
-def synthesis(examples, count_limit=None, prefix_for_neg_test=None, suffix_for_neg_test=None, *args, **kwargs):
+def synthesis(examples,
+              count_limit=None,
+              prefix_for_neg_test=None,
+              suffix_for_neg_test=None,
+              *args,
+              **kwargs):
     """
     Params:
         examples: {pos, neg}
@@ -265,15 +308,21 @@ def synthesis(examples, count_limit=None, prefix_for_neg_test=None, suffix_for_n
     if suffix_for_neg_test is None:
         suffix_for_neg_test = ''
 
-    A = blue_fringe(examples.pos, examples.neg,
-            count_limit = count_limit,
-            neg_prefix = prefix_for_neg_test,
-            neg_suffix = suffix_for_neg_test)
+    A = blue_fringe(examples.pos,
+                    examples.neg,
+                    count_limit=count_limit,
+                    neg_prefix=prefix_for_neg_test,
+                    neg_suffix=suffix_for_neg_test)
 
-    return REPR_FADO_REGEX(A.regexp())
+    return REPR_FADO_REGEX(A.reCG())
 
 
 if __name__ == '__main__':
+    import unittest
+    import logging
+
+    logging.basicConfig(level=logging.INFO)
+
     class Ex:
         def __init__(self, pos, neg):
             self.pos = set(pos)
@@ -285,24 +334,49 @@ if __name__ == '__main__':
             st = A.Delta(st, c)
         return st
 
-    def test(pos, neg):
-        A = blue_fringe(pos, neg, count_limit = None)
+    def check_string(A, w):
+        st = FA_run(A, w)
+        return (st in A.Final)
 
-        for s in pos:
-            st = FA_run(A, s)
-            if st not in A.Final:
-                print(s, 'failed; expected: positive')
+    class Test(unittest.TestCase):
+        def batch_test(self, A, pos, neg):
+            for w in pos:
+                with self.subTest(w=w):
+                    self.assertTrue(check_string(A, w), w)
+            for w in neg:
+                with self.subTest(w=w):
+                    self.assertFalse(check_string(A, w), w)
 
-        for s in neg:
-            st = FA_run(A, s)
-            if st in A.Final:
-                print(s, 'failed; expected: negative')
+        def test_case1(self):
+            pos = ['0', '00', '000', '000000', '00000']
+            neg = ['1', '11', '111', '1111', '11111']
 
-        print(repr(synthesis(Ex(pos, neg), count_limit = None)))
-        print(repr(synthesis(Ex(pos, neg), count_limit = 0)))
+            A = blue_fringe(pos, neg)
+            self.batch_test(A, pos, neg)
 
-    test(['0', '01', '010', '0101', '01010'],
-         ['1', '10', '101', '1010', '10101'])
+        def test_case2(self):
+            pos = ['0', '01', '010', '0101', '01010']
+            neg = ['1', '10', '101', '1010', '10101']
 
-    test(['0', '00', '000', '000000', '00000'],
-         ['1', '11', '111', '1111', '11111'])
+            A = blue_fringe(pos, neg)
+            self.batch_test(A, pos, neg)
+
+        def test_case3(self):
+            pos = ['0', '00', '000', '0000']
+            neg = ['0', '00', '000', '0000']
+            neg_pref = '11*'
+            negs = ['10', '100', '1000', '10000', '1100', '11110', '111100000']
+
+            A = blue_fringe(pos, neg, count_limit=None, neg_prefix=neg_pref)
+            self.batch_test(A, pos, negs)
+
+        def test_case4(self):
+            pos = ['0', '00', '000', '0000']
+            neg = ['0', '00', '000', '0000']
+            neg_suff = '11*'
+            negs = ['01', '001', '00001', '00111111', '00001111']
+
+            A = blue_fringe(pos, neg, count_limit=None, neg_suffix=neg_suff)
+            self.batch_test(A, pos, negs)
+
+    unittest.main()
