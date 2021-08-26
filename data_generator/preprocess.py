@@ -27,38 +27,16 @@ def make_pos(regex, number):
     posset = set()
 
     for i in range(number):
-        example = x.xeger(regex).strip("'")
-        posset.add(example)
+        posset.add(x.xeger(regex))
     pos = list(posset)
 
     for i in range(number - len(pos)):
         pos.append('<pad>')
+
     return pos
 
 
-def make_neg(regex, number):
-    negset = set()
-    for i in range(0, 1000):
-        # random regex생성
-        str_list = []
-
-        for j in range(0, random.randrange(5, 10)):
-            str_list.append(chr(random.randrange(33, 91)))
-        tmp = ''.join(str_list)
-
-
-        # random regex가 맞지 않다면 추가
-        if re.fullmatch(regex, tmp) is None:
-            negset.add(tmp)
-
-        if len(negset) == 10:
-            break
-
-    return list(negset)
-
-
 def make_label(regex, pos):
-
     # Tag 전처리
     str_list = []
     bracket = 0
@@ -81,7 +59,16 @@ def make_label(regex, pos):
     for example in pos:
         if example != '<pad>':
             str_list = []
+
+            example = re.sub('\x0b', '`', example)
+
+            xx = re.fullmatch(regex, example)
+            if xx is None:
+
+                example = re.sub('`', '\t', example)
+
             dic = re.fullmatch(regex, example).groupdict()
+
             for i in range(len(dic)):
                 key = "t" + str(i)
                 targetstring = dic[key]
@@ -96,6 +83,53 @@ def make_label(regex, pos):
             templete.append('<pad>')
 
     return templete
+
+
+def make_neg(regex, pos, number):
+    negset = set()
+
+    symbol_list = set()
+    for i in pos:
+        if i == '<pad>':
+            continue
+        x = re.findall('(?!\x0b|\\\\|\\|\').', i)
+        for j in x:
+            symbol_list.add(j)
+
+    symbol_list = list(symbol_list)
+
+    for i in range(0, 1000):
+        # select random pos
+        example = pos[random.randrange(0, len(pos))]
+        if example == '<pad>':
+            continue
+
+        if len(example) <= 10:
+            count = 2
+        else:
+            count = int(len(example)/5)
+
+        for j in range(count):
+            point = random.randrange(0, len(example))
+            if example[point] != "'" and example[point] != r"\\":
+                example = example[:point] + symbol_list[random.randrange(0, len(symbol_list))] + example[point+1:]
+
+        # random regex가 맞지 않다면 추가
+        if re.fullmatch(regex, example) is None:
+            negset.add(example)
+
+        if len(negset) == 10:
+            break
+
+    neg = list(negset)
+    for i in range(number - len(negset)):
+        neg.append('<pad>')
+
+
+    return neg
+
+
+
 
 def remove_anchor(regex):
     regex = re.sub('/\^', '/', regex)
@@ -122,11 +156,8 @@ def remove_redundant_quantifier(regex):
         if a + b + c == 0:
             break
 
-
-
     regex = re.sub(r'\\b', r'', regex)
     regex = re.sub(r'\\B', r'', regex)
-
 
     # remove back reference
     regex = re.sub(r'\\\d', r'', regex)
@@ -148,30 +179,26 @@ def preprocess_parenthesis_flag(regex):
 
 
 
-def preprocess_control_ascii(regex):
-    return re.sub(r'\\x([01][0-9A-Fa-f])', r'(`\1)', regex)
+def preprocess_replace(regex):
+    # control_ascii
+    regex = re.sub(r'\\x([01][0-9A-Fa-f])', r'(`\1)', regex)
 
-
-def preprocess_space_character(regex):
+    # space_character
     regex = re.sub(r'\\r', r'(`20)', regex)
     regex = re.sub(r'\\n', r'(`21)', regex)
     regex = re.sub(r'\\t', r'(`22)', regex)
 
     regex = re.sub(r'\\x5(c|C)', r'(`5c)', regex)
 
-    return regex
-
-
-def preprocess_character_set(regex):
-    #regex = re.sub(r'\\w', r'(`30)', regex)
-    regex = re.sub(r'\\W', r'(`31)', regex)
-    #regex = re.sub(r'\\d', r'(`32)', regex)
-    regex = re.sub(r'\\D', r'(`33)', regex)
-    regex = re.sub(r'\\s', r'(`34)', regex)
-    #regex = re.sub(r'\\S', r'(`35)', regex)
+    # character_set
+    regex = re.sub(r'\\w', r'(`30)', regex)
+    # regex = re.sub(r'\\W', r'(`31)', regex)
+    regex = re.sub(r'\\d', r'(`32)', regex)
+    # regex = re.sub(r'\\D', r'(`33)', regex)
+    # regex = re.sub(r'\\s', r'(`34)', regex)
+    # regex = re.sub(r'\\S', r'(`35)', regex)
 
     return regex
-
 
 
 def get_captured_regex(regex):
@@ -197,14 +224,12 @@ def get_captured_regex(regex):
 
     regex = re.sub('\(\)', '', regex)
 
-
     return regex
 
 
 def replace_constant_string(regex):
-
+    # make subregex list
     subregex_list = []
-
     bracket = 0
     for letter in regex:
         if letter == '(':
@@ -220,7 +245,6 @@ def replace_constant_string(regex):
         else:
             subregex_list[-1] = subregex_list[-1] + letter
 
-
     for idx, subregex in enumerate(subregex_list):
         if re.search(
                 dequantifier + quantifier + '|' + dequantifier2 + quantifier + '|' + dequantifier3 + '|' + dequantifier4 + '|' + dequantifier5 + '|' + '\(`3\d\)',
@@ -229,52 +253,38 @@ def replace_constant_string(regex):
             if idx < 26:
                 ch = chr(idx + 65)
             else:
-                ch = chr(idx + 97)
+                ch = chr(idx + 71)
+
             regex = re.sub(subregex, ch, regex, 1)
             subregex_list[idx] = ch
 
         if re.fullmatch('\(.*\)', subregex_list[idx]) is None:
             subregex_list[idx] = '(' + subregex_list[idx] + ')'
 
-
     return ''.join(subregex_list)
 
 
 
 def main():
-
     if opt.data_type == 'snort':
         regex_file = open('../submodels/automatark/regex/snort-clean.re', 'r')
     else:
         regex_file = open('snort-clean.re', 'r')
 
     save_file = open(opt.data_path, 'w')
-
     regex_list = [x.strip() for x in regex_file.readlines()]
-
     error_idx = []
 
     for idx, regex in enumerate(regex_list):
-
-        # if idx!=1180:
-        #     continue
-
+        if idx==902 or idx==903:
+            continue
         print(regex)
-
 
         regex = remove_anchor(regex)
         regex = remove_redundant_quantifier(regex)
         regex = preprocess_parenthesis_flag(regex)
-        print(regex)
 
         regex = get_captured_regex(regex)
-        print(regex)
-
-        #make vocab
-        regex = preprocess_control_ascii(regex)
-        regex = preprocess_space_character(regex)
-        regex = preprocess_character_set(regex)
-        print(regex)
 
         regex = replace_constant_string(regex)
         regex = re.sub('`1`', '\\\(', regex)
@@ -282,29 +292,41 @@ def main():
         print(regex)
 
 
+        # generate pos strings
         try:
             pos = make_pos(regex, 10)
-            print(pos)
         except:
             error_idx.append(idx)
             continue
 
-        neg = make_neg(regex, 10)
-        print(neg)
+        # generate neg strings
+        neg = make_neg(regex, pos, 10)
 
-        label = make_label(regex, pos)
+        # generate label
+        try:
+            label = make_label(regex, pos)
+        except:
+            error_idx.append(idx)
+            continue
+
+        # replace unrecognized symbol
+        pos = list(map(lambda y: preprocess_replace(repr(y)[1:-1]), pos))
+        neg = list(map(lambda y: preprocess_replace(repr(y)[1:-1]), neg))
+
+        print(pos)
+        print(neg)
         print(label)
+        print('')
 
         total = pos + neg + label
         total.append(regex)
-        print(total)
+
         res = ''
         for ele in total:
             res = res + str(ele) + '\t'
 
-        print(res)
-        save_file.write(res)
-        print('')
+        save_file.write(res+'\n')
+
 
     print(error_idx)
 
