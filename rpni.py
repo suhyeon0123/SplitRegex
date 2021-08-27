@@ -35,9 +35,6 @@ def compatible(M, p, q):
 
 
 def make_fa(pos, neg, neg_prefix, neg_suffix):
-    pos = map(lambda x: '@epsilon' if x == '' else x, pos)
-    neg = map(lambda x: '@epsilon' if x == '' else x, neg)
-
     N = reex.str2regexp(neg_prefix + '(' + '+'.join(neg) + ')' +
                         neg_suffix).toDFA()
     P = reex.str2regexp('+'.join(pos)).toDFA()
@@ -129,10 +126,11 @@ def merge(A, M, p, q, visited=list()):
         np = Aret.Delta(Aret.stateIndex(p), s)
         nq = Aret.Delta(Aret.stateIndex(q), s)
 
-        if np is not None and nq is not None and mergible(Aret, Mret, Aret.States[np], Aret.States[nq]):
+        if np is not None and nq is not None and np != nq:
             Aret, Mret = merge(Aret, Mret, Aret.States[np], Aret.States[nq],
                                visited)
             if Aret is False:
+                visited.pop()
                 return False, False
 
     # subst q to p
@@ -142,8 +140,6 @@ def merge(A, M, p, q, visited=list()):
     # copy q's outgoing to p
     if qq in Aret.delta:
         for c in Aret.delta[qq]:
-            if pp not in Aret.delta:
-                Aret.delta[pp] = dict()
             Aret.delta[pp][c] = Aret.delta[qq][c]
 
     # copy q's incoming to p
@@ -164,15 +160,12 @@ def mergible(A, M, p, q, visited=list()):
     qq = A.stateIndex(q)
 
     if pp == qq:
-        return False
-
-    if (pp, qq) in visited:
         return True
 
     if not compatible(M, p, q):
         return False
 
-    visited.append((pp, qq))
+    visited.append((p, q))
 
     for s in A.Sigma:
         np = A.Delta(A.stateIndex(p), s)
@@ -180,6 +173,7 @@ def mergible(A, M, p, q, visited=list()):
 
         if np is not None and nq is not None:
             if not mergible(A, M, A.States[np], A.States[nq], visited):
+                visited.pop()
                 return False
 
     visited.pop()
@@ -213,7 +207,7 @@ def equivScore(A, M, p, q, visited=set()):
 
 def depth(A, p):
     queue = [(A.States[A.Initial], 0)]
-    visited = set([A.Initial])
+    visited = set([queue[0][0]])
 
     while len(queue) > 0:
         q, d = queue.pop(0)
@@ -225,7 +219,7 @@ def depth(A, p):
                 nq = A.Delta(A.stateIndex(q), s)
                 if nq is not None and A.States[nq] not in visited:
                     queue.append((A.States[nq], d + 1))
-                    visited.add(nq)
+                    visited.add(A.States[nq])
 
     assert False
 
