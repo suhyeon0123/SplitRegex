@@ -13,9 +13,9 @@ parser.add_argument('--data_path', default='./data/pos_neg_5.csv', dest='data_pa
                     help='Path to data')
 parser.add_argument('--batch_size', action='store', dest='batch_size',
                     help='batch size', default=1)
-parser.add_argument('--checkpoint_pos', default='./saved_models/hidden_512/best_accuracy', dest='checkpoint_pos',
+parser.add_argument('--checkpoint_pos', default='./saved_models/rnntype_gru_hidden_128/best_accuracy', dest='checkpoint_pos',
                     help='path to checkpoint for splitting positive strings ')
-parser.add_argument('--checkpoint_neg', default='./saved_models/hidden_512/best_accuracy', dest='checkpoint_neg',
+parser.add_argument('--checkpoint_neg', default='./saved_models/rnntype_gru_hidden_128/best_accuracy', dest='checkpoint_neg',
                     help='path to checkpoint for splitting negative strings ')
 parser.add_argument('--sub_model', action='store', dest='sub_model', default='set2regex',
                     help='sub model used in generating sub regex from sub strings')

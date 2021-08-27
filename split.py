@@ -6,6 +6,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), 'submode
 from collections import Counter
 from submodels.SoftConciseNormalForm.synthesizer import synthesis
 from submodels.SoftConciseNormalForm.examples import Examples
+from rpni import synthesis as rpni_synthesis
 
 def split(strings, label, no_split=False):
 
@@ -79,7 +80,9 @@ def generate_split_regex(splited_pos, splited_neg, split_model=False, count_limi
         print('Splited Positive Strings:', sub_pos_set)
         print('Splited Negative Strings:', sub_neg_set)
 
-        tmp = synthesis(Examples(pos=sub_pos_set, neg=sub_neg_set), count_limit, start_with_no_concat=split_model, prefix_for_neg_test=prefix, suffix_for_neg_test=None, alphabet_size=alphabet_size)
+        #tmp = synthesis(Examples(pos=sub_pos_set, neg=sub_neg_set), count_limit, start_with_no_concat=split_model, prefix_for_neg_test=prefix, suffix_for_neg_test=None, alphabet_size=alphabet_size)
+        tmp = rpni_synthesis(Examples(pos=sub_pos_set, neg=sub_neg_set), count_limit, start_with_no_concat=split_model, prefix_for_neg_test=prefix, suffix_for_neg_test=None, alphabet_size=alphabet_size)
+
 
         if tmp is None:
             return None, 0
