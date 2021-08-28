@@ -6,8 +6,10 @@ import torch
 
 class Vocabulary:
     def __init__(self):
+        # self.itos = [
+        #         '0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
+        #         '<pad>', '<unk>']
         self.itos = [
-                '0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
                 '<pad>', '<unk>']
         self.stoi = dict((x, i) for i, x in enumerate(self.itos))
 
@@ -47,6 +49,7 @@ class CustomDataset(Dataset):
         return processed_list
 
     def __getitem__(self, idx):
+
         return (self._translate_sequences(self.input.iloc[idx]),
                 self._translate_sequences(self.output.iloc[idx]),
                 self.regex.iloc[idx])

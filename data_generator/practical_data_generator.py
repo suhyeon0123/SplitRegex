@@ -7,18 +7,18 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--data_type', action='store', dest='data_type',
                     help='data type - snort or regexlib', default='snort')
 parser.add_argument('--data_path', action='store', dest='data_path',
-                    help='Path to save data', default='../data/snort.csv')
+                    help='Path to save data', default='../data/snort_total.csv')
+parser.add_argument('--data_cat', action='store', dest='data_cat',
+                    help='pos-label for train -> train, pos-label for test - test, pos-neg for main -> main', default='train')
+
+
 opt = parser.parse_args()
 
-dequantifier = '(\[[^]]*\]|\\\.|\\.|\\\\x..)'
+dequantifier = '(\\\.|\\.|\\\\x..)'
+dequantifier2 = '(\(.*?\)|\[[^]]*\])'
+
 quantifier = '(\*|\+|\?|\{\d+\,\d*\}|\{\d+\})\??'
 
-# parenthesis
-dequantifier2 = '\(.*?\)'
-
-dequantifier3 = '(\([^(\))]*?\([^(\))]*?|[^(\()]*?\)[^(\()]*?\)|\(.+?\|.+?\))'
-
-dequantifier4 = '\[[^]]*\]'
 dequantifier5 = '\\\\d|\\\\D\\\\|\\\\w|\\\\W|\\\\s|\\\\S|(?<!\\\\)\.'
 
 
@@ -172,8 +172,8 @@ def preprocess_parenthesis_flag(regex):
     regex = re.sub(r'\(\?<.*?>', '(', regex)
     regex = re.sub(r'\\k<.*?>', '', regex)
 
-    regex = re.sub(r'\\\(', r'`1`', regex)
-    regex = re.sub(r'\\\)', r'`2`', regex)
+    regex = re.sub(r'\\\(', r'!', regex)
+    regex = re.sub(r'\\\)', r'!', regex)
 
     return regex
 
@@ -181,28 +181,26 @@ def preprocess_parenthesis_flag(regex):
 
 def preprocess_replace(regex):
     # control_ascii
-    regex = re.sub(r'\\x([01][0-9A-Fa-f])', r'(`\1)', regex)
+    regex = re.sub(r'\\x([01][0-9A-Fa-f])', r'!', regex)
 
     # space_character
-    regex = re.sub(r'\\r', r'(`20)', regex)
-    regex = re.sub(r'\\n', r'(`21)', regex)
-    regex = re.sub(r'\\t', r'(`22)', regex)
+    regex = re.sub(r'\\r', r'!', regex)
+    regex = re.sub(r'\\n', r'!', regex)
+    regex = re.sub(r'\\t', r'!', regex)
+    regex = re.sub(r' ', r'!', regex)
+    regex = re.sub(r'#', r'!', regex)
+    regex = re.sub(r',', r'!', regex)
+    regex = re.sub(r'\\\\', r'!', regex)
+    regex = re.sub(r'\\\'', r'!', regex)
+    regex = re.sub(r'\\', r'!', regex)
 
-    regex = re.sub(r'\\x5(c|C)', r'(`5c)', regex)
-
-    # character_set
-    regex = re.sub(r'\\w', r'(`30)', regex)
-    # regex = re.sub(r'\\W', r'(`31)', regex)
-    regex = re.sub(r'\\d', r'(`32)', regex)
-    # regex = re.sub(r'\\D', r'(`33)', regex)
-    # regex = re.sub(r'\\s', r'(`34)', regex)
-    # regex = re.sub(r'\\S', r'(`35)', regex)
+    regex = re.sub(r'\\x5(c|C)', r'!', regex)
 
     return regex
 
 
 def get_captured_regex(regex):
-    matchObj_iter = re.finditer(dequantifier + quantifier + '|' + dequantifier2 + quantifier + '|' + dequantifier3 + '|' +dequantifier4 + '|' + dequantifier5, regex)
+    matchObj_iter = re.finditer(dequantifier + quantifier + '|' + dequantifier2 + '(' + quantifier + ')?' + '|' + dequantifier5, regex)
 
     split_point = [0]
     indicate = 1
@@ -228,6 +226,8 @@ def get_captured_regex(regex):
 
 
 def replace_constant_string(regex):
+    mapping_table = {}
+
     # make subregex list
     subregex_list = []
     bracket = 0
@@ -247,13 +247,19 @@ def replace_constant_string(regex):
 
     for idx, subregex in enumerate(subregex_list):
         if re.search(
-                dequantifier + quantifier + '|' + dequantifier2 + quantifier + '|' + dequantifier3 + '|' + dequantifier4 + '|' + dequantifier5 + '|' + '\(`3\d\)',
+                dequantifier + quantifier + '|' + dequantifier2 + '(' + quantifier + ')?' + '|' + dequantifier5 + '|' + '\(`3\d\)',
                 subregex) is None:
 
-            if idx < 26:
-                ch = chr(idx + 65)
+            if subregex in mapping_table.values():
+                for alphabet, string in mapping_table.items():
+                    if string == subregex:
+                        ch = alphabet
             else:
-                ch = chr(idx + 71)
+                if len(mapping_table) < 26:
+                    ch = chr(len(mapping_table) + 65)
+                else:
+                    ch = chr(len(mapping_table) + 71)
+                mapping_table[ch] = subregex
 
             regex = re.sub(subregex, ch, regex, 1)
             subregex_list[idx] = ch
@@ -261,7 +267,29 @@ def replace_constant_string(regex):
         if re.fullmatch('\(.*\)', subregex_list[idx]) is None:
             subregex_list[idx] = '(' + subregex_list[idx] + ')'
 
-    return ''.join(subregex_list)
+    regex = ''.join(subregex_list)
+
+    regex = re.sub('\\\\x..', '!', regex)
+
+    regex = re.sub(',' ,'!', regex)
+
+    string_pattern = '(?<!\\\\)[^\\\(\)\*\+\|\^\[\]\!\?]{2,}'
+    while re.search(string_pattern, regex) is not None:
+        tmp = re.search(string_pattern, regex).group()
+        if tmp in mapping_table.values():
+            for alphabet, string in mapping_table.items():
+                if string == tmp:
+                    ch = alphabet
+        else:
+            if len(mapping_table) < 26:
+                ch = chr(len(mapping_table) + 65)
+            else:
+                ch = chr(len(mapping_table) + 71)
+            mapping_table[ch] = tmp
+
+        regex = re.sub(string_pattern, ch, regex, 1)
+
+    return regex, mapping_table
 
 
 
@@ -278,7 +306,16 @@ def main():
     for idx, regex in enumerate(regex_list):
         if idx==902 or idx==903:
             continue
-        print(regex)
+
+        if opt.data_cat =='train':
+            if idx > 1100:
+                continue
+
+        if opt.data_cat =='test':
+            if idx < 1100:
+                continue
+
+        #print(regex)
 
         regex = remove_anchor(regex)
         regex = remove_redundant_quantifier(regex)
@@ -286,10 +323,9 @@ def main():
 
         regex = get_captured_regex(regex)
 
-        regex = replace_constant_string(regex)
-        regex = re.sub('`1`', '\\\(', regex)
-        regex = re.sub('`2`', '\\\)', regex)
+        regex, mapping_table = replace_constant_string(regex)
         print(regex)
+
 
 
         # generate pos strings
@@ -318,15 +354,18 @@ def main():
         print(label)
         print('')
 
-        total = pos + neg + label
-        total.append(regex)
+        if opt.data_cat == 'main':
+            total = pos + neg
+        else:
+            total = pos + label
+
 
         res = ''
         for ele in total:
-            res = res + str(ele) + '\t'
+            res = res + str(ele) + ', '
+        res = res + str(regex)
 
         save_file.write(res+'\n')
-
 
     print(error_idx)
 
