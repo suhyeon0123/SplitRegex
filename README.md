@@ -71,6 +71,11 @@ python setup.py install
     python data_generator/random_regex.py --data_path data/random_regex_posneg --number 1000
     python data_generator/data_generator.py --data_type pos_neg --regex_path data/random_regex_posneg --data_path data/posneg
     
+### practical dataset generation
+    python pracical_data_generator.py --data_path ../data/snort_train.csv --data_cat train
+    python pracical_data_generator.py --data_path ../data/snort_test.csv --data_cat test
+    python pracical_data_generator.py --data_path ../data/snort_main.csv --data_cat main
+    
 
 ### Train model
     python train.py --train_path ./data/train.csv --dev_path ./data/valid.csv
