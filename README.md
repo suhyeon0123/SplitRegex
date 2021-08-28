@@ -70,6 +70,7 @@ python setup.py install
     
     python data_generator/random_regex.py --data_path data/random_regex_posneg --number 1000
     python data_generator/data_generator.py --data_type pos_neg --regex_path data/random_regex_posneg --data_path data/posneg
+
     
 
 ### Train model
