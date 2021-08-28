@@ -6,11 +6,11 @@ import torch
 
 class Vocabulary:
     def __init__(self):
-        # self.itos = [
-        #         '0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
-        #         '<pad>', '<unk>']
         self.itos = [
                 '<pad>', '<unk>']
+        for i in range(94):
+            self.itos.append(chr(i+33))
+
         self.stoi = dict((x, i) for i, x in enumerate(self.itos))
 
     def __len__(self):
@@ -95,8 +95,10 @@ def decomposing_regex(regex):
             bracket -= 1
         else:
             saved_decomposed_regex[-1] = saved_decomposed_regex[-1] + letter
-
-    return list(map(lambda x: x[6:], saved_decomposed_regex))
+    if '(?P<t' not in regex:
+        return list(map(lambda x: x[0:], saved_decomposed_regex))
+    else:
+        return list(map(lambda x: x[6:], saved_decomposed_regex))
 
 
 def batch_preprocess(inputs, outputs, regex):
@@ -111,5 +113,4 @@ def batch_preprocess(inputs, outputs, regex):
     outputs = outputs.permute(2, 0, 1)
 
     regex = list(map(lambda x: decomposing_regex(x), regex))
-
     return inputs, outputs, regex
