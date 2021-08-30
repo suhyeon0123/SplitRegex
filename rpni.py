@@ -347,10 +347,10 @@ def synthesis(examples,
 
     try:
         A = blue_fringe(examples.pos,
-                        examples.neg,
-                        count_limit=count_limit,
-                        neg_prefix=prefix_for_neg_test,
-                        neg_suffix=suffix_for_neg_test)
+                examples.neg,
+                count_limit=count_limit,
+                neg_prefix=prefix_for_neg_test,
+                neg_suffix=suffix_for_neg_test)
     except:
         #print("Error occurred; return @epsilon", file=sys.stderr)
         return '@empty_set'
@@ -394,8 +394,8 @@ if __name__ == '__main__':
     class Test(unittest.TestCase):
         def batch_test(self, A, pos, neg):
             for w in pos:
-                    self.assertTrue(check_string(A, w), w)
                 with self.subTest(w=w):
+                    self.assertTrue(check_string(A, w), w)
             for w in neg:
                 with self.subTest(w=w):
                     self.assertFalse(check_string(A, w), w)
