@@ -1,3 +1,5 @@
+import sys
+import copy
 import FAdo.fa as fa
 import FAdo.reex as reex
 import itertools
@@ -28,16 +30,26 @@ class Argmax():
         return 0 if self.v is None else 1
 
 
+def _equiv(p, q, allow_unknown=False):
+    if p == STATE_UNKNOWN or q == STATE_UNKNOWN:
+        return allow_unknown
+    return p == q
+
+
 def compatible(M, p, q):
-    if M[p] == STATE_UNKNOWN or M[q] == STATE_UNKNOWN:
-        return True
-    return M[p] == M[q]
+    return _equiv(M.get(p, STATE_UNKNOWN), M.get(q, STATE_UNKNOWN), True)
+
+def equivalent(M, p, q):
+    return _equiv(M.get(p, STATE_UNKNOWN), M.get(q, STATE_UNKNOWN))
 
 
 def make_fa(pos, neg, neg_prefix, neg_suffix):
-    N = reex.str2regexp(neg_prefix + '(' + '+'.join(neg) + ')' +
+    posr = map(lambda x: x if len(x) > 0 else '@epsilon', pos)
+    negr = map(lambda x: x if len(x) > 0 else '@epsilon', neg)
+
+    N = reex.str2regexp(neg_prefix + '(' + '+'.join(negr) + ')' +
                         neg_suffix).toDFA()
-    P = reex.str2regexp('+'.join(pos)).toDFA()
+    P = reex.str2regexp('+'.join(posr)).toDFA()
 
     A = N & ~P
     A.trim()
@@ -62,11 +74,7 @@ def make_fa(pos, neg, neg_prefix, neg_suffix):
     for s in A.Final:
         M[A.States[s]] = STATE_REJECT
 
-    for s in A.States:
-        if s not in M:
-            M[s] = STATE_UNKNOWN
-
-    A.delFinals()
+    A.Finals = set()
 
     return A, M
 
@@ -95,104 +103,125 @@ def make_trie(pos, neg):
     return A, M
 
 
-def merge(A, M, p, q, visited=list()):
-    """
-    A: fa.DFA
-    M: dict[state->unk/acc/rej]
-    p, q: states
-    merge q into p
-    """
+class RecursiveCache():
+    class ContextManager():
+        def __init__(self, lst, args):
+            self.list = lst
+            self.args = args
+
+        def __enter__(self):
+            self.list.add(self.args)
+
+        def __exit__(self, type, value, trackback):
+            self.list.remove(self.args)
+            if value is not None:
+                raise value
+
+    def __init__(self):
+        self.visited = set()
+
+    def contains(self, args):
+        return args in self.visited
+
+    def enter(self, args):
+        if args not in self.visited:
+            return RecursiveCache.ContextManager(self.visited, args)
+        else:
+            assert False, 'Already visited'
+
+
+def mergible(A, M, p, q, visited=RecursiveCache(), cache=dict()):
+    pp = A.stateIndex(p)
+    qq = A.stateIndex(q)
+
+    if (pp, qq) in cache:
+        return cache[(pp, qq)]
+
+    if pp == qq or visited.contains((pp, qq)):
+        return True
+
+    if not compatible(M, p, q):
+        return False
+
+    with visited.enter((pp, qq)):
+        for s in A.Sigma:
+            np = A.Delta(pp, s)
+            nq = A.Delta(qq, s)
+
+            if np is not None and nq is not None and np != nq:
+                if not mergible(A, M, A.States[np], A.States[nq], visited):
+                    cache[(pp, qq)] = False
+                    return False
+
+        cache[(pp, qq)] = True
+        return True
+
+
+def pathcomp(d, x):
+    if x not in d:
+        return x
+    else:
+        d[x] = pathcomp(d, d[x])
+        return d[x]
+
+
+def merge(A, M, p, q, ref=dict()):
+    # subst q to p
+    p = pathcomp(ref, p)
+    q = pathcomp(ref, q)
+
+    assert compatible(M, p, q)
 
     if p == q:
         return A, M
 
-    if (p, q) in visited:
-        return A, M
-
-    if M[p] == STATE_ACCEPT and M[q] == STATE_REJECT:
-        return False, False
-    if M[p] == STATE_REJECT and M[q] == STATE_ACCEPT:
-        return False, False
-
-    visited.append((p, q))
-
     Aret = A.dup()
-    Mret = M.copy()
+    Mret = copy.deepcopy(M)
+
+    pp = Aret.stateIndex(p)
+    qq = Aret.stateIndex(q)
+
+    ref[q] = p
 
     if Mret.get(p, STATE_UNKNOWN) == STATE_UNKNOWN:
         Mret[p] = Mret.get(q, STATE_UNKNOWN)
 
-    for s in Aret.Sigma:
-        np = Aret.Delta(Aret.stateIndex(p), s)
-        nq = Aret.Delta(Aret.stateIndex(q), s)
-
-        if np is not None and nq is not None and np != nq:
-            Aret, Mret = merge(Aret, Mret, Aret.States[np], Aret.States[nq],
-                               visited)
-            if Aret is False:
-                visited.pop()
-                return False, False
-
-    # subst q to p
-    pp = Aret.stateIndex(p)
-    qq = Aret.stateIndex(q)
-
     # copy q's outgoing to p
     if qq in Aret.delta:
         for c in Aret.delta[qq]:
-            Aret.delta[pp][c] = Aret.delta[qq][c]
-
-    # copy q's incoming to p
-    if qq == A.Initial:
-        A.setInitial(pp)
+            if pp in Aret.delta and c in Aret.delta[pp]:
+                Aret.delta[pp][c] = Aret.delta[qq][c]
+            else:
+                Aret.addTransition(pp, c, Aret.delta[qq][c])
 
     for x in Aret.delta:
         for c in Aret.delta[x]:
             if Aret.delta[x][c] == qq:
                 Aret.delta[x][c] = pp
 
-    visited.pop()
+    for s in Aret.Sigma:
+        np = Aret.Delta(Aret.stateIndex(p), s)
+        nq = Aret.Delta(Aret.stateIndex(q), s)
+
+        if np is not None and nq is not None and np != nq:
+            Aret, Mret = merge(Aret, Mret, Aret.States[np], Aret.States[nq], ref)
+
     return Aret, Mret
-
-
-def mergible(A, M, p, q, visited=list()):
-    pp = A.stateIndex(p)
-    qq = A.stateIndex(q)
-
-    if pp == qq:
-        return True
-
-    if not compatible(M, p, q):
-        return False
-
-    visited.append((p, q))
-
-    for s in A.Sigma:
-        np = A.Delta(A.stateIndex(p), s)
-        nq = A.Delta(A.stateIndex(q), s)
-
-        if np is not None and nq is not None:
-            if not mergible(A, M, A.States[np], A.States[nq], visited):
-                visited.pop()
-                return False
-
-    visited.pop()
-    return True
 
 
 def equivScore(A, M, p, q, visited=set()):
     s = 0
 
-    assert p != q
+    assert p != q, "do not compute a score for the same states!"
 
     if (p, q) in visited:
         return 0
 
     visited.add((p, q))
 
-    if (M[p] == STATE_ACCEPT and M[q] == STATE_ACCEPT):
+    if (M.get(p, STATE_UNKNOWN) == STATE_ACCEPT and M.get(q, STATE_UNKNOWN) == STATE_ACCEPT):
         s += 1
-    if (M[p] == STATE_REJECT and M[q] == STATE_REJECT):
+    if (M.get(p, STATE_UNKNOWN) == STATE_REJECT and M.get(q, STATE_UNKNOWN) == STATE_REJECT):
         s += 1
 
     for c in A.Sigma:
@@ -202,27 +231,34 @@ def equivScore(A, M, p, q, visited=set()):
         if np is not None and nq is not None and np != nq:
             s += equivScore(A, M, A.States[np], A.States[nq], visited)
 
+
     return s
 
-
 def depth(A, p):
-    queue = [(A.States[A.Initial], 0)]
-    visited = set([queue[0][0]])
+    queue = [(A.Initial, 0)]
+    visited = set([A.Initial])
+    np = A.stateIndex(p)
 
     while len(queue) > 0:
         q, d = queue.pop(0)
 
-        if q == p:
+        if q == np:
             return d
-        else:
-            for s in A.Sigma:
-                nq = A.Delta(A.stateIndex(q), s)
-                if nq is not None and A.States[nq] not in visited:
-                    queue.append((A.States[nq], d + 1))
-                    visited.add(A.States[nq])
 
-    assert False
+        for s in A.Sigma:
+            nq = A.Delta(q, s)
+            if nq is not None and nq not in visited:
+                queue.append((nq, d + 1))
+                visited.add(nq)
 
+    assert False, "p is unreachable... should not reach"
+
+def reachable(A, p):
+    try:
+        depth(A, p)
+    except:
+        return False
+    return True
 
 def computeScore(A, M, p, q):
     return (equivScore(A, M, p, q), -depth(A, p))
@@ -232,7 +268,7 @@ def pred_notnone(x):
     return x is not None
 
 
-def blue_fringe(pos, neg, count_limit=None, neg_prefix='', neg_suffix=''):
+def blue_fringe(pos, neg, count_limit=None, neg_prefix='@epsilon', neg_suffix='@epsilon'):
     A, M = make_fa(pos, neg, neg_prefix=neg_prefix, neg_suffix=neg_suffix)
 
     red = set([A.States[A.Initial]])
@@ -255,7 +291,7 @@ def blue_fringe(pos, neg, count_limit=None, neg_prefix='', neg_suffix=''):
             for p in red:
                 if (p, q) in visited:
                     merged = True
-                elif mergible(A, M, p, q) and p != q:
+                elif mergible(A, M, p, q):
                     score.add_item((p, q), computeScore(A, M, p, q))
                     visited.add((p, q))
                     merged = True
@@ -270,6 +306,7 @@ def blue_fringe(pos, neg, count_limit=None, neg_prefix='', neg_suffix=''):
             score = Argmax()
             visited = set()
 
+        red = set(filter(lambda p: reachable(A, p), red))
         blue = set(A.States[p] for p in filter(pred_notnone, (
             A.Delta(A.stateIndex(r), s)
             for r, s in itertools.product(red, A.Sigma)))) - red
@@ -285,7 +322,7 @@ def blue_fringe(pos, neg, count_limit=None, neg_prefix='', neg_suffix=''):
 
 class REPR_FADO_REGEX():
     def __init__(self, s):
-        self.s = str(s).replace(' ', '')
+        self.s = str(s).replace(' ', '').replace('+', '|')
 
     def __repr__(self):
         return self.s
@@ -308,11 +345,15 @@ def synthesis(examples,
     if suffix_for_neg_test is None:
         suffix_for_neg_test = ''
 
-    A = blue_fringe(examples.pos,
-                    examples.neg,
-                    count_limit=count_limit,
-                    neg_prefix=prefix_for_neg_test,
-                    neg_suffix=suffix_for_neg_test)
+    try:
+        A = blue_fringe(examples.pos,
+                        examples.neg,
+                        count_limit=count_limit,
+                        neg_prefix=prefix_for_neg_test,
+                        neg_suffix=suffix_for_neg_test)
+    except:
+        #print("Error occurred; return @epsilon", file=sys.stderr)
+        return '@empty_set'
 
     return REPR_FADO_REGEX(A.reCG())
 
@@ -338,11 +379,23 @@ if __name__ == '__main__':
         st = FA_run(A, w)
         return (st in A.Final)
 
+    class CompatibleTest(unittest.TestCase):
+        def test(self):
+            self.assertTrue(_compatible(STATE_UNKNOWN, STATE_UNKNOWN))
+            self.assertTrue(_compatible(STATE_UNKNOWN, STATE_ACCEPT))
+            self.assertTrue(_compatible(STATE_UNKNOWN, STATE_REJECT))
+            self.assertTrue(_compatible(STATE_ACCEPT, STATE_UNKNOWN))
+            self.assertTrue(_compatible(STATE_ACCEPT, STATE_ACCEPT))
+            self.assertFalse(_compatible(STATE_ACCEPT, STATE_REJECT))
+            self.assertTrue(_compatible(STATE_REJECT, STATE_UNKNOWN))
+            self.assertFalse(_compatible(STATE_REJECT, STATE_ACCEPT))
+            self.assertTrue(_compatible(STATE_REJECT, STATE_REJECT))
+
     class Test(unittest.TestCase):
         def batch_test(self, A, pos, neg):
             for w in pos:
-                with self.subTest(w=w):
                     self.assertTrue(check_string(A, w), w)
+                with self.subTest(w=w):
             for w in neg:
                 with self.subTest(w=w):
                     self.assertFalse(check_string(A, w), w)
