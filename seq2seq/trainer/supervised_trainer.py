@@ -14,6 +14,7 @@ from seq2seq.optim import Optimizer
 from seq2seq.util.checkpoint import Checkpoint
 from seq2seq.util.visualize import visualize_loss
 from seq2seq.dataset.dataset import batch_preprocess
+from seq2seq.dataset.dataset import Vocabulary
 from seq2seq.trainer.EarlyStopping import EarlyStopping
 
 def list_chunk(lst, n):
@@ -32,13 +33,13 @@ class SupervisedTrainer(object):
     """
     def __init__(self, expt_dir='experiment', loss=NLLLoss(), batch_size=64,
                  random_seed=None,
-                 checkpoint_every=100, print_every=100, input_vocab = None, output_vocab = None):
+                 checkpoint_every=100, print_every=100, input_vocab = None, output_vocab = None, max_sequence_length=None):
         self._trainer = "Simple Trainer"
         self.random_seed = random_seed
         if random_seed is not None:
             random.seed(random_seed)
             torch.manual_seed(random_seed)
-
+        self.max_sequence_length = max_sequence_length
         self.loss = loss
         self.evaluator = Evaluator(loss=self.loss, batch_size=batch_size, input_vocab=input_vocab)
         self.optimizer = None
@@ -67,9 +68,10 @@ class SupervisedTrainer(object):
     def _train_batch(self, input_variable, input_lengths, target_variable, regex, model, teacher_forcing_ratio):
         loss = self.loss
         # Forward propagation
-        decoder_outputs, decoder_hidden, other = model(input_variable, input_lengths, input_variable,
+        decoder_outputs, decoder_hidden, other = model(input_variable, self.max_sequence_length, input_variable,
                                                        teacher_forcing_ratio=teacher_forcing_ratio)
-        target_variable = target_variable.contiguous().view(-1, 10)
+        target_variable = target_variable.contiguous().view(-1, 50)
+
 
         # Get loss
         loss.reset()
@@ -91,18 +93,23 @@ class SupervisedTrainer(object):
                 src_seq = input_variable[batch_idx, set_idx].tolist()  # list of 10 alphabet
                 predict_seq_dict = predict_dict[
                     batch_idx * 10 + set_idx]  # predict label. ex. {0.0: 2, 1.0: 1, 11.0: 7}
+                vocab = Vocabulary()
 
                 for regex_idx, subregex in enumerate(regex[batch_idx]):
                     if float(regex_idx) in predict_seq_dict:
                         len_subregex = predict_seq_dict[float(regex_idx)]
-                        predict_subregex = ''.join([str(a) for a in src_seq[start:start + len_subregex]])
+                        predict_subregex = ''.join([vocab.itos[a] for a in src_seq[start:start + len_subregex]])
                         start = len_subregex
                     else:
                         predict_subregex = ''
 
                     # print(subregex, predict_subregex, re.fullmatch(subregex, predict_subregex))
-                    if re.fullmatch(subregex, predict_subregex) is None:
-                        all_match = False
+                    # if re.fullmatch(subregex, predict_subregex) is None:
+                    #     all_match = False
+
+                    # else:
+                    #     print(subregex , '   ----  ' , predict_subregex)
+
                 if all_match:
                     self.correct_seq_re += 1
                     set_count += 1
@@ -114,6 +121,9 @@ class SupervisedTrainer(object):
             batch_size = target_variable.size(0)
             target = target_variable[:, step].to(device='cuda')  # 총 10개의 스텝
             loss.eval_batch(step_output.contiguous().view(batch_size, -1), target)
+            # print(step_output.contiguous().view(batch_size, -1))
+            # #print(step_output.contiguous().view(batch_size, -1))
+            # print(target)
 
             if step == 0:
                 match_seq = seqlist[step].view(-1).eq(target).unsqueeze(-1)
@@ -174,14 +184,13 @@ class SupervisedTrainer(object):
 
             model.train(True)
             for inputs, outputs, regex in data:
-
                 step += 1
                 step_elapsed += 1
                 self.total_data_size += len(regex)
 
                 inputs, outputs, regex = batch_preprocess(inputs, outputs, regex)
 
-                loss = self._train_batch(inputs.to(device="cuda"), None, outputs, regex, model, teacher_forcing_ratio)
+                loss = self._train_batch(inputs.to(device="cuda"), 50, outputs, regex, model, teacher_forcing_ratio)
 
                 train_losses.append(loss)
 

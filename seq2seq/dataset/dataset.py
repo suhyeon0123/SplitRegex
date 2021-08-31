@@ -1,27 +1,40 @@
 from torch.utils.data import Dataset, DataLoader
 import pandas as pd
-from torch.nn.utils.rnn import pad_sequence
 import torch
 
 
 class Vocabulary:
     def __init__(self):
-        self.itos = [
-                '<pad>', '<unk>']
-        for i in range(94):
-            self.itos.append(chr(i+33))
+        self.itos = []
+        # 0-9
+        for i in range(10):
+            self.itos.append(str(i))
+        # A-Z
+        for i in range(65,91):
+            self.itos.append(chr(i))
+        # a-z
+        for i in range(97, 123):
+            self.itos.append(chr(i))
+
+        self.itos += ['!', '<pad>', '<unk>']
 
         self.stoi = dict((x, i) for i, x in enumerate(self.itos))
 
     def __len__(self):
         return len(self.itos)
 
+    def get_idx(self,text):
+        tmp = self.stoi.get(text)
+        if tmp is None:
+            tmp = 62
+        return tmp
+
     def text2idx(self, text):
-        return list(map(self.stoi.get, text))
+        return list(map(self.get_idx, text))
 
 
 NUM_EXAMPLES = 10
-MAX_SEQUENCE_LENGTH = 10
+MAX_SEQUENCE_LENGTH = 50
 
 
 class CustomDataset(Dataset):
@@ -30,7 +43,7 @@ class CustomDataset(Dataset):
     REGEX_COL = OUTPUT_COL + NUM_EXAMPLES
 
     def __init__(self, file_path):
-        self.df = pd.read_csv(file_path, header=None, dtype=str)
+        self.df = pd.read_csv(file_path, header=None, dtype=str,na_filter = False)
         self.input = self.df[self.df.columns[CustomDataset.INPUT_COL:CustomDataset.OUTPUT_COL]]
         self.output = self.df[self.df.columns[CustomDataset.OUTPUT_COL:CustomDataset.REGEX_COL]]
         self.regex = self.df[self.df.columns[CustomDataset.REGEX_COL]]
@@ -44,32 +57,18 @@ class CustomDataset(Dataset):
     def _translate_sequences(self, sequences):
         processed_list = []
         for sequence in map(str.strip, sequences):
-            tmp = list(sequence) + ['<pad>'] * (MAX_SEQUENCE_LENGTH - len(sequence))
+            if sequence == '<pad>':
+                tmp = ['<pad>'] * MAX_SEQUENCE_LENGTH
+            else:
+                tmp = list(sequence) + ['<pad>'] * (MAX_SEQUENCE_LENGTH - len(sequence))
             processed_list.append(self.vocab.text2idx(tmp[:MAX_SEQUENCE_LENGTH]))
+
         return processed_list
 
     def __getitem__(self, idx):
-
         return (self._translate_sequences(self.input.iloc[idx]),
                 self._translate_sequences(self.output.iloc[idx]),
                 self.regex.iloc[idx])
-
-
-class MyCollate:
-    def __init__(self, pad_idx):
-        self.pad_idx = pad_idx
-
-    def __call__(self, batch):
-
-        inputs = [item[0] for item in batch]
-        for set_idx in range(10):
-            inputs[set_idx] = pad_sequence(inputs[set_idx], batch_first=True, padding_value=self.pad_idx)
-
-        outputs = torch.tensor([item[1] for item in batch])
-        for set_idx in range(10):
-            outputs[set_idx] = pad_sequence(outputs[set_idx], batch_first=True, padding_value=self.pad_idx)
-
-        return inputs, outputs
 
 
 def get_loader(file_path, batch_size, num_worker=0, shuffle=True):
@@ -95,10 +94,11 @@ def decomposing_regex(regex):
             bracket -= 1
         else:
             saved_decomposed_regex[-1] = saved_decomposed_regex[-1] + letter
-    if '(?P<t' not in regex:
-        return list(map(lambda x: x[0:], saved_decomposed_regex))
-    else:
+
+    if '(?P<t' in regex:
         return list(map(lambda x: x[6:], saved_decomposed_regex))
+    else:
+        return list(map(lambda x: x[0:], saved_decomposed_regex))
 
 
 def batch_preprocess(inputs, outputs, regex):

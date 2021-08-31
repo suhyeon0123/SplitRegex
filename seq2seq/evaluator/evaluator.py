@@ -55,7 +55,7 @@ class Evaluator(object):
                 inputs, outputs, regex = batch_preprocess(inputs, outputs, regex)
 
                 decoder_outputs, decoder_hidden, other = model(inputs.to('cuda'), None, outputs)
-                tgt_variables = outputs.contiguous().view(-1, 10)
+                tgt_variables = outputs.contiguous().view(-1, 50)
 
                 answer_dict = [dict(Counter(l)) for l in tgt_variables.tolist()]
 
@@ -83,8 +83,8 @@ class Evaluator(object):
                                 predict_subregex = ''
 
                             # print(subregex, predict_subregex, re.fullmatch(subregex, predict_subregex))
-                            if re.fullmatch(subregex, predict_subregex) is None:
-                                all_match = False
+                            # if re.fullmatch(subregex, predict_subregex) is None:
+                            #     all_match = False
                         if all_match:
                             correct_seq_re += 1
                             set_count += 1

@@ -1,4 +1,8 @@
 from xeger import Xeger
+import os, sys
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'submodels', 'SoftConciseNormalForm')))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'submodels', 'automatark', 'regex', 'snort-clean.re')))
+
 import re2 as re
 import random
 import argparse
@@ -7,9 +11,9 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--data_type', action='store', dest='data_type',
                     help='data type - snort or regexlib', default='snort')
 parser.add_argument('--data_path', action='store', dest='data_path',
-                    help='Path to save data', default='../data/snort_total.csv')
+                    help='Path to save data', default='../data/snort_main.csv')
 parser.add_argument('--data_cat', action='store', dest='data_cat',
-                    help='pos-label for train -> train, pos-label for test - test, pos-neg for main -> main', default='train')
+                    help='pos-label for train -> train, pos-label for test - test, pos-neg for main -> main', default='main')
 
 
 opt = parser.parse_args()
@@ -77,7 +81,11 @@ def make_label(regex, pos):
                 else:
                     count = len(targetstring)
                 for _ in range(count):
-                    str_list.append(str(i))
+                    if i < 10:
+                        label = str(i)
+                    else:
+                        label = chr(55+i)
+                    str_list.append(label)
             templete.append("".join(str_list))
         else:
             templete.append('<pad>')
@@ -132,15 +140,8 @@ def make_neg(regex, pos, number):
 
 
 def remove_anchor(regex):
-    regex = re.sub('/\^', '/', regex)
-    regex = re.sub('=\^', '=', regex)
-
-    regex = re.sub('\$/', '/', regex)
-    regex = re.sub('php\$', 'php', regex)
-
-    regex = re.sub('\(\^\|(\&)\)', r'\1', regex)
-    regex = re.sub('\(([^\(]*?)\|\$\)', r'\1', regex)
-    regex = re.sub('\(\$\|(.*?)\)', r'\1', regex)
+    regex = re.sub(r'(?<!\x5c)\^', '', regex)
+    regex = re.sub(r'(?<!\x5c)\$', '', regex)
 
     return regex
 
@@ -195,6 +196,8 @@ def preprocess_replace(regex):
     regex = re.sub(r'\\', r'!', regex)
 
     regex = re.sub(r'\\x5(c|C)', r'!', regex)
+
+    regex = re.sub('(?<!pad)[^0-9a-zA-Z](?!pad)', r'!', regex)
 
     return regex
 
@@ -294,6 +297,8 @@ def replace_constant_string(regex):
 
 
 def main():
+
+    data_pathes = []
     if opt.data_type == 'snort':
         regex_file = open('../submodels/automatark/regex/snort-clean.re', 'r')
     else:
@@ -315,9 +320,10 @@ def main():
             if idx < 1100:
                 continue
 
-        #print(regex)
+        print(regex)
 
         regex = remove_anchor(regex)
+        print(regex)
         regex = remove_redundant_quantifier(regex)
         regex = preprocess_parenthesis_flag(regex)
 

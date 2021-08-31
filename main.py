@@ -1,7 +1,8 @@
 import argparse
 import time
 
-from seq2seq.dataset import pos_neg_dataset
+import seq2seq.dataset.dataset as dataset
+from seq2seq.dataset.dataset import Vocabulary
 from seq2seq.util.checkpoint import Checkpoint
 from split import split, generate_split_regex
 
@@ -9,7 +10,7 @@ from submodels.SoftConciseNormalForm.examples import Examples
 from submodels.SoftConciseNormalForm.util import *
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--data_path', default='./data/pos_neg_5.csv', dest='data_path',
+parser.add_argument('--data_path', default='./data/test.csv', dest='data_path',
                     help='Path to data')
 parser.add_argument('--batch_size', action='store', dest='batch_size',
                     help='batch size', default=1)
@@ -25,20 +26,18 @@ parser.add_argument('--alphabet_size', action='store', dest='alphabet_size',
 
 opt = parser.parse_args()
 
-
-
-
-
 def print_tensor_set(tensor_set):
     output_strings = []
+    vocab = Vocabulary()
     for i in range(tensor_set.shape[0]):
-        output_strings.append(''.join(map(str, tensor_set[i][tensor_set[i] != tensor_set.max()].tolist())))
+        output_strings.append(''.join(map(lambda x: vocab.itos[x], tensor_set[i][tensor_set[i] != 63].tolist())))
 
+    output_strings = list(filter(None, output_strings))
     return output_strings
 
 
 def main():
-    data = pos_neg_dataset.get_loader(opt.data_path, batch_size=opt.batch_size, shuffle=True)
+    data = dataset.get_loader(opt.data_path, batch_size=opt.batch_size, shuffle=True)
 
     pos_checkpoint = Checkpoint.load(Checkpoint.get_latest_checkpoint(opt.checkpoint_pos))
     neg_checkpoint = Checkpoint.load(Checkpoint.get_latest_checkpoint(opt.checkpoint_neg))
@@ -54,27 +53,28 @@ def main():
     direct_time_total = 0
 
     dc_correct_count = 0
+    direct_correct_count = 0
     dc_correct = False
     direct_correct = False
+
+    MAX_TIME_LIMIT = 25
 
     dc_win = 0
     direct_win = 0
 
-
-    count_limit = 2000
-
+    count_limit = 4000
 
     for count, (pos, neg, regex) in enumerate(data):
-        pos, neg, regex = pos_neg_dataset.batch_preprocess(pos, neg, regex)
+        pos, neg, regex = dataset.batch_preprocess(pos, neg, regex)
 
         pos_set = print_tensor_set(pos[0])
         neg_set = print_tensor_set(neg[0])
-
         print('-'*50)
         print('Positive Strings:', ', '.join(pos_set))
         print('Negative Strings:', ', '.join(neg_set))
         print('Target Regex:', ''.join(regex[0]))
         print('-'*50)
+
 
         # via DC
         start_time = time.time()
@@ -82,7 +82,7 @@ def main():
         _, _, other = pos_split_model(pos, None, regex)
         splited_pos = split(pos, other['sequence'])  # batch, set, seq
 
-        #_, _, other = neg_split_model(neg)
+        # _, _, other = neg_split_model(neg)
         splited_neg = split(neg, other['sequence'], no_split=True)  # batch, set, seq
 
         batch_predict = []
@@ -92,10 +92,15 @@ def main():
 
         end_time = time.time()
 
+
         dc_time_taken = end_time - start_time
+        timeout = False
+        if dc_time_taken > MAX_TIME_LIMIT:
+            dc_time_taken = MAX_TIME_LIMIT
+            timeout = True
         dc_time_total += dc_time_taken
 
-        if batch_predict[0] is not None:
+        if batch_predict[0] is not None and not timeout:
             dc_correct = is_solution(batch_predict[0], Examples(pos=pos_set, neg=neg_set), membership)
         else:
             dc_correct = False
@@ -103,7 +108,8 @@ def main():
         if dc_correct:
             dc_correct_count += 1
 
-        print(f'{count}th Generated Regex (via DC): {batch_predict[0]} ({dc_correct}), Time Taken: ', end_time - start_time)
+        print(f'{count}th Generated Regex (via DC): {batch_predict[0]} ({dc_correct}), Time Taken: ', dc_time_taken)
+
 
         # direct
         start_time = time.time()
@@ -118,15 +124,22 @@ def main():
         batch_predict = []
         for batch_idx in range(len(pos)):
             result, split_size = generate_split_regex(splited_pos[batch_idx], splited_neg[batch_idx], False, count_limit, alphabet_size=opt.alphabet_size)
+            print(batch_predict)
             batch_predict.append(result)
 
         end_time = time.time()
 
+
         direct_time_taken = end_time - start_time
+        timeout = False
+        if direct_time_taken > MAX_TIME_LIMIT:
+            direct_time_taken = MAX_TIME_LIMIT
+            timeout = True
         direct_time_total += direct_time_taken
 
-        if batch_predict[0] is not None:
+        if batch_predict[0] is not None and not timeout:
             direct_correct = True
+            direct_correct_count += 1
         else:
             direct_correct = False
 
@@ -143,6 +156,7 @@ def main():
 
         print(f'{count}th Generated Regex (direct): {batch_predict[0]}, Time Taken: ', direct_time_taken)
         print(f'Divide-and-conquer win rate over Direct: {dc_win / (dc_win + direct_win + 1e-9) * 100:.4f}%, Direct Total Time: {direct_time_total:.4f}, DC Total Time: {dc_time_total:.4f}')
+        print(f'DC Success Ratio: {dc_correct_count / (count + 1) * 100:.4f}%, Direct Success Ratio: {direct_correct_count / (count + 1) * 100:.4f}%')
         print('-'*50)
 
 

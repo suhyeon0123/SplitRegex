@@ -24,9 +24,9 @@ import seq2seq.dataset.dataset as dataset
 #      python examples/sample.py --train_path $TRAIN_PATH --dev_path $DEV_PATH --expt_dir $EXPT_PATH --load_checkpoint $CHECKPOINT_DIR
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--train_path', default='./data/train_5000000.csv', dest='train_path',
+parser.add_argument('--train_path', default='./data/train.csv', dest='train_path',
                     help='Path to train data')
-parser.add_argument('--dev_path', default='./data/valid_5.csv', dest='dev_path',
+parser.add_argument('--dev_path', default='./data/valid.csv', dest='dev_path',
                     help='Path to dev data')
 parser.add_argument('--expt_dir', action='store', dest='expt_dir', default='./saved_models',
                     help='Path to experiment directory. If load_checkpoint is True, then path to checkpoint directory has to be provided')
@@ -76,6 +76,8 @@ else:
     input_vocab = train.dataset.vocab
     output_vocab = train.dataset.vocab
 
+    MAX_SEQUENCE_LENGTH = 30
+
     rnn_cell = 'gru'
 
     # Prepare loss
@@ -119,7 +121,7 @@ else:
     # train
     t = SupervisedTrainer(loss=loss, batch_size=batch_size,
                           checkpoint_every=1800,
-                          print_every=100, expt_dir=expt_dir)
+                          print_every=100, expt_dir=expt_dir, max_sequence_length=MAX_SEQUENCE_LENGTH)
 
     start_time = time.time()
     s2smodel = t.train(s2smodel, train,
