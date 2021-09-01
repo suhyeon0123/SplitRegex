@@ -1,435 +1,318 @@
-import sys
-import copy
+# Wojciech Wieczorek,
+# Grammatical inference: algorithms, routines and applications,
+# pp. 23--27,
+# Springer, 2017.
+
 import FAdo.fa as fa
 import FAdo.reex as reex
+
 import itertools
+import logging
+logger = logging.Logger(__name__)
 
-STATE_UNKNOWN = 1
-STATE_ACCEPT = 2
-STATE_REJECT = 3
+STATE_UNKNOWN = 0
+STATE_ACCEPT = 1
+STATE_REJECT = -1
 
+REGEX_EMPTYSET = '@emptyset'
+REGEX_EPSILON = '@epsilon'
 
-class Argmax():
-    def __init__(self):
-        self.k = None
-        self.v = None
-
-    def add_item(self, k, v):
-        assert v is not None
-        if self.v is None:
-            self.k = k
-            self.v = v
-        elif self.v < v:
-            self.k = k
-            self.v = v
-
-    def get_argmax(self):
-        return self.k
-
-    def __len__(self):
-        return 0 if self.v is None else 1
+STATE_DEAD = '@DeaD'
 
 
-def _equiv(p, q, allow_unknown=False):
-    if p == STATE_UNKNOWN or q == STATE_UNKNOWN:
-        return allow_unknown
-    return p == q
+def alphabet(S):
+    return set(a for a in itertools.chain.from_iterable(w for w in S))
 
 
-def compatible(M, p, q):
-    return _equiv(M.get(p, STATE_UNKNOWN), M.get(q, STATE_UNKNOWN), True)
-
-def equivalent(M, p, q):
-    return _equiv(M.get(p, STATE_UNKNOWN), M.get(q, STATE_UNKNOWN))
-
-
-def make_fa(pos, neg, neg_prefix, neg_suffix):
-    posr = map(lambda x: x if len(x) > 0 else '@epsilon', pos)
-    negr = map(lambda x: x if len(x) > 0 else '@epsilon', neg)
-
-    N = reex.str2regexp(neg_prefix + '(' + '+'.join(negr) + ')' +
-                        neg_suffix).toDFA()
-    P = reex.str2regexp('+'.join(posr)).toDFA()
-
-    A = N & ~P
-    A.trim()
-
-    # rename states
-    for i in range(len(A.States)):
-        A.States[i] = str(i)
-    M = dict()
-    M[None] = STATE_UNKNOWN
-
-    for s in list(pos):
-        state = A.Initial
-        for c in s:
-            nxt = A.Delta(state, c)
-            if nxt is None:
-                nxt = A.addState()
-                A.addTransition(state, c, nxt)
-            state = nxt
-
-        M[A.States[state]] = STATE_ACCEPT
-
-    for s in A.Final:
-        M[A.States[s]] = STATE_REJECT
-
-    A.Finals = set()
-
-    return A, M
+def prefixes(S):
+    result = set()
+    for s in S:
+        for i in range(len(s) + 1):
+            result.add(s[:i])
+    return result
 
 
-def make_trie(pos, neg):
+def suffixes(S):
+    result = set()
+    for s in S:
+        for i in range(len(s) + 1):
+            result.add(s[i:])
+    return result
+
+
+def substrings(S):
+    return prefixes(suffixes(S))
+
+
+def cat(A, B):
+    return set(a + b for a in A for b in B)
+
+
+def ql(S):
+    return sorted(S, key=lambda x: (len(x), x))
+
+
+def buildPTA(S):
     A = fa.DFA()
-    M = dict()
-    M[None] = STATE_UNKNOWN
-    A.setInitial(A.addState(''))
+    q = {u: A.addState(u) for u in prefixes(S)}
+
+    for w in iter(q):
+        u, a = w[:-1], w[-1:]
+        if a != '':
+            A.addTransition(q[u], a, q[w])
+        if w in S:
+            A.addFinal(q[w])
+    A.setInitial(q[''])
 
-    for s in list(pos) + list(neg):
-        state = A.States[A.Initial]
-        for c in s:
-            A.addTransition(A.stateIndex(state), c,
-                            A.stateIndex(state + c, autoCreate=True))
-            state += c
-
-    for s in A.States:
-        if s in pos:
-            M[s] = STATE_ACCEPT
-        elif s in neg:
-            M[s] = STATE_REJECT
-        else:
-            M[s] = None
-
-    return A, M
-
-
-class RecursiveCache():
-    class ContextManager():
-        def __init__(self, lst, args):
-            self.list = lst
-            self.args = args
-
-        def __enter__(self):
-            self.list.add(self.args)
-
-        def __exit__(self, type, value, trackback):
-            self.list.remove(self.args)
-            if value is not None:
-                raise value
-
-    def __init__(self):
-        self.visited = set()
-
-    def contains(self, args):
-        return args in self.visited
-
-    def enter(self, args):
-        if args not in self.visited:
-            return RecursiveCache.ContextManager(self.visited, args)
-        else:
-            assert False, 'Already visited'
-
-
-def mergible(A, M, p, q, visited=RecursiveCache(), cache=dict()):
-    pp = A.stateIndex(p)
-    qq = A.stateIndex(q)
-
-    if (pp, qq) in cache:
-        return cache[(pp, qq)]
-
-    if pp == qq or visited.contains((pp, qq)):
-        return True
-
-    if not compatible(M, p, q):
-        return False
-
-    with visited.enter((pp, qq)):
-        for s in A.Sigma:
-            np = A.Delta(pp, s)
-            nq = A.Delta(qq, s)
-
-            if np is not None and nq is not None and np != nq:
-                if not mergible(A, M, A.States[np], A.States[nq], visited):
-                    cache[(pp, qq)] = False
-                    return False
-
-        cache[(pp, qq)] = True
-        return True
-
-
-def pathcomp(d, x):
-    if x not in d:
-        return x
-    else:
-        d[x] = pathcomp(d, d[x])
-        return d[x]
-
-
-def merge(A, M, p, q, ref=dict()):
-    # subst q to p
-    p = pathcomp(ref, p)
-    q = pathcomp(ref, q)
-
-    assert compatible(M, p, q)
-
-    if p == q:
-        return A, M
-
-    Aret = A.dup()
-    Mret = copy.deepcopy(M)
-
-    pp = Aret.stateIndex(p)
-    qq = Aret.stateIndex(q)
-
-    ref[q] = p
-
-    if Mret.get(p, STATE_UNKNOWN) == STATE_UNKNOWN:
-        Mret[p] = Mret.get(q, STATE_UNKNOWN)
-
-    # copy q's outgoing to p
-    if qq in Aret.delta:
-        for c in Aret.delta[qq]:
-            if pp in Aret.delta and c in Aret.delta[pp]:
-                Aret.delta[pp][c] = Aret.delta[qq][c]
-            else:
-                Aret.addTransition(pp, c, Aret.delta[qq][c])
-
-    for x in Aret.delta:
-        for c in Aret.delta[x]:
-            if Aret.delta[x][c] == qq:
-                Aret.delta[x][c] = pp
-
-    for s in Aret.Sigma:
-        np = Aret.Delta(Aret.stateIndex(p), s)
-        nq = Aret.Delta(Aret.stateIndex(q), s)
-
-        if np is not None and nq is not None and np != nq:
-            Aret, Mret = merge(Aret, Mret, Aret.States[np], Aret.States[nq], ref)
-
-    return Aret, Mret
-
-
-def equivScore(A, M, p, q, visited=set()):
-    s = 0
-
-    assert p != q, "do not compute a score for the same states!"
-
-    if (p, q) in visited:
-        return 0
-
-    visited.add((p, q))
-
-    if (M.get(p, STATE_UNKNOWN) == STATE_ACCEPT and M.get(q, STATE_UNKNOWN) == STATE_ACCEPT):
-        s += 1
-    if (M.get(p, STATE_UNKNOWN) == STATE_REJECT and M.get(q, STATE_UNKNOWN) == STATE_REJECT):
-        s += 1
-
-    for c in A.Sigma:
-        np = A.Delta(A.stateIndex(p), c)
-        nq = A.Delta(A.stateIndex(q), c)
-
-        if np is not None and nq is not None and np != nq:
-            s += equivScore(A, M, A.States[np], A.States[nq], visited)
-
-
-    return s
-
-def depth(A, p):
-    queue = [(A.Initial, 0)]
-    visited = set([A.Initial])
-    np = A.stateIndex(p)
-
-    while len(queue) > 0:
-        q, d = queue.pop(0)
-
-        if q == np:
-            return d
-
-        for s in A.Sigma:
-            nq = A.Delta(q, s)
-            if nq is not None and nq not in visited:
-                queue.append((nq, d + 1))
-                visited.add(nq)
-
-    assert False, "p is unreachable... should not reach"
-
-def reachable(A, p):
-    try:
-        depth(A, p)
-    except:
-        return False
-    return True
-
-def computeScore(A, M, p, q):
-    return (equivScore(A, M, p, q), -depth(A, p))
-
-
-def pred_notnone(x):
-    return x is not None
-
-
-def blue_fringe(pos, neg, count_limit=None, neg_prefix='@epsilon', neg_suffix='@epsilon'):
-    A, M = make_fa(pos, neg, neg_prefix=neg_prefix, neg_suffix=neg_suffix)
-
-    red = set([A.States[A.Initial]])
-    blue = set(A.States[p] for p in filter(pred_notnone, (
-        A.Delta(A.stateIndex(r), s)
-        for r, s in itertools.product(red, A.Sigma)))) - red
-
-    score = Argmax()
-    visited = set()
-
-    merged = None
-
-    iter_count = 0
-
-    while len(blue) > 0 and (count_limit is None or iter_count < count_limit):
-        iter_count += 1
-
-        for q in blue:
-            merged = False
-            for p in red:
-                if (p, q) in visited:
-                    merged = True
-                elif mergible(A, M, p, q):
-                    score.add_item((p, q), computeScore(A, M, p, q))
-                    visited.add((p, q))
-                    merged = True
-
-            if not merged:
-                red.add(q)
-                break
-
-        if merged:
-            (p, q) = score.get_argmax()
-            A, M = merge(A, M, p, q)
-            score = Argmax()
-            visited = set()
-
-        red = set(filter(lambda p: reachable(A, p), red))
-        blue = set(A.States[p] for p in filter(pred_notnone, (
-            A.Delta(A.stateIndex(r), s)
-            for r, s in itertools.product(red, A.Sigma)))) - red
-
-    for s in A.States:
-        if M.get(s, STATE_UNKNOWN) == STATE_ACCEPT:
-            A.addFinal(A.stateIndex(s))
-
-    A = A.trim()
-    A = A.complete()
     return A
 
 
-class REPR_FADO_REGEX():
-    def __init__(self, s):
-        self.s = str(s).replace(' ', '').replace('+', '|')
+def merge(q1, q2, A):
+    A.mergeStates(q2, q1)
+    return A
+
+
+def run(w, q, A):
+    for c in w:
+        q = None if q is None else A.Delta(q, c)
+    return q
+
+
+def accepts(w, q, A):
+    return run(w, q, A) in A.Final
+
+
+def buildTable(pos, neg):
+    OT = dict()
+    EXP = suffixes(pos | neg)
+    Red = {''}
+    Blue = alphabet(pos | neg)
+    for p in Red | Blue:
+        for e in EXP:
+            if p + e in pos:
+                OT[p, e] = STATE_ACCEPT
+            elif p + e in neg:
+                OT[p, e] = STATE_REJECT
+            else:
+                OT[p, e] = STATE_UNKNOWN
+    return Red, Blue, EXP, OT
+
+
+def compatible(r, b, EXP, OT):
+    return not any((OT[r, e] == STATE_ACCEPT and OT[b, e] == STATE_REJECT) or
+                   (OT[r, e] == STATE_REJECT and OT[b, e] == STATE_ACCEPT)
+                   for e in EXP)
+
+
+def fillHoles(Red, Blue, EXP, OT):
+    for b in ql(Blue):
+        found = False
+        for r in ql(Red):
+            if compatible(r, b, EXP, OT):
+                found = True
+                for e in EXP:
+                    if OT[b, e] != STATE_UNKNOWN:
+                        OT[r, e] = OT[b, e]
+        if not found:
+            logger.info('{}: incompatible: {}'.format(__name__, b))
+            return False
+
+    for r in Red:
+        for b in Blue:
+            if OT[r, e] == STATE_UNKNOWN:
+                OT[r, e] = STATE_ACCEPT
+
+    for b in ql(Blue):
+        found = False
+        for r in ql(Red):
+            if compatible(r, b, EXP, OT):
+                found = True
+                for e in EXP:
+                    if OT[b, e] == STATE_UNKNOWN:
+                        OT[b, e] = OT[r, e]
+        if not found:
+            logger.info('{}: incompatible: {}'.format(__name__, b))
+            return False
+    return True
+
+
+def buildFA(Red, Blue, EXP, OT):
+    A = fa.NFA()
+    A.setSigma(alphabet(Red | Blue | EXP))
+    q = dict()
+
+    for r in Red:
+        q[r] = A.addState(r)
+
+    for w in Red | Blue:
+        for e in EXP:
+            if w + e in Red and OT[w, e] == STATE_ACCEPT:
+                A.addFinal(q[w + e])
+
+    for w in q:
+        for u in q:
+            for a in A.Sigma:
+                if all(OT[u, e] == OT[w + a, e] for e in EXP):
+                    A.addTransition(q[w], a, q[u])
+    A.addInitial(q[''])
+
+    A.trim()
+
+    return A
+
+
+def distinguishable(u, v, EXP, OT):
+    return any(
+        OT[u, e] in {STATE_ACCEPT, STATE_REJECT}
+        and OT[v, e] in {STATE_ACCEPT, STATE_REJECT} and OT[u, e] != OT[v, e]
+        for e in EXP)
+
+
+def rpni(pos, neg, count_limit=None):
+    Red, Blue, EXP, OT = buildTable(pos, neg)
+    Sigma = alphabet(pos | neg)
+
+    x = ql(b for b in Blue if all(distinguishable(b, r, EXP, OT) for r in Red))
+    iter_count = 0
+
+    while x and (count_limit is None or iter_count < count_limit):
+        iter_count += 1
+        Red.add(x[0])
+        Blue.discard(x[0])
+        Blue.update(cat({x[0]}, Sigma))
+
+        for u in Blue:
+            for e in EXP:
+                if u + e in pos:
+                    OT[u, e] = STATE_ACCEPT
+                elif u + e in neg:
+                    OT[u, e] = STATE_REJECT
+                else:
+                    OT[u, e] = STATE_UNKNOWN
+
+        x = ql(b for b in Blue if all(
+            distinguishable(b, r, EXP, OT) for r in Red))
+
+    if not fillHoles(Red, Blue, EXP, OT):
+        logger.info('Cannot fill empty holes')
+        A = buildPTA(pos)
+    else:
+        A = buildFA(Red, Blue, EXP, OT)
+        if not (all(A.evalWordP(w)
+                    for w in pos) and not any(A.evalWordP(w) for w in neg)):
+            logger.info('FA test failed')
+            A = buildPTA(pos)
+
+    A.setSigma(Sigma)
+    return A
+
+
+class REPR():
+    def __init__(self, rex):
+        self.rex = rex
 
     def __repr__(self):
-        return self.s
+        return self.rex
 
+    def __str__(self):
+        return self.rex
+
+
+def product(A, B):
+    X = fa.DFA()
+    q = dict()
+
+    X.setSigma(A.Sigma | B.Sigma)
+
+    q = {(a, b): X.addState((a, b))
+         for a, _ in enumerate(A.States) for b, _ in enumerate(B.States)}
+
+    for a, _ in enumerate(A.States):
+        for b, _ in enumerate(B.States):
+            for c in X.Sigma:
+                na = A.Delta(a, c)
+                nb = B.Delta(b, c)
+                if na is not None and nb is not None:
+                    X.addTransition(q[a, b], c, q[na, nb])
+
+    return X
+
+
+def quotient(lang, pref, suff):
+    A = buildPTA(lang).toDFA().trim().complete()
+    prefA = reex.str2regexp(pref).toDFA().trim().complete()
+    suffA = reex.str2regexp(suff).toDFA().trim().complete()
+
+    PQ = product(prefA, A)
+    SQ = product(A, suffA).toNFA()
+
+    PQ.setInitial(PQ.stateIndex((prefA.Initial, A.Initial)))
+    for i, x in enumerate(PQ.States):
+        if x[0] in prefA.Final:
+            PQ.addFinal(i)
+
+    SQ.setInitial(
+        set(SQ.stateIndex((q, suffA.Initial)) for q in range(len(A.States))))
+    for i, x in enumerate(SQ.States):
+        if x[0] in A.Final and x[1] in suffA.Final:
+            SQ.addFinal(i)
+
+    PQ.trim()
+    SQ.trim()
+
+    X = A.toNFA()
+
+    X.setInitial(set())
+    X.setFinal(set())
+
+    for x in PQ.States:
+        if x[0] in prefA.Final and A.States[x[1]] != STATE_DEAD:
+            X.addInitial(x[1])
+
+    for x in SQ.States:
+        if A.States[x[0]] != STATE_DEAD and x[1] == A.Initial:
+            X.addFinal(x[0])
+
+    X.trim()
+
+    return set(x for x in substrings(lang) if X.evalWordP(x))
+
+
+def rpni_regex(pos, neg_raw, count_limit=None, pref='', suff=''):
+    if not pref:
+        pref = REGEX_EPSILON
+    if not suff:
+        suff = REGEX_EPSILON
+
+    neg = quotient(neg_raw, pref=pref, suff=suff)
+    neg -= pos
+
+    return rpni(pos, neg, count_limit=count_limit)
 
 def synthesis(examples,
               count_limit=None,
-              prefix_for_neg_test=None,
-              suffix_for_neg_test=None,
+              prefix_for_neg_test='',
+              suffix_for_neg_test='',
               *args,
               **kwargs):
-    """
-    Params:
-        examples: {pos, neg}
-        count_limit: # states to be merged at most.
-        prefix/suffix_for_neg_test additional regex
-    """
-    if prefix_for_neg_test is None:
-        prefix_for_neg_test = ''
-    if suffix_for_neg_test is None:
-        suffix_for_neg_test = ''
+    A = rpni_regex(examples.pos, examples.neg, count_limit,
+                   prefix_for_neg_test, suffix_for_neg_test)
+    return REPR(str(A.reCG()).replace(' ', '').replace('+', '|'))
 
-    try:
-        A = blue_fringe(examples.pos,
-                examples.neg,
-                count_limit=count_limit,
-                neg_prefix=prefix_for_neg_test,
-                neg_suffix=suffix_for_neg_test)
-    except:
-        #print("Error occurred; return @epsilon", file=sys.stderr)
-        return '@empty_set'
+import unittest
 
-    return REPR_FADO_REGEX(A.reCG())
+class Test(unittest.TestCase):
+    def check(self, A, pos, neg):
+        logger.info(str(A.reCG()).replace(' ', '').replace('+', '|'))
+        for w in pos:
+            with self.subTest(w=w):
+                self.assertTrue(A.evalWordP(w))
+        for w in neg:
+            with self.subTest(w=w):
+                self.assertFalse(A.evalWordP(w))
 
-
-if __name__ == '__main__':
-    import unittest
-    import logging
-
-    logging.basicConfig(level=logging.INFO)
-
-    class Ex:
-        def __init__(self, pos, neg):
-            self.pos = set(pos)
-            self.neg = set(neg)
-
-    def FA_run(A, w):
-        st = A.Initial
-        for c in w:
-            st = A.Delta(st, c)
-        return st
-
-    def check_string(A, w):
-        st = FA_run(A, w)
-        return (st in A.Final)
-
-    class CompatibleTest(unittest.TestCase):
-        def test(self):
-            self.assertTrue(_compatible(STATE_UNKNOWN, STATE_UNKNOWN))
-            self.assertTrue(_compatible(STATE_UNKNOWN, STATE_ACCEPT))
-            self.assertTrue(_compatible(STATE_UNKNOWN, STATE_REJECT))
-            self.assertTrue(_compatible(STATE_ACCEPT, STATE_UNKNOWN))
-            self.assertTrue(_compatible(STATE_ACCEPT, STATE_ACCEPT))
-            self.assertFalse(_compatible(STATE_ACCEPT, STATE_REJECT))
-            self.assertTrue(_compatible(STATE_REJECT, STATE_UNKNOWN))
-            self.assertFalse(_compatible(STATE_REJECT, STATE_ACCEPT))
-            self.assertTrue(_compatible(STATE_REJECT, STATE_REJECT))
-
-    class Test(unittest.TestCase):
-        def batch_test(self, A, pos, neg):
-            for w in pos:
-                with self.subTest(w=w):
-                    self.assertTrue(check_string(A, w), w)
-            for w in neg:
-                with self.subTest(w=w):
-                    self.assertFalse(check_string(A, w), w)
-
-        def test_case1(self):
-            pos = ['0', '00', '000', '000000', '00000']
-            neg = ['1', '11', '111', '1111', '11111']
-
-            A = blue_fringe(pos, neg)
-            self.batch_test(A, pos, neg)
-
-        def test_case2(self):
-            pos = ['0', '01', '010', '0101', '01010']
-            neg = ['1', '10', '101', '1010', '10101']
-
-            A = blue_fringe(pos, neg)
-            self.batch_test(A, pos, neg)
-
-        def test_case3(self):
-            pos = ['0', '00', '000', '0000']
-            neg = ['0', '00', '000', '0000']
-            neg_pref = '11*'
-            negs = ['10', '100', '1000', '10000', '1100', '11110', '111100000']
-
-            A = blue_fringe(pos, neg, count_limit=None, neg_prefix=neg_pref)
-            self.batch_test(A, pos, negs)
-
-        def test_case4(self):
-            pos = ['0', '00', '000', '0000']
-            neg = ['0', '00', '000', '0000']
-            neg_suff = '11*'
-            negs = ['01', '001', '00001', '00111111', '00001111']
-
-            A = blue_fringe(pos, neg, count_limit=None, neg_suffix=neg_suff)
-            self.batch_test(A, pos, negs)
-
-    unittest.main()
+    def test_case_0(self):
+        pos = set(['', 'ab', 'abab'])
+        neg = set(['a', 'b', 'aa', 'ba', 'bb', 'aab', 'bab', 'bbb'])
+        A = rpni_regex(pos, neg)
+        self.check(A, pos, neg)
