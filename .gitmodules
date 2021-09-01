@@ -10,3 +10,6 @@
 [submodule "submodels/SoftConciseNormalForm"]
 	path = submodels/SoftConciseNormalForm
 	url = https://github.com/suhyeon0123/SoftConciseNormalForm.git
+[submodule "submodels/RegexGenerator/origin_src"]
+	path = submodels/RegexGenerator/origin_src
+	url = https://github.com/MaLeLabTs/RegexGenerator.git

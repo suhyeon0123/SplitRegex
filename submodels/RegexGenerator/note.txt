@@ -1,0 +1,10 @@
+Update git submodule;
+ % git submodule update --init --recursive
+
+You need JDK 8 installed and set JAVA_HOME properly.
+
+Run build.sh to build the entire project.
+ % sh build.sh
+
+Refer to batch.py to run RegexGenerator.
+You may need to adjust parameters.
