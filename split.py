@@ -4,7 +4,9 @@ import os, sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), 'submodels', 'SoftConciseNormalForm' )))
 
 from collections import Counter
-from submodels.SoftConciseNormalForm.synthesizer_snort import synthesis
+import submodels.SoftConciseNormalForm.synthesizer_snort
+import submodels.SoftConciseNormalForm.synthesizer
+
 from seq2seq.dataset.dataset import Vocabulary
 from submodels.SoftConciseNormalForm.examples import Examples
 from rpni import synthesis as rpni_synthesis
@@ -30,7 +32,7 @@ def split(strings, label, no_split=False):
     predict_dict = [dict(Counter(l)) for l in tmp]
 
     # print(torch.tensor(label))
-    # print(torch.tensor(label)[torch.tensor(label) != 63])
+    # print(torch.tensor(label).size)
     # split_size = torch.tensor(label)[torch.tensor(label) != 10].max().item() + 1
     split_size = torch.tensor(label)[torch.tensor(label) != 63].max().item() + 1
     for batch_idx in range(len(strings)):
@@ -53,7 +55,7 @@ def split(strings, label, no_split=False):
 
     return batch
 
-def generate_split_regex(splited_pos, splited_neg, split_model=False, count_limit=1000, alphabet_size=5):
+def generate_split_regex(splited_pos, splited_neg, split_model=False, count_limit=1000, alphabet_size=5, data_type='random'):
     regex = []
 
     split_size = len(splited_pos[0])
@@ -107,23 +109,32 @@ def generate_split_regex(splited_pos, splited_neg, split_model=False, count_limi
         print('Splited Positive Strings:', sub_pos_set)
         print('Splited Negative Strings:', sub_neg_set)
 
-        if split_model and sub_id == 0:
-            count_limit = int(count_limit / 8)
-        elif split_model and sub_id == split_size-1:
-            count_limit = int(count_limit * 4)
+        if data_type == 'practical':
+            if split_model and sub_id == 0:
+                count_limit = int(count_limit / 8)
+            elif split_model and sub_id == split_size-1:
+                count_limit = int(count_limit * 4)
 
-        tmp, candidate = synthesis(Examples(pos=sub_pos_set, neg=sub_neg_set), count_limit, start_with_no_concat=split_model, prefix_for_neg_test=prefix, suffix_for_neg_test=None, alphabet_size=alphabet_size)
-        #tmp = rpni_synthesis(Examples(pos=sub_pos_set, neg=sub_neg_set), count_limit, start_with_no_concat=split_model, prefix_for_neg_test=prefix, suffix_for_neg_test=None, alphabet_size=alphabet_size)
 
+
+        if data_type == 'random':
+            tmp = submodels.SoftConciseNormalForm.synthesizer.synthesis(Examples(pos=sub_pos_set, neg=sub_neg_set), count_limit, start_with_no_concat=split_model, prefix_for_neg_test=prefix, suffix_for_neg_test=None, alphabet_size=alphabet_size)
+        else:
+            tmp, candidate = submodels.SoftConciseNormalForm.synthesizer_snort.synthesis(
+                Examples(pos=sub_pos_set, neg=sub_neg_set), count_limit, start_with_no_concat=split_model,
+                prefix_for_neg_test=prefix, suffix_for_neg_test=None, alphabet_size=alphabet_size)
 
         if tmp is None:
-            if split_model:
+            if split_model and data_type == 'practical':
                 tmp = candidate
             else:
                 return None, 0
 
+        # tmp = rpni_synthesis(Examples(pos=sub_pos_set, neg=sub_neg_set), count_limit, start_with_no_concat=split_model, prefix_for_neg_test=prefix, suffix_for_neg_test=None, alphabet_size=alphabet_size)
+        # if tmp is None:
+        #     return None, 0
+        #
         regex.append('(' + repr(tmp) + ')')
-        print(regex)
 
     return ''.join(regex), split_size
 

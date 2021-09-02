@@ -38,15 +38,29 @@ MAX_SEQUENCE_LENGTH = 50
 
 
 class CustomDataset(Dataset):
-    INPUT_COL = 0
-    OUTPUT_COL = INPUT_COL + NUM_EXAMPLES
-    REGEX_COL = OUTPUT_COL + NUM_EXAMPLES
+    POS_COL = 0
+    NEG_COL = POS_COL + NUM_EXAMPLES
+    LABEL_COL = NEG_COL + NUM_EXAMPLES
+    REGEX_COL = LABEL_COL + NUM_EXAMPLES
 
-    def __init__(self, file_path):
-        self.df = pd.read_csv(file_path, header=None, dtype=str,na_filter = False)
-        self.input = self.df[self.df.columns[CustomDataset.INPUT_COL:CustomDataset.OUTPUT_COL]]
-        self.output = self.df[self.df.columns[CustomDataset.OUTPUT_COL:CustomDataset.REGEX_COL]]
-        self.regex = self.df[self.df.columns[CustomDataset.REGEX_COL]]
+    def __init__(self, file_path, object='train'):
+        if object == 'train':
+            self.df = pd.read_csv(file_path, header=None, dtype=str, na_filter=False)
+            self.df = self.df.head(int(len(self.df)*0.8))
+            self.input = self.df[self.df.columns[CustomDataset.POS_COL:CustomDataset.NEG_COL]]
+            self.output = self.df[self.df.columns[CustomDataset.LABEL_COL:CustomDataset.REGEX_COL]]
+            self.regex = self.df[self.df.columns[CustomDataset.REGEX_COL]]
+        elif object == 'valid':
+            self.df = pd.read_csv(file_path, header=None, dtype=str, na_filter=False)
+            self.df = self.df.head(-int(len(self.df) * 0.8))
+            self.input = self.df[self.df.columns[CustomDataset.POS_COL:CustomDataset.NEG_COL]]
+            self.output = self.df[self.df.columns[CustomDataset.LABEL_COL:CustomDataset.REGEX_COL]]
+            self.regex = self.df[self.df.columns[CustomDataset.REGEX_COL]]
+        else:
+            self.df = pd.read_csv(file_path, header=None, dtype=str, na_filter=False)
+            self.input = self.df[self.df.columns[CustomDataset.POS_COL:CustomDataset.NEG_COL]]
+            self.output = self.df[self.df.columns[CustomDataset.NEG_COL:CustomDataset.LABEL_COL]]
+            self.regex = self.df[self.df.columns[CustomDataset.REGEX_COL]]
 
         # Initialize vocabulary and build vocab
         self.vocab = Vocabulary()
@@ -71,8 +85,9 @@ class CustomDataset(Dataset):
                 self.regex.iloc[idx])
 
 
-def get_loader(file_path, batch_size, num_worker=0, shuffle=True):
-    dataset = CustomDataset(file_path)
+def get_loader(file_path, batch_size, object, num_worker=0, shuffle=True):
+
+    dataset = CustomDataset(file_path, object)
     loader = DataLoader(dataset=dataset, batch_size=batch_size, num_workers=num_worker,
                         shuffle=shuffle, pin_memory=True)
     return loader
