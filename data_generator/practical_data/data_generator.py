@@ -1,4 +1,6 @@
 from xeger import Xeger
+import signal
+import time
 
 import os, sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'submodels', 'SoftConciseNormalForm')))
@@ -13,7 +15,20 @@ quantifier = '(\*|\+|\?|\{\d+\,\d*\}|\{\d+\})\??'
 
 dequantifier5 = '\\\\d|\\\\D\\\\|\\\\w|\\\\W|\\\\s|\\\\S|(?<!\\\\)\.'
 
-special_quantifier = '!\*'
+
+class TimeOutException(Exception):
+    pass
+
+
+def alarm_handler(signum, frame):
+    raise TimeOutException()
+
+def loop_for_n_seconds(n):
+    for sec in range(n):
+        time.sleep(1)
+
+
+
 
 def make_pos(regex, number):
     x = Xeger()
@@ -36,7 +51,7 @@ def make_label(regex, pos):
     # Tag 전처리
     str_list = []
     bracket = 0
-    tagIndex = 0
+    tagIndex = 1
     for letter in regex:
         str_list.append(letter)
 
@@ -48,6 +63,25 @@ def make_label(regex, pos):
         elif letter == ')':
             bracket -= 1
     regex = "".join(str_list)
+
+
+    subregex_list = []
+    bracket = 0
+    for letter in regex:
+        if letter == '(':
+            if bracket == 0:
+                subregex_list.append('')
+            else:
+                subregex_list[-1] = subregex_list[-1] + letter
+            bracket += 1
+        elif letter == ')':
+            if bracket != 1:
+                subregex_list[-1] = subregex_list[-1] + letter
+            bracket -= 1
+        else:
+            subregex_list[-1] = subregex_list[-1] + letter
+
+    SIGMA_STAR = '0'
 
     # templetes 생성
     templete = []
@@ -64,20 +98,27 @@ def make_label(regex, pos):
                 example = re.sub('`', '\t', example)
 
             dic = re.fullmatch(regex, example).groupdict()
+            label_num = 1
+            for i in range(1, len(dic)+1):
 
-            for i in range(len(dic)):
-                key = "t" + str(i)
-                targetstring = dic[key]
-                if targetstring == None:
-                    count = 0
+                targetstring = dic["t" + str(i)]
+                targetregex = re.sub('\?P\<t\d*?\>', '', subregex_list[i - 1])
+
+                if re.fullmatch(r'(\.|\[.*(\\d|\\D|\\w|\\W|\\S).*\])\*', targetregex):
+                    label = SIGMA_STAR
                 else:
-                    count = len(targetstring)
-                for _ in range(count):
-                    if i < 10:
-                        label = str(i)
+                    if label_num < 10:
+                        label = str(label_num)
                     else:
-                        label = chr(55+i)
+                        label = chr(55+label_num)
+
+                label_num += 1
+
+                count = len(targetstring)
+
+                for _ in range(count):
                     str_list.append(label)
+
             templete.append("".join(str_list))
         else:
             templete.append('<pad>')
@@ -183,22 +224,21 @@ def preprocess_parenthesis_flag(regex):
 
 def preprocess_replace(regex):
     # control_ascii
-    regex = re.sub(r'\\x([01][0-9A-Fa-f])', r'!', regex)
+    regex = re.sub(r'\\x([\d][0-9A-Fa-f])', r'!', regex)
 
     # space_character
     regex = re.sub(r'\\r', r'!', regex)
     regex = re.sub(r'\\n', r'!', regex)
     regex = re.sub(r'\\t', r'!', regex)
     regex = re.sub(r' ', r'!', regex)
-    regex = re.sub(r'#', r'!', regex)
-    regex = re.sub(r',', r'!', regex)
+
     regex = re.sub(r'\\\\', r'!', regex)
     regex = re.sub(r'\\\'', r'!', regex)
     regex = re.sub(r'\\', r'!', regex)
 
     regex = re.sub(r'\\x5(c|C)', r'!', regex)
 
-    regex = re.sub('(?<!pad)[^0-9a-zA-Z](?!pad)', r'!', regex)
+    regex = re.sub('(?<!pad)[^\w](?!pad)', r'!', regex)
 
     return regex
 
@@ -291,7 +331,27 @@ def replace_constant_string(regex):
 
         regex = re.sub(string_pattern, ch, regex, 1)
 
+    string_pattern = '(?<!\\\\)[^\Ddsw]'
+    while re.search(string_pattern, regex) is not None:
+        tmp = re.search(string_pattern, regex).group()
+        if tmp in mapping_table.values():
+            for alphabet, string in mapping_table.items():
+                if string == tmp:
+                    ch = alphabet
+        else:
+            if len(mapping_table) < 26:
+                ch = chr(len(mapping_table) + 65)
+            else:
+                ch = chr(len(mapping_table) + 71)
+            mapping_table[ch] = tmp
+
+        regex = re.sub(string_pattern, ch, regex, 1)
+
     return regex, mapping_table
+
+
+def remove_special_char(regex):
+    return re.sub('(\\\\)?(\"|\#|\$|\%|\'|\&|\,|\:|\;|\<|\=|\>|\@|\~|\`)', '!', regex)
 
 
 
@@ -317,6 +377,7 @@ def main():
 
         for idx, regex in enumerate(regex_list):
 
+
             if data_name =='regexlib-clean':
                 regex = re.sub(r'\\\\', '\x5c', regex)
             if data_name =='practical_regexes':
@@ -324,7 +385,6 @@ def main():
                 regex = re.sub(r'\\\\\\\\', '!', regex)
                 regex = re.sub(r'\\\\', '\x5c', regex)
                 regex = re.sub(r'\x00', '', regex)
-
 
             # preprocess
             try:
@@ -334,6 +394,7 @@ def main():
 
                 regex = get_captured_regex(regex)
 
+                regex = remove_special_char(regex)
                 regex, mapping_table = replace_constant_string(regex)
 
             except:
@@ -344,17 +405,23 @@ def main():
                 single_regex_count += 1
                 continue
 
+            signal.signal(signal.SIGALRM, alarm_handler)
+            signal.alarm(3)
+
             # generate pos, neg, label
             try:
                 pos = make_pos(regex, 10)
                 if not pos:
                     continue
                 neg = make_neg(regex, pos, 10)
-
+                if not neg:
+                    continue
                 label = make_label(regex, pos)
-            except:
+            except Exception as e:
+                print(e)
                 error_idx.append(idx)
                 continue
+            signal.alarm(0)
 
             # replace unrecognized symbol
             pos = list(map(lambda y: preprocess_replace(repr(y)[1:-1]), pos))
@@ -380,8 +447,8 @@ def main():
                     test_Davis_file.write(res + '\n')
 
             print(idx)
-        print(len(error_idx))
-        print(single_regex_count)
+        print('error count :', len(error_idx))
+        print('single(A) count :', single_regex_count)
 
 
 if __name__ == '__main__':

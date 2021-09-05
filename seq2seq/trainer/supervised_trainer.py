@@ -70,7 +70,7 @@ class SupervisedTrainer(object):
         # Forward propagation
         decoder_outputs, decoder_hidden, other = model(input_variable, self.max_sequence_length, input_variable,
                                                        teacher_forcing_ratio=teacher_forcing_ratio)
-        target_variable = target_variable.contiguous().view(-1, 50)
+        target_variable = target_variable.contiguous().view(-1, 30)
 
 
         # Get loss
@@ -190,7 +190,7 @@ class SupervisedTrainer(object):
 
                 inputs, outputs, regex = batch_preprocess(inputs, outputs, regex)
 
-                loss = self._train_batch(inputs.to(device="cuda"), 50, outputs, regex, model, teacher_forcing_ratio)
+                loss = self._train_batch(inputs.to(device="cuda"), 30, outputs, regex, model, teacher_forcing_ratio)
 
                 train_losses.append(loss)
 

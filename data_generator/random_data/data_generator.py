@@ -1,5 +1,5 @@
 import os, sys
-
+import re2 as re
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'submodels', 'SoftConciseNormalForm')))
 from parsetree import *
 from xeger import Xeger
@@ -86,20 +86,47 @@ def generate_data():
         regex = "".join(str_list)
 
 
+        subregex_list = []
+        bracket = 0
+        for letter in regex:
+            if letter == '(':
+                if bracket == 0:
+                    subregex_list.append('')
+                else:
+                    subregex_list[-1] = subregex_list[-1] + letter
+                bracket += 1
+            elif letter == ')':
+                if bracket != 1:
+                    subregex_list[-1] = subregex_list[-1] + letter
+                bracket -= 1
+            else:
+                subregex_list[-1] = subregex_list[-1] + letter
+
+        SIGMA_STAR = '0'
+        # print()
+        # print(regex)
+
         # templetes 생성
         templete = []
         for example in pos:
             str_list = []
             dic = re.fullmatch(regex, example).groupdict()
+            label_num = 1
             for i in range(1, len(dic) + 1):
-                key = "t" + str(i)
-                targetstring = dic[key]
-                if targetstring == None:
-                    count = 0
+
+                targetstring = dic['t'+str(i)]
+                targetregex = re.sub('\?P\<t\d*?\>' , '', subregex_list[i-1])
+
+                if targetregex == str(KleenStar(Or(*[Character(str(x)) for x in range(opt.alphabet_size)]))):
+                    label = SIGMA_STAR
                 else:
-                    count = len(targetstring)
+                    label = str(label_num)
+                label_num += 1
+
+                count = len(targetstring)
+
                 for _ in range(count):
-                    str_list.append(str(i - 1))
+                    str_list.append(label)
             templete.append("".join(str_list))
 
 

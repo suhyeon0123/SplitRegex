@@ -1,6 +1,7 @@
 from torch.utils.data import Dataset, DataLoader
 import pandas as pd
 import torch
+import re2 as re
 
 
 class Vocabulary:
@@ -10,20 +11,20 @@ class Vocabulary:
         for i in range(10):
             self.itos.append(str(i))
         # A-Z
-        for i in range(65,91):
+        for i in range(65, 91):
             self.itos.append(chr(i))
         # a-z
         for i in range(97, 123):
             self.itos.append(chr(i))
 
-        self.itos += ['!', '<pad>', '<unk>']
+        self.itos += ['!', '_', '<pad>', '<unk>']
 
         self.stoi = dict((x, i) for i, x in enumerate(self.itos))
 
     def __len__(self):
         return len(self.itos)
 
-    def get_idx(self,text):
+    def get_idx(self, text):
         tmp = self.stoi.get(text)
         if tmp is None:
             tmp = 62
@@ -34,7 +35,7 @@ class Vocabulary:
 
 
 NUM_EXAMPLES = 10
-MAX_SEQUENCE_LENGTH = 50
+MAX_SEQUENCE_LENGTH = 30
 
 
 class CustomDataset(Dataset):
@@ -44,23 +45,42 @@ class CustomDataset(Dataset):
     REGEX_COL = LABEL_COL + NUM_EXAMPLES
 
     def __init__(self, file_path, object='train'):
-        if object == 'train':
-            self.df = pd.read_csv(file_path, header=None, dtype=str, na_filter=False)
-            self.df = self.df.head(int(len(self.df)*0.8))
-            self.input = self.df[self.df.columns[CustomDataset.POS_COL:CustomDataset.NEG_COL]]
-            self.output = self.df[self.df.columns[CustomDataset.LABEL_COL:CustomDataset.REGEX_COL]]
-            self.regex = self.df[self.df.columns[CustomDataset.REGEX_COL]]
-        elif object == 'valid':
-            self.df = pd.read_csv(file_path, header=None, dtype=str, na_filter=False)
-            self.df = self.df.head(-int(len(self.df) * 0.8))
-            self.input = self.df[self.df.columns[CustomDataset.POS_COL:CustomDataset.NEG_COL]]
-            self.output = self.df[self.df.columns[CustomDataset.LABEL_COL:CustomDataset.REGEX_COL]]
-            self.regex = self.df[self.df.columns[CustomDataset.REGEX_COL]]
+        self.valid = False
+        self.df = pd.read_csv(file_path, header=None, dtype=str, na_filter=False)
+
+        if len(self.df.columns) == 61:
+            if object == 'train':
+                self.df = self.df.head(int(len(self.df) * 0.8))
+                self.input = self.df[self.df.columns[0:10]]
+                self.output = self.df[self.df.columns[40:50]]
+                self.regex = self.df[self.df.columns[60]]
+            elif object == 'valid':
+                self.df = self.df.head(-int(len(self.df) * 0.8))
+                self.input = self.df[self.df.columns[0:10]]
+                self.output = self.df[self.df.columns[40:50]]
+                self.regex = self.df[self.df.columns[60]]
+            else:
+                self.input = self.df[self.df.columns[0:10]]
+                self.valid_input = self.df[self.df.columns[10:20]]
+                self.output = self.df[self.df.columns[20:30]]
+                self.valid_output = self.df[self.df.columns[30:40]]
+                self.regex = self.df[self.df.columns[60]]
+                self.valid = True
         else:
-            self.df = pd.read_csv(file_path, header=None, dtype=str, na_filter=False)
-            self.input = self.df[self.df.columns[CustomDataset.POS_COL:CustomDataset.NEG_COL]]
-            self.output = self.df[self.df.columns[CustomDataset.NEG_COL:CustomDataset.LABEL_COL]]
-            self.regex = self.df[self.df.columns[CustomDataset.REGEX_COL]]
+            if object == 'train':
+                self.df = self.df.head(int(len(self.df) * 0.8))
+                self.input = self.df[self.df.columns[CustomDataset.POS_COL:CustomDataset.NEG_COL]]
+                self.output = self.df[self.df.columns[CustomDataset.LABEL_COL:CustomDataset.REGEX_COL]]
+                self.regex = self.df[self.df.columns[CustomDataset.REGEX_COL]]
+            elif object == 'valid':
+                self.df = self.df.head(-int(len(self.df) * 0.8))
+                self.input = self.df[self.df.columns[CustomDataset.POS_COL:CustomDataset.NEG_COL]]
+                self.output = self.df[self.df.columns[CustomDataset.LABEL_COL:CustomDataset.REGEX_COL]]
+                self.regex = self.df[self.df.columns[CustomDataset.REGEX_COL]]
+            else:
+                self.input = self.df[self.df.columns[CustomDataset.POS_COL:CustomDataset.NEG_COL]]
+                self.output = self.df[self.df.columns[CustomDataset.NEG_COL:CustomDataset.LABEL_COL]]
+                self.regex = self.df[self.df.columns[CustomDataset.REGEX_COL]]
 
         # Initialize vocabulary and build vocab
         self.vocab = Vocabulary()
@@ -80,13 +100,19 @@ class CustomDataset(Dataset):
         return processed_list
 
     def __getitem__(self, idx):
-        return (self._translate_sequences(self.input.iloc[idx]),
-                self._translate_sequences(self.output.iloc[idx]),
-                self.regex.iloc[idx])
+        if self.valid:
+            return (self._translate_sequences(self.input.iloc[idx]),
+                    self._translate_sequences(self.output.iloc[idx]),
+                    self.regex.iloc[idx],
+                    self._translate_sequences(self.valid_input.iloc[idx]),
+                    self._translate_sequences(self.valid_output.iloc[idx]))
+        else:
+            return (self._translate_sequences(self.input.iloc[idx]),
+                    self._translate_sequences(self.output.iloc[idx]),
+                    self.regex.iloc[idx])
 
 
 def get_loader(file_path, batch_size, object, num_worker=0, shuffle=True):
-
     dataset = CustomDataset(file_path, object)
     loader = DataLoader(dataset=dataset, batch_size=batch_size, num_workers=num_worker,
                         shuffle=shuffle, pin_memory=True)
@@ -111,7 +137,7 @@ def decomposing_regex(regex):
             saved_decomposed_regex[-1] = saved_decomposed_regex[-1] + letter
 
     if '(?P<t' in regex:
-        return list(map(lambda x: x[6:], saved_decomposed_regex))
+        return list(map(lambda x: re.sub('\?P\<t\d*?\>', '', x), saved_decomposed_regex))
     else:
         return list(map(lambda x: x[0:], saved_decomposed_regex))
 

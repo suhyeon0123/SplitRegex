@@ -55,7 +55,7 @@ class Evaluator(object):
                 inputs, outputs, regex = batch_preprocess(inputs, outputs, regex)
 
                 decoder_outputs, decoder_hidden, other = model(inputs.to('cuda'), None, outputs)
-                tgt_variables = outputs.contiguous().view(-1, 50)
+                tgt_variables = outputs.contiguous().view(-1, 30)
 
                 answer_dict = [dict(Counter(l)) for l in tgt_variables.tolist()]
 
