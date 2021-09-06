@@ -1,0 +1,15 @@
+[submodule "submodels/set2regex"]
+        path = submodels/set2regex
+            url = https://github.com/woaksths/set2regex.git
+[submodule "submodels/automatark"]
+        path = submodels/automatark
+            url = https://github.com/narame7/automatark.git
+[submodule "submodels/fado-python3"]
+        path = submodels/fado-python3
+            url = https://github.com/0xnurl/fado-python3.git
+[submodule "submodels/SoftConciseNormalForm"]
+        path = submodels/SoftConciseNormalForm
+            url = https://github.com/suhyeon0123/SoftConciseNormalForm.git
+[submodule "submodels/RegexGenerator/origin_src"]
+        path = submodels/RegexGenerator/origin_src
+            url = https://github.com/MaLeLabTs/RegexGenerator.git
