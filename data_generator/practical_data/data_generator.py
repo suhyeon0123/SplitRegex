@@ -130,6 +130,9 @@ def make_label(regex, pos):
         else:
             templete.append('<pad>')
 
+    for idx, pp in enumerate(pos):
+        if len(pp) != len(templete[idx]):
+            raise Exception('lable_length error')
     return templete
 
 
@@ -392,11 +395,9 @@ def main():
         regex_list = [x.strip() for x in regex_file.readlines()]
         random.shuffle(regex_list)
 
-        single_regex_count = 0
         error_idx = []
 
         for idx, regex in enumerate(regex_list):
-
             if data_name =='regexlib-clean':
                 regex = re.sub(r'\\\\', '\x5c', regex)
             if data_name =='practical_regexes':
@@ -414,10 +415,16 @@ def main():
                 regex = remove_anchor(regex)
                 regex = remove_redundant_quantifier(regex)
                 regex = preprocess_parenthesis_flag(regex)
+
                 regex = special_characterize(regex)
+
                 regex = get_captured_regex(regex)
 
+
                 regex, mapping_table = replace_constant_string(regex)
+
+                if re.search(r'(?<!\x5c)\[[^\[\]]*[()][^\[\]]*\](?!\x5c)',regex) is not None:
+                    raise Exception('overlapped backet')
 
                 # generate pos, neg, label
                 pos = make_pos(regex)
@@ -456,7 +463,6 @@ def main():
 
             print(idx)
         print('error count :', len(error_idx))
-        print('single(A) count :', single_regex_count)
 
 
 if __name__ == '__main__':

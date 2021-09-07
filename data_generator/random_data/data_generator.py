@@ -53,7 +53,7 @@ def generate_data():
 
             # random regex생성
             str_list = []
-            for j in range(random.randrange(1, EXAMPLE_NUM+1)):
+            for j in range(random.randrange(1, MAX_SEQUENCE_LENGTH+1)):
                 str_list.append(str(random.randrange(0, opt.alphabet_size)))
             tmp = ''.join(str_list)
 
