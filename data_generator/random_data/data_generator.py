@@ -32,7 +32,7 @@ def generate_data():
     for idx, regex in enumerate(regexes):
 
         # pos examples 생성
-        x = Xeger()
+        x = Xeger(5)
         posset = set()
 
         for i in range(200):
