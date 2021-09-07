@@ -63,22 +63,25 @@ python setup.py install
 ```
     
 ### New dataset download
-    python data_generator/random_regex.py --data_path data/random_regex_train --number 10000
-    python data_generator/random_regex.py --data_path data/random_regex_vaild --number 1000
-    python data_generator/data_generator.py --data_type pos_label --regex_path data/random_regex_train --data_path data/train
-    python data_generator/data_generator.py --data_type pos_label --regex_path data/random_regex_vaild --data_path data/valid
+    python data_generator/practical_data/data_generator.py
     
-    python data_generator/random_regex.py --data_path data/random_regex_posneg --number 1000
-    python data_generator/data_generator.py --data_type pos_neg --regex_path data/random_regex_posneg --data_path data/posneg
+    python data_generator/random_data/regex_generator.py --alphabet_size 10 --is_train --number 1000000
+    python data_generator/random_data/regex_generator.py --alphabet_size 10 --number 100000
+    python data_generator/random_data/data_generator.py --alphabet_size 10 --is_train
+    python data_generator/random_data/data_generator.py --alphabet_size 10
+    
 
     
 
 ### Train model
-    python train.py --train_path ./data/train.csv --dev_path ./data/valid.csv
+    python train.py --train_path ./data/practical_data/train.csv --expt_dir ./saved_models/practical
+    python train.py --train_path ./data/random_data/size_10/train.csv --expt_dir ./saved_models/random/size_10
+    
     
 ### Synthesis model
-    python main.py --data_path data/posneg.csv
+    python main.py --data_path ./data/practical_data/test_practicalregex.csv --log_path ./log_data/practical --checkpoint_pos ./saved_models/practical/rnntype_gru_hidden_128/best_accuracy --sub_model alpharegex --data_type practical
     
+    python main.py --data_path ./data/random_data/size_10/test.csv --log_path ./log_data/random/size_10 --checkpoint_pos ./saved_models/random_size_10/rnntype_gru_hidden_128/best_accuracy --sub_model alpharegex --data_type random --alphabet_size 10
 
     
     
