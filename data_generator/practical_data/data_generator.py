@@ -15,7 +15,7 @@ quantifier = '(\*|\+|\?|\{\d+\,\d*\}|\{\d+\})\??'
 
 dequantifier5 = '\\\\d|\\\\D\\\\|\\\\w|\\\\W|\\\\s|\\\\S|(?<!\\\\)\.'
 
-MAX_SEQUENCE_LENGTH = 30
+MAX_SEQUENCE_LENGTH = 15
 EXAMPLE_NUM = 20
 
 
@@ -40,7 +40,7 @@ def make_pos(regex):
 
     for i in range(200):
         example_candidate = x.xeger(regex)
-        if len(example_candidate) < 30:
+        if len(example_candidate) < MAX_SEQUENCE_LENGTH:
             pos.add(example_candidate)
         if len(pos) == EXAMPLE_NUM:
             break
@@ -207,9 +207,8 @@ def preprocess_parenthesis_flag(regex):
 
     # named group
     regex = re.sub(r'\(\?P<.*?>', '(', regex)
-
-
     regex = re.sub(r'\(\?<.*?>', '(', regex)
+
     # non-backtracking group
     regex = re.sub(r'\(\?>', '(', regex)
 
@@ -392,7 +391,6 @@ def main():
         regex_list = [x.strip() for x in regex_file.readlines()]
         random.shuffle(regex_list)
 
-        single_regex_count = 0
         error_idx = []
 
         for idx, regex in enumerate(regex_list):
@@ -429,7 +427,6 @@ def main():
                 error_idx.append(idx)
                 continue
 
-
             signal.alarm(0)
 
             # replace unrecognized symbol
@@ -456,8 +453,6 @@ def main():
 
             print(idx)
         print('error count :', len(error_idx))
-        print('single(A) count :', single_regex_count)
-
 
 if __name__ == '__main__':
     main()
