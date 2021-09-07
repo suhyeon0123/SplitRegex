@@ -41,7 +41,7 @@ class SupervisedTrainer(object):
             torch.manual_seed(random_seed)
         self.max_sequence_length = max_sequence_length
         self.loss = loss
-        self.evaluator = Evaluator(loss=self.loss, batch_size=batch_size, input_vocab=input_vocab)
+        self.evaluator = Evaluator(loss=self.loss, batch_size=batch_size, input_vocab=input_vocab, max_sequence_length=max_sequence_length)
         self.optimizer = None
         self.checkpoint_every = checkpoint_every
         self.print_every = print_every
@@ -70,7 +70,7 @@ class SupervisedTrainer(object):
         # Forward propagation
         decoder_outputs, decoder_hidden, other = model(input_variable, self.max_sequence_length, input_variable,
                                                        teacher_forcing_ratio=teacher_forcing_ratio)
-        target_variable = target_variable.contiguous().view(-1, 30)
+        target_variable = target_variable.contiguous().view(-1, self.max_sequence_length)
 
 
         # Get loss
@@ -190,7 +190,7 @@ class SupervisedTrainer(object):
 
                 inputs, outputs, regex = batch_preprocess(inputs, outputs, regex)
 
-                loss = self._train_batch(inputs.to(device="cuda"), 30, outputs, regex, model, teacher_forcing_ratio)
+                loss = self._train_batch(inputs.to(device="cuda"), self.max_sequence_length, outputs, regex, model, teacher_forcing_ratio)
 
                 train_losses.append(loss)
 

@@ -74,7 +74,10 @@ else:
     input_vocab = train.dataset.vocab
     output_vocab = train.dataset.vocab
 
-    MAX_SEQUENCE_LENGTH = 30
+    if 'random' in opt.train_path:
+        MAX_SEQUENCE_LENGTH = 10
+    else:
+        MAX_SEQUENCE_LENGTH = 15
 
     rnn_cell = 'gru'
 

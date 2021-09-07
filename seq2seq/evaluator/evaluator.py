@@ -20,10 +20,11 @@ class Evaluator(object):
         batch_size (int, optional): batch size for evaluator (default: 64)
     """
 
-    def __init__(self, loss=NLLLoss(), batch_size=64, input_vocab=None):
+    def __init__(self, loss=NLLLoss(), batch_size=64, input_vocab=None, max_sequence_length=10):
         self.loss = loss
         self.batch_size = batch_size
         self.input_vocab = input_vocab
+        self.max_sequence_length = max_sequence_length
 
     def evaluate(self, model, data):
         """ Evaluate a model on given dataset and return performance.
@@ -55,7 +56,7 @@ class Evaluator(object):
                 inputs, outputs, regex = batch_preprocess(inputs, outputs, regex)
 
                 decoder_outputs, decoder_hidden, other = model(inputs.to('cuda'), None, outputs)
-                tgt_variables = outputs.contiguous().view(-1, 30)
+                tgt_variables = outputs.contiguous().view(-1, self.max_sequence_length)
 
                 answer_dict = [dict(Counter(l)) for l in tgt_variables.tolist()]
 
