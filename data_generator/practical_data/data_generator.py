@@ -15,7 +15,7 @@ quantifier = '(\*|\+|\?|\{\d+\,\d*\}|\{\d+\})\??'
 
 dequantifier5 = '\\\\d|\\\\D\\\\|\\\\w|\\\\W|\\\\s|\\\\S|(?<!\\\\)\.'
 
-MAX_SEQUENCE_LENGTH = 30
+MAX_SEQUENCE_LENGTH = 15
 EXAMPLE_NUM = 20
 
 
