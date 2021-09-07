@@ -14,7 +14,7 @@ parser.add_argument('--is_train', action='store_true', dest='is_train',
 opt = parser.parse_args()
 
 
-MAX_SEQUENCE_LENGTH = 30
+MAX_SEQUENCE_LENGTH = 15
 EXAMPLE_NUM = 20
 
 
