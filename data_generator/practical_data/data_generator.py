@@ -40,7 +40,7 @@ def make_pos(regex):
 
     for i in range(200):
         example_candidate = x.xeger(regex)
-        if len(example_candidate) < 30:
+        if len(example_candidate) < MAX_SEQUENCE_LENGTH:
             pos.add(example_candidate)
         if len(pos) == EXAMPLE_NUM:
             break
