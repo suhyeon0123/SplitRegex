@@ -35,7 +35,6 @@ class Vocabulary:
 
 
 NUM_EXAMPLES = 10
-MAX_SEQUENCE_LENGTH = 30
 
 
 class CustomDataset(Dataset):
@@ -44,43 +43,30 @@ class CustomDataset(Dataset):
     LABEL_COL = NEG_COL + NUM_EXAMPLES
     REGEX_COL = LABEL_COL + NUM_EXAMPLES
 
-    def __init__(self, file_path, object='train'):
+    def __init__(self, file_path, object='train', max_len=10):
         self.valid = False
         self.df = pd.read_csv(file_path, header=None, dtype=str, na_filter=False)
 
-        if len(self.df.columns) == 61:
-            if object == 'train':
-                self.df = self.df.head(int(len(self.df) * 0.8))
-                self.input = self.df[self.df.columns[0:10]]
-                self.output = self.df[self.df.columns[40:50]]
-                self.regex = self.df[self.df.columns[60]]
-            elif object == 'valid':
-                self.df = self.df.head(-int(len(self.df) * 0.8))
-                self.input = self.df[self.df.columns[0:10]]
-                self.output = self.df[self.df.columns[40:50]]
-                self.regex = self.df[self.df.columns[60]]
-            else:
-                self.input = self.df[self.df.columns[0:10]]
-                self.valid_input = self.df[self.df.columns[10:20]]
-                self.output = self.df[self.df.columns[20:30]]
-                self.valid_output = self.df[self.df.columns[30:40]]
-                self.regex = self.df[self.df.columns[60]]
-                self.valid = True
+        self.MAX_SEQUENCE_LENGTH = max_len
+
+        if object == 'train':
+            self.df = self.df.head(int(len(self.df) * 0.8))
+            self.input = self.df[self.df.columns[0:10]]
+            self.output = self.df[self.df.columns[40:50]]
+            self.regex = self.df[self.df.columns[60]]
+        elif object == 'valid':
+            self.df = self.df.head(-int(len(self.df) * 0.8))
+            self.input = self.df[self.df.columns[0:10]]
+            self.output = self.df[self.df.columns[40:50]]
+            self.regex = self.df[self.df.columns[60]]
         else:
-            if object == 'train':
-                self.df = self.df.head(int(len(self.df) * 0.8))
-                self.input = self.df[self.df.columns[CustomDataset.POS_COL:CustomDataset.NEG_COL]]
-                self.output = self.df[self.df.columns[CustomDataset.LABEL_COL:CustomDataset.REGEX_COL]]
-                self.regex = self.df[self.df.columns[CustomDataset.REGEX_COL]]
-            elif object == 'valid':
-                self.df = self.df.head(-int(len(self.df) * 0.8))
-                self.input = self.df[self.df.columns[CustomDataset.POS_COL:CustomDataset.NEG_COL]]
-                self.output = self.df[self.df.columns[CustomDataset.LABEL_COL:CustomDataset.REGEX_COL]]
-                self.regex = self.df[self.df.columns[CustomDataset.REGEX_COL]]
-            else:
-                self.input = self.df[self.df.columns[CustomDataset.POS_COL:CustomDataset.NEG_COL]]
-                self.output = self.df[self.df.columns[CustomDataset.NEG_COL:CustomDataset.LABEL_COL]]
-                self.regex = self.df[self.df.columns[CustomDataset.REGEX_COL]]
+            self.input = self.df[self.df.columns[0:10]]
+            self.valid_input = self.df[self.df.columns[10:20]]
+            self.output = self.df[self.df.columns[20:30]]
+            self.valid_output = self.df[self.df.columns[30:40]]
+            self.regex = self.df[self.df.columns[60]]
+            self.valid = True
+
 
         # Initialize vocabulary and build vocab
         self.vocab = Vocabulary()
@@ -92,10 +78,10 @@ class CustomDataset(Dataset):
         processed_list = []
         for sequence in map(str.strip, sequences):
             if sequence == '<pad>':
-                tmp = ['<pad>'] * MAX_SEQUENCE_LENGTH
+                tmp = ['<pad>'] * self.MAX_SEQUENCE_LENGTH
             else:
-                tmp = list(sequence) + ['<pad>'] * (MAX_SEQUENCE_LENGTH - len(sequence))
-            processed_list.append(self.vocab.text2idx(tmp[:MAX_SEQUENCE_LENGTH]))
+                tmp = list(sequence) + ['<pad>'] * (self.MAX_SEQUENCE_LENGTH - len(sequence))
+            processed_list.append(self.vocab.text2idx(tmp[:self.MAX_SEQUENCE_LENGTH]))
 
         return processed_list
 
@@ -112,8 +98,8 @@ class CustomDataset(Dataset):
                     self.regex.iloc[idx])
 
 
-def get_loader(file_path, batch_size, object, num_worker=0, shuffle=True):
-    dataset = CustomDataset(file_path, object)
+def get_loader(file_path, batch_size, object, num_worker=0, shuffle=True, max_len=10):
+    dataset = CustomDataset(file_path, object, max_len=max_len)
     loader = DataLoader(dataset=dataset, batch_size=batch_size, num_workers=num_worker,
                         shuffle=shuffle, pin_memory=True)
     return loader

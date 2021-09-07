@@ -42,7 +42,13 @@ def print_tensor_set(tensor_set):
 
 
 def main():
-    data = dataset.get_loader(opt.data_path, batch_size=opt.batch_size, object='test', shuffle=True)
+
+    if 'random' in opt.data_type:
+        MAX_SEQUENCE_LENGTH = 10
+    else:
+        MAX_SEQUENCE_LENGTH = 15
+
+    data = dataset.get_loader(opt.data_path, batch_size=opt.batch_size, object='test', shuffle=True, max_len=MAX_SEQUENCE_LENGTH)
 
     pos_checkpoint = Checkpoint.load(Checkpoint.get_latest_checkpoint(opt.checkpoint_pos))
     neg_checkpoint = Checkpoint.load(Checkpoint.get_latest_checkpoint(opt.checkpoint_neg))

@@ -67,17 +67,18 @@ else:
 
     batch_size = 512
 
-
-    train = dataset.get_loader(train_path, batch_size=batch_size, object='train', shuffle=True)
-    dev = dataset.get_loader(train_path, batch_size=batch_size, object='valid', shuffle=False)
-
-    input_vocab = train.dataset.vocab
-    output_vocab = train.dataset.vocab
-
     if 'random' in opt.train_path:
         MAX_SEQUENCE_LENGTH = 10
     else:
         MAX_SEQUENCE_LENGTH = 15
+
+    train = dataset.get_loader(train_path, batch_size=batch_size, object='train', shuffle=True, max_len=MAX_SEQUENCE_LENGTH)
+    dev = dataset.get_loader(train_path, batch_size=batch_size, object='valid', shuffle=False, max_len=MAX_SEQUENCE_LENGTH)
+
+    input_vocab = train.dataset.vocab
+    output_vocab = train.dataset.vocab
+
+
 
     rnn_cell = 'gru'
 
