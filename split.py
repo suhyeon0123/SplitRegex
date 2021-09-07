@@ -150,9 +150,9 @@ def generate_split_regex(splited_pos, splited_neg, split_model=False, count_limi
         print('Splited Negative Strings:', sub_neg_set)
 
 
-        if submodel == 'rpni':
+        if submodel == 'blue_finge':
             tmp = rpni_synthesis(Examples(pos=sub_pos_set, neg=sub_neg_set), count_limit, start_with_no_concat=split_model, prefix_for_neg_test=prefix, suffix_for_neg_test=None, alphabet_size=alphabet_size)
-        elif submodel == 'alpharegex' :
+        elif submodel == 'alpharegex':
             if data_type == 'random':
                 if sigma_lst is not None and sub_id + 1 != split_size and any(list(map(lambda x: x[sub_id], sigma_lst))):
                     tmp = repr(KleenStar(Or(*[Character(str(x)) for x in range(alphabet_size)])))
@@ -171,8 +171,10 @@ def generate_split_regex(splited_pos, splited_neg, split_model=False, count_limi
                         Examples(pos=sub_pos_set, neg=sub_neg_set), count_limit, start_with_no_concat=split_model,
                         prefix_for_neg_test=prefix, suffix_for_neg_test=None, alphabet_size=alphabet_size)
                     tmp = repr(tmp)
-        else:
-            pass # set2regex
+        elif submodel == 'set2regex':
+            pass
+        elif submodel == 'regexgenerator':
+            pass
 
         if tmp == 'None':
             return None, 0

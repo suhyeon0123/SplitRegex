@@ -1,6 +1,6 @@
 import argparse
 import time
-
+import pickle
 import seq2seq.dataset.dataset as dataset
 from seq2seq.dataset.dataset import Vocabulary
 from seq2seq.util.checkpoint import Checkpoint
@@ -16,7 +16,7 @@ parser.add_argument('--log_path', default='./log_data/practical', dest='log_path
                     help='Path to save log data')
 parser.add_argument('--batch_size', action='store', dest='batch_size',
                     help='batch size', default=1)
-parser.add_argument('--checkpoint_pos', default='./saved_models/practical/rnntype_gru_hidden_128/best_accuracy', dest='checkpoint_pos',
+parser.add_argument('--checkpoint_pos', default='./saved_models/practical2/rnntype_gru_hidden_128/best_accuracy', dest='checkpoint_pos',
                     help='path to checkpoint for splitting positive strings ')
 parser.add_argument('--checkpoint_neg', default='./saved_models/rnntype_gru_hidden_128/best_accuracy', dest='checkpoint_neg',
                     help='path to checkpoint for splitting negative strings ')
@@ -66,23 +66,16 @@ def main():
     dc_win = 0
     direct_win = 0
 
-    log_file = open(opt.log_path, 'w')
 
     for count, tuple in enumerate(data):
-        pos, neg, regex = tuple[0], tuple[1], tuple[2]
-
-        if opt.data_type == 'random':
-            valid_pos, valid_neg = tuple[3], tuple[4]
-            valid_pos, valid_neg, regex = dataset.batch_preprocess(valid_pos, valid_neg, regex)
-            valid_pos_set = print_tensor_set(valid_pos[0])
-            valid_neg_set = print_tensor_set(valid_neg[0])
-
-        pos, neg, regex = dataset.batch_preprocess(pos, neg, regex)
+        pos, neg, tmp_regex, valid_pos, valid_neg = tuple
+        pos, neg, regex = dataset.batch_preprocess(pos, neg, tmp_regex)
+        valid_pos, valid_neg, regex = dataset.batch_preprocess(valid_pos, valid_neg, tmp_regex)
 
         pos_set = print_tensor_set(pos[0])
         neg_set = print_tensor_set(neg[0])
-
-
+        valid_pos_set = print_tensor_set(valid_pos[0])
+        valid_neg_set = print_tensor_set(valid_neg[0])
 
         if ', '.join(pos_set) == '':
             continue
@@ -118,17 +111,17 @@ def main():
             timeout = True
         dc_time_total += dc_time_taken
 
-        dc_regex = batch_predict[0]
+        dc_answer = batch_predict[0]
 
-        if batch_predict[0] is not None and not timeout:
-            dc_correct = is_solution(batch_predict[0], Examples(pos=pos_set, neg=neg_set), membership)
+        if dc_answer is not None and not timeout:
+            dc_correct = is_solution(dc_answer, Examples(pos=pos_set, neg=neg_set), membership)
         else:
             dc_correct = False
 
         if dc_correct:
             dc_correct_count += 1
 
-        print(f'{count}th Generated Regex (via DC): {batch_predict[0]} ({dc_correct}), Time Taken: ', dc_time_taken)
+        print(f'{count}th Generated Regex (via DC): {dc_answer} ({dc_correct}), Time Taken: ', dc_time_taken)
 
 
         # direct
@@ -156,7 +149,8 @@ def main():
             timeout = True
         direct_time_total += direct_time_taken
 
-        if batch_predict[0] is not None and not timeout:
+        direct_answer = batch_predict[0]
+        if direct_answer is not None and not timeout:
             direct_correct = True
             direct_correct_count += 1
         else:
@@ -175,17 +169,30 @@ def main():
             direct_win += 1
 
 
-        print(f'{count}th Generated Regex (direct): {batch_predict[0]}, Time Taken: ', direct_time_taken)
+        print(f'{count}th Generated Regex (direct): {direct_answer}, Time Taken: ', direct_time_taken)
         print(f'Divide-and-conquer win rate over Direct: {dc_win / (dc_win + direct_win + 1e-9) * 100:.4f}%, Direct Total Time: {direct_time_total:.4f}, DC Total Time: {dc_time_total:.4f}')
         print(f'DC Success Ratio: {dc_correct_count / (count + 1) * 100:.4f}%, Direct Success Ratio: {direct_correct_count / (count + 1) * 100:.4f}%')
         print('-'*50)
 
-        if count % 100 == 0:
-            log_file.write('\n')
-            log_file.write(f'{count}')
-            log_file.write(f'Divide-and-conquer win rate over Direct: {dc_win / (dc_win + direct_win + 1e-9) * 100:.4f}%, Direct Total Time: {direct_time_total:.4f}, DC Total Time: {dc_time_total:.4f}')
-            log_file.write('\n')
-            log_file.write(f'DC Success Ratio: {dc_correct_count / (count + 1) * 100:.4f}%, Direct Success Ratio: {direct_correct_count / (count + 1) * 100:.4f}%')
+
+        log_data = dict()
+        log_data['Target_string'] = ''.join(regex[0])
+        log_data['pos'] = pos_set
+        log_data['neg'] = neg_set
+        log_data['pos_validation'] = valid_pos_set
+        log_data['neg_validation'] = valid_neg_set
+        log_data['DC_answer'] = dc_answer
+        log_data['Direct_answer'] = direct_answer
+        log_data['win_rate'] = dc_win / (dc_win + direct_win + 1e-9) * 100
+        log_data['DC_success_ratio'] = dc_correct_count / (count + 1) * 100
+        log_data['Direct_success_ratio'] = direct_correct_count / (count + 1) * 100
+        log_data['DC_time'] = dc_time_taken
+        log_data['Direct_time'] = direct_time_taken
+        log_data['DC_total_time'] = dc_time_total
+        log_data['Direct_total_time'] = direct_time_total
+
+        with open(opt.log_path + '/' + str(count) + '.pickle', 'wb') as fw:
+            pickle.dump(log_data, fw)
 
 if __name__ == "__main__":
     main()
