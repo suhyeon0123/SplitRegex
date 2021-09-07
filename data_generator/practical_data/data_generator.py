@@ -15,6 +15,9 @@ quantifier = '(\*|\+|\?|\{\d+\,\d*\}|\{\d+\})\??'
 
 dequantifier5 = '\\\\d|\\\\D\\\\|\\\\w|\\\\W|\\\\s|\\\\S|(?<!\\\\)\.'
 
+MAX_SEQUENCE_LENGTH = 30
+EXAMPLE_NUM = 20
+
 
 class TimeOutException(Exception):
     pass
@@ -23,6 +26,7 @@ class TimeOutException(Exception):
 def alarm_handler(signum, frame):
     raise TimeOutException()
 
+
 def loop_for_n_seconds(n):
     for sec in range(n):
         time.sleep(1)
@@ -30,19 +34,22 @@ def loop_for_n_seconds(n):
 
 
 
-def make_pos(regex, number):
-    x = Xeger()
-    posset = set()
+def make_pos(regex):
+    x = Xeger(limit=5)
+    pos = set()
 
-    for i in range(number):
-        tmp = x.xeger(regex)
-        if len(tmp) < 30:
-            posset.add(tmp)
+    for i in range(200):
+        example_candidate = x.xeger(regex)
+        if len(example_candidate) < 30:
+            pos.add(example_candidate)
+        if len(pos) == EXAMPLE_NUM:
+            break
 
-    pos = list(filter(None, list(posset)))
+    # remove empty string
+    pos = list(filter(None, list(pos)))
 
-    for i in range(number - len(pos)):
-        pos.append('<pad>')
+    if len(pos) != EXAMPLE_NUM:
+        raise Exception('can not make EXAMPLE_NUM of examples')
 
     return pos
 
@@ -126,55 +133,46 @@ def make_label(regex, pos):
     return templete
 
 
-def make_neg(regex, pos, number):
-    negset = set()
-
+def make_neg(regex, pos):
+    neg = set()
     symbol_list = set()
+
     for i in pos:
-        if i == '<pad>':
-            continue
-        x = re.findall('(?!\x0b|\\\\|\\|\').', i)
-        for j in x:
-            symbol_list.add(j)
+        symbol_candidates = re.findall('(?!\x0b|\\\\|\\|\').', i)
+        for symbol in symbol_candidates:
+            symbol_list.add(symbol)
 
     symbol_list = list(symbol_list)
 
     for i in range(0, 1000):
         # select random pos
         example = pos[random.randrange(0, len(pos))]
-        if example == '<pad>':
-            continue
 
-        if len(example) <= 10:
-            count = 2
-        else:
-            count = int(len(example)/5)
-
+        count = max(int(len(example)/5), 2)
         for j in range(count):
             point = random.randrange(0, len(example))
             if example[point] != "'" and example[point] != r"\\":
                 example = example[:point] + symbol_list[random.randrange(0, len(symbol_list))] + example[point+1:]
 
 
-        # random regex가 맞지 않다면 추가
         if re.fullmatch(regex, example) is None:
-            negset.add(example)
+            neg.add(example)
 
-        if len(negset) == 10:
+        if len(neg) == EXAMPLE_NUM:
             break
 
-    neg = list(negset)
-    for i in range(number - len(negset)):
-        neg.append('<pad>')
+    neg = list(neg)
+    if not len(neg) == EXAMPLE_NUM:
+        raise Exception('can not make EXAMPLE_NUM of examples')
 
     return neg
-
 
 
 
 def remove_anchor(regex):
     regex = re.sub(r'(?<!\x5c|\[)\^', '', regex)
     regex = re.sub(r'(?<!\x5c)\$', '', regex)
+    regex = re.sub(r'\x5cA|\x5cZ', '', regex)
 
     return regex
 
@@ -196,13 +194,27 @@ def remove_redundant_quantifier(regex):
 
 
 def preprocess_parenthesis_flag(regex):
+    # unicode
+    if re.search(r'\x5cu', regex) is not None:
+        raise Exception('There is a unicode problem')
+
+    # lookahead
+    if re.search(r'\(\?=|\(\?<=|\(\?!|\(\?<!', regex) is not None:
+        raise Exception('There is a lookahead problem')
+
+    # non capturing
     regex = re.sub(r'\(\?:', '(', regex)
-    regex = re.sub(r'\(\?=', '(', regex)
-    regex = re.sub(r'\(\?<=', '(', regex)
-    regex = re.sub(r'\(\?!', '(', regex)
-    regex = re.sub(r'\(\?<!', '(', regex)
-    regex = re.sub(r'\(\?<.*?>', '(', regex)
+
+    # named group
     regex = re.sub(r'\(\?P<.*?>', '(', regex)
+
+
+    regex = re.sub(r'\(\?<.*?>', '(', regex)
+    # non-backtracking group
+    regex = re.sub(r'\(\?>', '(', regex)
+
+    #regex = re.sub(r'\[\[\:space\:\]\]', r'\x5cs', regex)
+    #regex = re.sub(r'\[\[\:black\:\]\]', r'\x5cs', regex)
 
     regex = re.sub(r'\\b', r'', regex)
     regex = re.sub(r'\\B', r'', regex)
@@ -268,6 +280,14 @@ def get_captured_regex(regex):
 
     return regex
 
+def special_characterize(regex):
+    regex = re.sub('(\\\\)?(\@|\#|\~|\`|\%|\&|\<|\>|\,|\=|\'|\"| |\:|\;)', '!', regex)
+    regex = re.sub('(\\\\)(\+|\*|\^|\?|\-)', '!', regex)
+
+    regex = re.sub('(\\\\)\.', '!', regex)
+    regex = re.sub(r'\x5cr|\x5cn|\x5ct', '!', regex)
+    regex = re.sub('\\\\x..', '!', regex)
+    return regex
 
 def replace_constant_string(regex):
     mapping_table = {}
@@ -302,18 +322,18 @@ def replace_constant_string(regex):
                 if len(mapping_table) < 26:
                     ch = chr(len(mapping_table) + 65)
                 else:
-                    ch = chr(len(mapping_table) + 71)
+                    raise Exception('too many constant string')
                 mapping_table[ch] = subregex
             regex = re.sub(repr(subregex), ch, regex, 1)
             subregex_list[idx] = ch
 
+
         if re.fullmatch('\(.*\)', subregex_list[idx]) is None:
             subregex_list[idx] = '(' + subregex_list[idx] + ')'
 
+
     regex = ''.join(subregex_list)
 
-    regex = re.sub('\\\\x..', '!', regex)
-    regex = re.sub(r',', r'!', regex)
 
     string_pattern = '(?<!\\\\)[^\\\(\)\*\+\|\^\[\]\!\?]{2,}'
     while re.search(string_pattern, regex) is not None:
@@ -326,12 +346,15 @@ def replace_constant_string(regex):
             if len(mapping_table) < 26:
                 ch = chr(len(mapping_table) + 65)
             else:
-                ch = chr(len(mapping_table) + 71)
+                raise Exception('too many constant string')
             mapping_table[ch] = tmp
 
         regex = re.sub(string_pattern, ch, regex, 1)
 
-    string_pattern = '(?<!\\\\)[^\Ddsw]'
+    regex = re.sub('\-', '!', regex)
+
+
+    string_pattern = '(?<!\\\\)[a-z]'
     while re.search(string_pattern, regex) is not None:
         tmp = re.search(string_pattern, regex).group()
         if tmp in mapping_table.values():
@@ -342,16 +365,14 @@ def replace_constant_string(regex):
             if len(mapping_table) < 26:
                 ch = chr(len(mapping_table) + 65)
             else:
-                ch = chr(len(mapping_table) + 71)
+                raise Exception('too many constant string')
+
             mapping_table[ch] = tmp
 
         regex = re.sub(string_pattern, ch, regex, 1)
 
     return regex, mapping_table
 
-
-def remove_special_char(regex):
-    return re.sub('(\\\\)?(\"|\#|\$|\%|\'|\&|\,|\:|\;|\<|\=|\>|\@|\~|\`)', '!', regex)
 
 
 
@@ -360,11 +381,10 @@ def main():
     train_file = open('data/practical_data/train.csv', 'w')
     test_snort_file = open('data/practical_data/test_snort.csv', 'w')
     test_regexlib_file = open('data/practical_data/test_regexlib.csv', 'w')
-    test_Davis_file = open('data/practical_data/test_practicalregex.csv', 'w')
+    test_practical_file = open('data/practical_data/test_practicalregex.csv', 'w')
 
 
     for data_idx, data_path in enumerate(data_pathes):
-
         regex_file = open(data_path, 'r')
         data_name = re.search('[^/]*?(?=\.r|\.j)', data_path).group()
         print('Preprocessing ' + data_name + '...')
@@ -377,7 +397,6 @@ def main():
 
         for idx, regex in enumerate(regex_list):
 
-
             if data_name =='regexlib-clean':
                 regex = re.sub(r'\\\\', '\x5c', regex)
             if data_name =='practical_regexes':
@@ -386,41 +405,31 @@ def main():
                 regex = re.sub(r'\\\\', '\x5c', regex)
                 regex = re.sub(r'\x00', '', regex)
 
-            # preprocess
+
+            signal.signal(signal.SIGALRM, alarm_handler)
+            signal.alarm(5)
+
             try:
+                # preprocess
                 regex = remove_anchor(regex)
                 regex = remove_redundant_quantifier(regex)
                 regex = preprocess_parenthesis_flag(regex)
-
+                regex = special_characterize(regex)
                 regex = get_captured_regex(regex)
 
-                regex = remove_special_char(regex)
                 regex, mapping_table = replace_constant_string(regex)
 
-            except:
-                error_idx.append(idx)
-                continue
-
-            if regex == '(A)':
-                single_regex_count += 1
-                continue
-
-            signal.signal(signal.SIGALRM, alarm_handler)
-            signal.alarm(3)
-
-            # generate pos, neg, label
-            try:
-                pos = make_pos(regex, 10)
-                if not pos:
-                    continue
-                neg = make_neg(regex, pos, 10)
-                if not neg:
-                    continue
+                # generate pos, neg, label
+                pos = make_pos(regex)
+                neg = make_neg(regex, pos)
                 label = make_label(regex, pos)
+
             except Exception as e:
                 print(e)
                 error_idx.append(idx)
                 continue
+
+
             signal.alarm(0)
 
             # replace unrecognized symbol
@@ -434,7 +443,6 @@ def main():
                 res = res + str(ele) + ', '
             res = res + str(regex)
 
-
             # make train & test dataset
             if idx < int(len(regex_list)*0.9):
                 train_file.write(res+'\n')
@@ -444,7 +452,7 @@ def main():
                 elif data_idx == 1:
                     test_regexlib_file.write(res + '\n')
                 else:
-                    test_Davis_file.write(res + '\n')
+                    test_practical_file.write(res + '\n')
 
             print(idx)
         print('error count :', len(error_idx))
