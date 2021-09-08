@@ -4,8 +4,10 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '.
 from parsetree import *
 from xeger import Xeger
 import argparse
+import configparser
 from synthesizer import synthesis
 from examples import Examples
+
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--alphabet_size', action='store', dest='alphabet_size',
@@ -121,6 +123,10 @@ def get_compact_regex_data(bench_num, file_name):
 
 
 def main():
+    config = configparser.ConfigParser()
+    config.read('config.ini', encoding='utf-8')
+    random.seed(int(config['seed']['random_regex'])+int(opt.alphabet_size))
+
     if opt.is_train:
         file_name = './data/random_data/size_' + str(opt.alphabet_size) + '/train_regex'
     else:

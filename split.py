@@ -23,7 +23,7 @@ def is_last_sigma(lst, split_size):
     except:
         return False
 
-    if idx != 29 and lst[idx+1] == 0:
+    if idx != 9 and lst[idx+1] == 0:
         return True
 
 
@@ -79,7 +79,7 @@ def split(strings, label, no_split=False):
 
 
     predict_dict = [dict(Counter(l)) for l in label2]
-
+    print(predict_dict)
     for batch_idx in range(len(strings)):
         set = []
         for set_idx in range(10):
@@ -181,5 +181,5 @@ def generate_split_regex(splited_pos, splited_neg, split_model=False, count_limi
 
 
         regex.append('(' + tmp + ')')
-        print(regex)
+
     return ''.join(regex), split_size

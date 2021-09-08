@@ -4,6 +4,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '.
 from parsetree import *
 from xeger import Xeger
 import argparse
+import configparser
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--alphabet_size', action='store', dest='alphabet_size',
@@ -19,6 +20,11 @@ EXAMPLE_NUM = 20
 
 
 def generate_data():
+    config = configparser.ConfigParser()
+    config.read('config.ini', encoding='utf-8')
+    random.seed(int(config['seed']['random_data'])+ int(opt.alphabet_size))
+    xeger = Xeger(limit=5)
+    xeger.seed(int(config['seed']['random_data'])+ int(opt.alphabet_size))
 
     if opt.is_train:
         DATA_USAGE = 'train'
@@ -30,25 +36,24 @@ def generate_data():
     regexes = [x.strip() for x in regex_file.readlines()]
 
     for idx, regex in enumerate(regexes):
-
+        if idx > 10:
+            continue
         # pos examples 생성
-        x = Xeger(5)
-        posset = set()
+        pos = []
 
         for i in range(200):
-            example = x.xeger(regex).strip("'")
-            if 0 < len(example) <= MAX_SEQUENCE_LENGTH:
-                posset.add(example)
-            if len(posset) == EXAMPLE_NUM:
+            example = xeger.xeger(regex).strip("'")
+            if 0 < len(example) <= MAX_SEQUENCE_LENGTH and example not in pos:
+                pos.append(example)
+            if len(pos) == EXAMPLE_NUM:
                 break
 
-        pos = list(posset)
         if len(pos) != EXAMPLE_NUM:
             continue
 
 
         # neg examples 생성
-        negset = set()
+        neg = []
         for _ in range(1000):
 
             # random regex생성
@@ -58,15 +63,14 @@ def generate_data():
             tmp = ''.join(str_list)
 
             # random regex가 맞지 않다면 추가
-            if not bool(re.fullmatch(regex, tmp)):
-                negset.add(tmp)
+            if not bool(re.fullmatch(regex, tmp)) and tmp not in neg:
+                neg.append(tmp)
 
-            if len(negset) == EXAMPLE_NUM:
+            if len(neg) == EXAMPLE_NUM:
                 break
 
-        if not len(negset) == EXAMPLE_NUM:
+        if not len(neg) == EXAMPLE_NUM:
             continue
-        neg = list(negset)
 
 
         # Tag 전처리

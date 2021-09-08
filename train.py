@@ -12,6 +12,8 @@ from seq2seq.loss import NLLLoss
 from seq2seq.optim import Optimizer
 from seq2seq.evaluator import Predictor
 from seq2seq.util.checkpoint import Checkpoint
+from seq2seq.util.seed import seed_all
+import configparser
 import seq2seq.dataset.dataset as dataset
 
 
@@ -61,6 +63,9 @@ if opt.load_checkpoint is not None:
     input_vocab = checkpoint.input_vocab
     output_vocab = checkpoint.output_vocab
 else:
+    config = configparser.ConfigParser()
+    config.read('config.ini', encoding='utf-8')
+    seed_all(int(config['seed']['train']))
 
     # Prepare dataset
     train_path = opt.train_path

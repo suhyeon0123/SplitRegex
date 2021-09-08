@@ -4,7 +4,7 @@ import time
 
 import os, sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'submodels', 'SoftConciseNormalForm')))
-
+import configparser
 import re2 as re
 import random
 
@@ -34,14 +34,13 @@ def loop_for_n_seconds(n):
 
 
 
-def make_pos(regex):
-    x = Xeger(limit=5)
-    pos = set()
+def make_pos(regex, xeger):
+    pos = []
 
     for i in range(200):
-        example_candidate = x.xeger(regex)
-        if len(example_candidate) < MAX_SEQUENCE_LENGTH:
-            pos.add(example_candidate)
+        example_candidate = xeger.xeger(regex)
+        if len(example_candidate) < MAX_SEQUENCE_LENGTH and example_candidate not in pos:
+            pos.append(example_candidate)
         if len(pos) == EXAMPLE_NUM:
             break
 
@@ -137,15 +136,15 @@ def make_label(regex, pos):
 
 
 def make_neg(regex, pos):
-    neg = set()
-    symbol_list = set()
+    neg = []
+    symbol_list = []
 
     for i in pos:
         symbol_candidates = re.findall('(?!\x0b|\\\\|\\|\').', i)
         for symbol in symbol_candidates:
-            symbol_list.add(symbol)
+            if symbol not in symbol_list:
+                symbol_list.append(symbol)
 
-    symbol_list = list(symbol_list)
 
     for i in range(0, 1000):
         # select random pos
@@ -158,13 +157,12 @@ def make_neg(regex, pos):
                 example = example[:point] + symbol_list[random.randrange(0, len(symbol_list))] + example[point+1:]
 
 
-        if re.fullmatch(regex, example) is None:
-            neg.add(example)
+        if re.fullmatch(regex, example) is None and example not in neg:
+            neg.append(example)
 
         if len(neg) == EXAMPLE_NUM:
             break
 
-    neg = list(neg)
     if not len(neg) == EXAMPLE_NUM:
         raise Exception('can not make EXAMPLE_NUM of examples')
 
@@ -380,6 +378,12 @@ def replace_constant_string(regex):
 
 
 def main():
+    config = configparser.ConfigParser()
+    config.read('config.ini', encoding='utf-8')
+    random.seed(int(config['seed']['practical_data']))
+    xeger = Xeger(limit=5)
+    xeger.seed(int(config['seed']['practical_data']))
+
     data_pathes = ['submodels/automatark/regex/snort-clean.re', 'submodels/automatark/regex/regexlib-clean.re', 'practical_data/practical_regexes.json']
     train_file = open('data/practical_data/train.csv', 'w')
     test_snort_file = open('data/practical_data/test_snort.csv', 'w')
@@ -398,6 +402,7 @@ def main():
         error_idx = []
 
         for idx, regex in enumerate(regex_list):
+
             if data_name =='regexlib-clean':
                 regex = re.sub(r'\\\\', '\x5c', regex)
             if data_name =='practical_regexes':
@@ -427,7 +432,7 @@ def main():
                     raise Exception('overlapped backet')
 
                 # generate pos, neg, label
-                pos = make_pos(regex)
+                pos = make_pos(regex, xeger)
                 neg = make_neg(regex, pos)
                 label = make_label(regex, pos)
 

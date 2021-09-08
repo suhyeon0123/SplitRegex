@@ -4,7 +4,10 @@ import pickle
 import seq2seq.dataset.dataset as dataset
 from seq2seq.dataset.dataset import Vocabulary
 from seq2seq.util.checkpoint import Checkpoint
+from seq2seq.util.seed import seed_all
 from split import split, generate_split_regex
+import signal
+import configparser
 
 from submodels.SoftConciseNormalForm.examples import Examples
 from submodels.SoftConciseNormalForm.util import *
@@ -16,7 +19,7 @@ parser.add_argument('--log_path', default='./log_data/practical', dest='log_path
                     help='Path to save log data')
 parser.add_argument('--batch_size', action='store', dest='batch_size',
                     help='batch size', default=1)
-parser.add_argument('--checkpoint_pos', default='./saved_models/practical2/rnntype_gru_hidden_128/best_accuracy', dest='checkpoint_pos',
+parser.add_argument('--checkpoint_pos', default='./saved_models/practical/rnntype_gru_hidden_128/best_accuracy', dest='checkpoint_pos',
                     help='path to checkpoint for splitting positive strings ')
 parser.add_argument('--checkpoint_neg', default='./saved_models/rnntype_gru_hidden_128/best_accuracy', dest='checkpoint_neg',
                     help='path to checkpoint for splitting negative strings ')
@@ -26,6 +29,19 @@ parser.add_argument('--data_type', action='store', dest='data_type', default='pr
                     help='data type: random or practical')
 parser.add_argument('--alphabet_size', action='store', dest='alphabet_size',
                     help='define the alphabet size of the regex', type=int, default=8)
+
+
+class TimeOutException(Exception):
+    pass
+
+
+def alarm_handler(signum, frame):
+    raise TimeOutException()
+
+
+def loop_for_n_seconds(n):
+    for sec in range(n):
+        time.sleep(1)
 
 
 
@@ -42,6 +58,9 @@ def print_tensor_set(tensor_set):
 
 
 def main():
+    config = configparser.ConfigParser()
+    config.read('config.ini', encoding='utf-8')
+    seed_all(int(config['seed']['main']))
 
     if 'random' in opt.data_type:
         MAX_SEQUENCE_LENGTH = 10
@@ -66,7 +85,7 @@ def main():
     dc_correct_count = 0
     direct_correct_count = 0
 
-    MAX_TIME_LIMIT = 15
+    MAX_TIME_LIMIT = 3
     COUNT_LIMIT = 3000
 
     dc_win = 0
@@ -95,19 +114,27 @@ def main():
 
         # via DC
         start_time = time.time()
+        signal.signal(signal.SIGALRM, alarm_handler)
+        signal.alarm(MAX_TIME_LIMIT)
 
-        _, _, other = pos_split_model(pos, None, regex)
-        splited_pos, sigma_lst = split(pos, other['sequence'])  # batch, set, seq
+        try:
+            _, _, other = pos_split_model(pos, None, regex)
+            splited_pos, sigma_lst = split(pos, other['sequence'])  # batch, set, seq
+            print(splited_pos)
 
-        # _, _, other = neg_split_model(neg)
-        splited_neg, _ = split(neg, other['sequence'], no_split=True)  # batch, set, seq
+            # _, _, other = neg_split_model(neg)
+            splited_neg, _ = split(neg, other['sequence'], no_split=True)  # batch, set, seq
 
-        batch_predict = []
-        for batch_idx in range(len(pos)):
-            result, split_size = generate_split_regex(splited_pos[batch_idx], splited_neg[batch_idx], True,  COUNT_LIMIT, alphabet_size=opt.alphabet_size, data_type=opt.data_type, sigma_lst=sigma_lst)
-            batch_predict.append(result)
+            batch_predict = []
+            for batch_idx in range(len(pos)):
+                result, split_size = generate_split_regex(splited_pos[batch_idx], splited_neg[batch_idx], True,  COUNT_LIMIT, alphabet_size=opt.alphabet_size, data_type=opt.data_type, sigma_lst=sigma_lst)
+                batch_predict.append(result)
+        except Exception as e:
+            print('time limit')
+            batch_predict.append(None)
 
         end_time = time.time()
+        signal.alarm(0)
 
 
         dc_time_taken = end_time - start_time
@@ -132,18 +159,24 @@ def main():
 
         # direct
         start_time = time.time()
+        signal.signal(signal.SIGALRM, alarm_handler)
+        signal.alarm(MAX_TIME_LIMIT)
 
-        #_, _, other = pos_split_model(pos, None, regex)
-        splited_pos, _ = split(pos, other['sequence'], no_split=True)  # batch, set, seq
+        try:
+            #_, _, other = pos_split_model(pos, None, regex)
+            splited_pos, _ = split(pos, other['sequence'], no_split=True)  # batch, set, seq
 
-        #_, _, other = neg_split_model(neg)
-        splited_neg, _ = split(neg, other['sequence'], no_split=True)  # batch, set, seq
+            #_, _, other = neg_split_model(neg)
+            splited_neg, _ = split(neg, other['sequence'], no_split=True)  # batch, set, seq
 
 
-        batch_predict = []
-        for batch_idx in range(len(pos)):
-            result, split_size = generate_split_regex(splited_pos[batch_idx], splited_neg[batch_idx], False, COUNT_LIMIT, alphabet_size=opt.alphabet_size, data_type=opt.data_type)
-            batch_predict.append(result)
+            batch_predict = []
+            for batch_idx in range(len(pos)):
+                result, split_size = generate_split_regex(splited_pos[batch_idx], splited_neg[batch_idx], False, COUNT_LIMIT, alphabet_size=opt.alphabet_size, data_type=opt.data_type)
+                batch_predict.append(result)
+        except Exception as e:
+            print('time limit')
+            batch_predict.append(None)
 
         end_time = time.time()
 
