@@ -66,8 +66,8 @@ def main():
     dc_correct_count = 0
     direct_correct_count = 0
 
-    MAX_TIME_LIMIT = 20
-    COUNT_LIMIT = 5000
+    MAX_TIME_LIMIT = 15
+    COUNT_LIMIT = 3000
 
     dc_win = 0
     direct_win = 0
