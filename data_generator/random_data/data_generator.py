@@ -35,9 +35,8 @@ def generate_data():
     save_file = open('./data/random_data/size_' + str(opt.alphabet_size) + '/' + DATA_USAGE + '.csv', 'w')
     regexes = [x.strip() for x in regex_file.readlines()]
 
+    data_num = 0
     for idx, regex in enumerate(regexes):
-        if idx > 10:
-            continue
         # pos examples 생성
         pos = []
 
@@ -156,11 +155,20 @@ def generate_data():
 
         result += str(regex) + '\n'
 
-        print(idx)
-        print(result)
+
+        if data_num %1000 == 0:
+            print(data_num)
+        #print(idx)
+        #print(result)
         save_file.write(result)
 
-
+        data_num += 1
+        if opt.is_train:
+            if data_num == 90000:
+                break
+        else:
+            if data_num == 10000:
+                break
 
 def main():
     generate_data()

@@ -73,7 +73,7 @@ class EncoderRNN(BaseRNN):
 
         src_output = src_output.view(batch_size, set_size, src_output.size(1), -1)  # batch, set_size, seq_len, hidden)
 
-        if self.rnn1 is nn.LSTM:
+        if type(self.rnn1) is nn.LSTM:
             src_single_hidden = src_hidden[0].view(self.n_layers, -1, batch_size*set_size, self.hidden_size) # num_layer(2), num_direction, batch x set_size, hidden
         else:
             src_single_hidden = src_hidden.view(self.n_layers, -1, batch_size*set_size, self.hidden_size) # num_layer(2), num_direction, batch x set_size, hidden
@@ -90,7 +90,7 @@ class EncoderRNN(BaseRNN):
         set_embedded = set_embedded.view(batch_size, set_size, -1) # batch, set_size, hidden
         set_output, set_hidden = self.rnn2(set_embedded) # (batch, set_size, hidden), # (num_layer*num_dir, batch, hidden) 2개 tuple 구성
 
-        if self.rnn2 is nn.LSTM:
+        if type(self.rnn2) is nn.LSTM:
             last_hidden = set_hidden[0] # num_layer x num_dir, batch, hidden
             last_cell = set_hidden[1] # num_layer x num_dir, batch, hidden
             hiddens = (last_hidden, last_cell)

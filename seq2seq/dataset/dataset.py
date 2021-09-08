@@ -50,12 +50,12 @@ class CustomDataset(Dataset):
         self.MAX_SEQUENCE_LENGTH = max_len
 
         if object == 'train':
-            self.df = self.df.head(int(len(self.df) * 0.8))
+            self.df = self.df.head(int(len(self.df) / 9 * 8))
             self.input = self.df[self.df.columns[0:10]]
             self.output = self.df[self.df.columns[40:50]]
             self.regex = self.df[self.df.columns[60]]
         elif object == 'valid':
-            self.df = self.df.head(-int(len(self.df) * 0.8))
+            self.df = self.df.head(-int(len(self.df) / 9 * 8))
             self.input = self.df[self.df.columns[0:10]]
             self.output = self.df[self.df.columns[40:50]]
             self.regex = self.df[self.df.columns[60]]

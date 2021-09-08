@@ -7,7 +7,7 @@ import torch
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 from seq2seq.trainer.supervised_trainer import SupervisedTrainer
-from seq2seq.models import EncoderRNN, DecoderRNN, Seq2seq
+from seq2seq.models import EncoderRNN, DecoderRNN, Seq2seq, EncoderRNN2
 from seq2seq.loss import NLLLoss
 from seq2seq.optim import Optimizer
 from seq2seq.evaluator import Predictor
@@ -41,6 +41,10 @@ parser.add_argument('--log-level', dest='log_level',
 parser.add_argument('--bidirectional', action='store_true', dest='bidirectional',
                     default=True,
                     help='Indicates if training model is bidirectional model or not')
+parser.add_argument('--num_gpu', action='store', dest='num_gpu',
+                    default='0',
+                    help='Indicates gpu number')
+
 
 parser.add_argument('--use_attn', action='store_true', dest='use_attn', default=True, help='use attention or not')
 parser.add_argument('--attn_mode', action='store_true', dest='attn_mode', default=False, help='choose attention mode')
@@ -67,10 +71,13 @@ else:
     config.read('config.ini', encoding='utf-8')
     seed_all(int(config['seed']['train']))
 
+    device = torch.device(f'cuda:{int(opt.num_gpu)}' if torch.cuda.is_available() else 'cpu')
+    torch.cuda.set_device(device)
+
     # Prepare dataset
     train_path = opt.train_path
 
-    batch_size = 512
+    batch_size = 16384
 
     if 'random' in opt.train_path:
         MAX_SEQUENCE_LENGTH = 10
@@ -84,8 +91,8 @@ else:
     output_vocab = train.dataset.vocab
 
 
-
     rnn_cell = 'gru'
+
 
     # Prepare loss
     loss = NLLLoss()
@@ -96,17 +103,20 @@ else:
     optimizer = None
     if not opt.resume:
         # Initialize model
-        hidden_size = 128
+
+        hidden_size = 64
+        n_layers = 1
+
         bidirectional = opt.bidirectional
         encoder = EncoderRNN(
                 len(input_vocab), dataset.NUM_EXAMPLES, hidden_size,
                 dropout_p=0.25, input_dropout_p=0.25,
-                bidirectional=bidirectional, n_layers=1, rnn_cell=rnn_cell,
+                bidirectional=bidirectional, n_layers=n_layers, rnn_cell=rnn_cell,
                 variable_lengths=True)
         decoder = DecoderRNN(
                 len(input_vocab), dataset.NUM_EXAMPLES, hidden_size * (2 if bidirectional else 1),
                 dropout_p=0.2, input_dropout_p=0.25, use_attention=True,
-                bidirectional=bidirectional, rnn_cell=rnn_cell, n_layers=1, attn_mode=opt.attn_mode)
+                bidirectional=bidirectional, rnn_cell=rnn_cell, n_layers=n_layers, attn_mode=opt.attn_mode)
 
         s2smodel = Seq2seq(encoder, decoder)
 
@@ -122,7 +132,7 @@ else:
         optimizer = Optimizer(torch.optim.Adam(s2smodel.parameters(), lr=0.001), max_grad_norm=0.5)
         scheduler = ReduceLROnPlateau(optimizer.optimizer, 'min', factor=0.1, verbose=True, patience=10)
         optimizer.set_scheduler(scheduler)
-    expt_dir = opt.expt_dir + '/rnntype_{}_hidden_{}'.format(rnn_cell, hidden_size)
+    expt_dir = opt.expt_dir + '/rnntype_{}_hidden_{}_layer_{}'.format(rnn_cell, hidden_size, n_layers)
 
 
     # train

@@ -140,6 +140,7 @@ def generate_split_regex(splited_pos, splited_neg, split_model=False, count_limi
         sub_pos_set = set(pos)
         sub_neg_set = set(neg)
 
+
         if sub_id + 1 == split_size:
             prefix = ''.join(regex)
         else:
@@ -149,6 +150,8 @@ def generate_split_regex(splited_pos, splited_neg, split_model=False, count_limi
         print('Splited Positive Strings:', sub_pos_set)
         print('Splited Negative Strings:', sub_neg_set)
 
+        if len(sub_pos_set) == 1:
+            regex.append('(' + sub_pos_set.pop() + ')')
 
         if submodel == 'blue_finge':
             tmp = rpni_synthesis(Examples(pos=sub_pos_set, neg=sub_neg_set), count_limit, start_with_no_concat=split_model, prefix_for_neg_test=prefix, suffix_for_neg_test=None, alphabet_size=alphabet_size)

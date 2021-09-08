@@ -107,7 +107,7 @@ class DecoderRNN(BaseRNN):
         # encoder_outputs[1] : batch_size x set_size x hidden_dim
         # rnn1_dim : num_layers x (batch_size * set_size) x hidden_dim
 
-        if self.rnn is nn.LSTM:
+        if type(self.rnn) is nn.LSTM:
             hidden = (hidden[0].repeat_interleave(10, dim=1), hidden[1].repeat_interleave(10, dim=1))  # 2, 640, 128 of tuple2
             hidden = (torch.cat((hidden[0], self.rnn1_hidden[0]), -1), torch.cat((hidden[1], self.rnn1_hidden[1]), -1)) # 2, 640, 256 of tuple2
             hidden = (self.hidden_out1(hidden[0]), self.hidden_out2(hidden[1]))
@@ -189,7 +189,7 @@ class DecoderRNN(BaseRNN):
         """ Initialize the encoder hidden state. """
         if encoder_hidden is None:
             return None
-        if isinstance(encoder_hidden, tuple):
+        if type(self.rnn) == nn.LSTM:
             encoder_hidden = tuple([self._cat_directions(h) for h in encoder_hidden])
             sub_hidden = tuple([self._cat_directions(h) for h in sub_hidden])
         else:
@@ -219,9 +219,9 @@ class DecoderRNN(BaseRNN):
             if inputs is not None:
                 batch_size = inputs.size(0)
             else:
-                if self.rnn_cell is nn.LSTM:
+                if type(self.rnn_cell) is nn.LSTM:
                     batch_size = encoder_hidden[0].size(1)
-                elif self.rnn_cell is nn.GRU:
+                elif type(self.rnn_cell) is nn.GRU:
                     batch_size = encoder_hidden.size(1)
 
         # set default input and max decoding length

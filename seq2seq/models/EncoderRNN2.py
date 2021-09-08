@@ -80,7 +80,7 @@ class EncoderRNN2(BaseRNN):
 
         src_output = src_output.view(batch_size, set_size, src_output.size(1), -1)  # batch, set_size, seq_len, hidden)
 
-        if self.rnn1 is nn.LSTM:
+        if type(self.rnn1) is nn.LSTM:
             src_single_hidden = src_hidden[0].view(self.n_layers, -1, batch_size*set_size, self.hidden_size) # num_layer(2), num_direction, batch x set_size, hidden
         else:
             src_single_hidden = src_hidden.view(self.n_layers, -1, batch_size*set_size, self.hidden_size) # num_layer(2), num_direction, batch x set_size, hidden
