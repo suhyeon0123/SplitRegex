@@ -70,13 +70,13 @@ def main():
     data = dataset.get_loader(opt.data_path, batch_size=opt.batch_size, object='test', shuffle=True, max_len=MAX_SEQUENCE_LENGTH)
 
     pos_checkpoint = Checkpoint.load(Checkpoint.get_latest_checkpoint(opt.checkpoint_pos))
-    neg_checkpoint = Checkpoint.load(Checkpoint.get_latest_checkpoint(opt.checkpoint_neg))
+    # neg_checkpoint = Checkpoint.load(Checkpoint.get_latest_checkpoint(opt.checkpoint_neg))
 
     pos_split_model = pos_checkpoint.model
-    neg_split_model = neg_checkpoint.model
+    # neg_split_model = neg_checkpoint.model
 
     pos_split_model.eval()
-    neg_split_model.eval()
+    # neg_split_model.eval()
 
 
     dc_time_total = 0
@@ -93,6 +93,10 @@ def main():
 
 
     for count, tuple in enumerate(data):
+
+        # if count >10:
+        #     continue
+
         pos, neg, tmp_regex, valid_pos, valid_neg = tuple
         pos, neg, regex = dataset.batch_preprocess(pos, neg, tmp_regex)
         valid_pos, valid_neg, regex = dataset.batch_preprocess(valid_pos, valid_neg, tmp_regex)
@@ -117,6 +121,8 @@ def main():
         signal.signal(signal.SIGALRM, alarm_handler)
         signal.alarm(MAX_TIME_LIMIT)
 
+
+
         try:
             _, _, other = pos_split_model(pos, None, regex)
             splited_pos, sigma_lst = split(pos, other['sequence'])  # batch, set, seq
@@ -127,7 +133,7 @@ def main():
 
             batch_predict = []
             for batch_idx in range(len(pos)):
-                result, split_size = generate_split_regex(splited_pos[batch_idx], splited_neg[batch_idx], True,  COUNT_LIMIT, alphabet_size=opt.alphabet_size, data_type=opt.data_type, sigma_lst=sigma_lst)
+                result, split_size = generate_split_regex(splited_pos[batch_idx], splited_neg[batch_idx], True,  COUNT_LIMIT, alphabet_size=opt.alphabet_size, data_type=opt.data_type, sigma_lst=sigma_lst, submodel=opt.sub_model)
                 batch_predict.append(result)
         except Exception as e:
             print('time limit')
@@ -172,7 +178,7 @@ def main():
 
             batch_predict = []
             for batch_idx in range(len(pos)):
-                result, split_size = generate_split_regex(splited_pos[batch_idx], splited_neg[batch_idx], False, COUNT_LIMIT, alphabet_size=opt.alphabet_size, data_type=opt.data_type)
+                result, split_size = generate_split_regex(splited_pos[batch_idx], splited_neg[batch_idx], False, COUNT_LIMIT, alphabet_size=opt.alphabet_size, data_type=opt.data_type, submodel=opt.sub_model)
                 batch_predict.append(result)
         except Exception as e:
             print('time limit')
@@ -189,12 +195,17 @@ def main():
         direct_time_total += direct_time_taken
 
         direct_answer = batch_predict[0]
+
         if direct_answer is not None and not timeout:
-            direct_correct = True
-            direct_correct_count += 1
+            direct_correct = is_solution(direct_answer, Examples(pos=pos_set, neg=neg_set), membership)
+            # direct_correct = True
+            # direct_correct_count += 1
         else:
             direct_correct = False
 
+
+        if dc_correct:
+            direct_correct_count += 1
 
         if dc_correct:
             if direct_correct:
