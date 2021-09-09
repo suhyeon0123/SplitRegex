@@ -118,7 +118,7 @@ def fillHoles(Red, Blue, EXP, OT):
             return False
 
     for r in Red:
-        for b in Blue:
+        for e in EXP:
             if OT[r, e] == STATE_UNKNOWN:
                 OT[r, e] = STATE_ACCEPT
 
@@ -164,7 +164,8 @@ def buildFA(Red, Blue, EXP, OT):
 def distinguishable(u, v, EXP, OT):
     return any(
         OT[u, e] in {STATE_ACCEPT, STATE_REJECT}
-        and OT[v, e] in {STATE_ACCEPT, STATE_REJECT} and OT[u, e] != OT[v, e]
+        and OT[v, e] in {STATE_ACCEPT, STATE_REJECT}
+        and OT[u, e] != OT[v, e]
         for e in EXP)
 
 
@@ -312,7 +313,7 @@ class Test(unittest.TestCase):
                 self.assertFalse(A.evalWordP(w))
 
     def test_case_0(self):
-        pos = set(['', 'ab', 'abab'])
-        neg = set(['a', 'b', 'aa', 'ba', 'bb', 'aab', 'bab', 'bbb'])
+        pos = set(['83', '6666', '834', '366666', '566', '4', '666', '66', '266666', '8666'])
+        neg = set(['4566', '0377949', '127075', '76697261', '823292', '5309927380', '48151502', '085', '706', '565786'])
         A = rpni_regex(pos, neg)
         self.check(A, pos, neg)
