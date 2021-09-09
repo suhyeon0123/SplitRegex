@@ -3,8 +3,11 @@ import torch
 import os, sys
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), 'submodels', 'SoftConciseNormalForm')))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), 'submodels', 'RegexGenerator')))
+
 
 from collections import Counter
+from submodels.RegexGenerator.batch import *
 import submodels.SoftConciseNormalForm.synthesizer
 from submodels.SoftConciseNormalForm.parsetree import *
 
@@ -15,6 +18,11 @@ from seq2seq.dataset.dataset import Vocabulary
 from submodels.SoftConciseNormalForm.examples import Examples
 from rpni import synthesis as rpni_synthesis
 
+
+class Ex():
+    def __init__(self, pos, neg):
+        self.pos = pos
+        self.neg = neg
 
 def is_last_sigma(lst, split_size):
 
@@ -79,7 +87,6 @@ def split(strings, label, no_split=False):
 
 
     predict_dict = [dict(Counter(l)) for l in label2]
-    print(predict_dict)
     for batch_idx in range(len(strings)):
         set = []
         for set_idx in range(10):
@@ -137,6 +144,11 @@ def generate_split_regex(splited_pos, splited_neg, split_model=False, count_limi
         if not neg:
             neg.append('')
 
+        if submodel == 'blue_fringe':
+            pos = list(map(lambda x:x.replace('!','z'),pos))
+            neg = list(map(lambda x: x.replace('!', 'z'), neg))
+
+
         sub_pos_set = set(pos)
         sub_neg_set = set(neg)
 
@@ -147,14 +159,20 @@ def generate_split_regex(splited_pos, splited_neg, split_model=False, count_limi
             sub_neg_set -= sub_pos_set
             prefix = None
 
+
+
         print('Splited Positive Strings:', sub_pos_set)
         print('Splited Negative Strings:', sub_neg_set)
 
         if len(sub_pos_set) == 1:
             regex.append('(' + sub_pos_set.pop() + ')')
+            continue
 
-        if submodel == 'blue_finge':
+        if submodel == 'blue_fringe':
+            count_limit = 1000000000
             tmp = rpni_synthesis(Examples(pos=sub_pos_set, neg=sub_neg_set), count_limit, start_with_no_concat=split_model, prefix_for_neg_test=prefix, suffix_for_neg_test=None, alphabet_size=alphabet_size)
+            print(tmp)
+            tmp = str(tmp)
         elif submodel == 'alpharegex':
             if data_type == 'random':
                 if sigma_lst is not None and sub_id + 1 != split_size and any(list(map(lambda x: x[sub_id], sigma_lst))):
@@ -176,8 +194,13 @@ def generate_split_regex(splited_pos, splited_neg, split_model=False, count_limi
                     tmp = repr(tmp)
         elif submodel == 'set2regex':
             pass
-        elif submodel == 'regexgenerator':
-            pass
+        elif submodel == 'regex_generator':
+            print('ss')
+            print(list(sub_neg_set))
+            tmp = execute([Ex(list(sub_pos_set), list(sub_neg_set))])
+            print(tmp)
+            tmp = str(tmp)
+            print(tmp)
 
         if tmp == 'None':
             return None, 0

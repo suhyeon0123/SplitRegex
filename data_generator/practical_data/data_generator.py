@@ -384,14 +384,17 @@ def main():
     xeger = Xeger(limit=5)
     xeger.seed(int(config['seed']['practical_data']))
 
+
     data_pathes = ['submodels/automatark/regex/snort-clean.re', 'submodels/automatark/regex/regexlib-clean.re', 'practical_data/practical_regexes.json']
-    train_file = open('data/practical_data/train.csv', 'w')
-    test_snort_file = open('data/practical_data/test_snort.csv', 'w')
-    test_regexlib_file = open('data/practical_data/test_regexlib.csv', 'w')
-    test_practical_file = open('data/practical_data/test_practicalregex.csv', 'w')
+    # train_file = open('data/practical_data/train.csv', 'w')
+    # test_snort_file = open('data/practical_data/test_snort.csv', 'w')
+    # test_regexlib_file = open('data/practical_data/test_regexlib.csv', 'w')
+    # test_practical_file = open('data/practical_data/test_practicalregex.csv', 'w')
 
 
     for data_idx, data_path in enumerate(data_pathes):
+        if data_idx !=2:
+            continue
         regex_file = open(data_path, 'r')
         data_name = re.search('[^/]*?(?=\.r|\.j)', data_path).group()
         print('Preprocessing ' + data_name + '...')
@@ -400,9 +403,10 @@ def main():
         random.shuffle(regex_list)
 
         error_idx = []
-
+        max_len = 0
         for idx, regex in enumerate(regex_list):
 
+            raw = regex
             if data_name =='regexlib-clean':
                 regex = re.sub(r'\\\\', '\x5c', regex)
             if data_name =='practical_regexes':
@@ -437,10 +441,9 @@ def main():
                 label = make_label(regex, pos)
 
             except Exception as e:
-                print(e)
+                #print(e)
                 error_idx.append(idx)
                 continue
-
 
             signal.alarm(0)
 
@@ -448,27 +451,35 @@ def main():
             pos = list(map(lambda y: preprocess_replace(repr(y)[1:-1]), pos))
             neg = list(map(lambda y: preprocess_replace(repr(y)[1:-1]), neg))
 
+
             total = pos + neg + label
+
+
+            max_len = max(max_len, len(raw))
 
             res = ''
             for ele in total:
                 res = res + str(ele) + ', '
             res = res + str(regex)
 
+
+
+
             # make train & test dataset
-            if idx < int(len(regex_list)*0.9):
-                train_file.write(res+'\n')
-            else:
-                if data_idx == 0:
-                    test_snort_file.write(res+'\n')
-                elif data_idx == 1:
-                    test_regexlib_file.write(res + '\n')
-                else:
-                    test_practical_file.write(res + '\n')
+            # if idx < int(len(regex_list)*0.9):
+            #     train_file.write(res+'\n')
+            # else:
+            #     if data_idx == 0:
+            #         test_snort_file.write(res+'\n')
+            #     elif data_idx == 1:
+            #         test_regexlib_file.write(res + '\n')
+            #     else:
+            #         test_practical_file.write(res + '\n')
 
             print(idx)
         print('error count :', len(error_idx))
+        print('total len:' ,len(regex_list))
 
-
+        print('max :', max_len)
 if __name__ == '__main__':
     main()

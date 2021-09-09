@@ -39,7 +39,7 @@ parser.add_argument('--log-level', dest='log_level',
                     default='info',
                     help='Logging level.')
 parser.add_argument('--bidirectional', action='store_true', dest='bidirectional',
-                    default=True,
+                    default=False,
                     help='Indicates if training model is bidirectional model or not')
 parser.add_argument('--num_gpu', action='store', dest='num_gpu',
                     default='0',
@@ -77,7 +77,7 @@ else:
     # Prepare dataset
     train_path = opt.train_path
 
-    batch_size = 16384
+    batch_size = 1024
 
     if 'random' in opt.train_path:
         MAX_SEQUENCE_LENGTH = 10
@@ -91,7 +91,7 @@ else:
     output_vocab = train.dataset.vocab
 
 
-    rnn_cell = 'gru'
+    rnn_cell = 'lstm'
 
 
     # Prepare loss

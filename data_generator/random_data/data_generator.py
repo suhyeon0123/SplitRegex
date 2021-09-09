@@ -32,11 +32,13 @@ def generate_data():
         DATA_USAGE = 'test'
 
     regex_file = open('./data/random_data/size_' + str(opt.alphabet_size) + '/' + DATA_USAGE + '_regex', 'r')
-    save_file = open('./data/random_data/size_' + str(opt.alphabet_size) + '/' + DATA_USAGE + '.csv', 'w')
+    # save_file = open('./data/random_data/size_' + str(opt.alphabet_size) + '/' + DATA_USAGE + '.csv', 'w')
     regexes = [x.strip() for x in regex_file.readlines()]
 
     data_num = 0
+    max_len = 0
     for idx, regex in enumerate(regexes):
+        raw = regex
         # pos examples 생성
         pos = []
 
@@ -156,11 +158,13 @@ def generate_data():
         result += str(regex) + '\n'
 
 
+        max_len = max(max_len,len(raw))
         if data_num %1000 == 0:
+            print('maxlen:', max_len)
             print(data_num)
         #print(idx)
         #print(result)
-        save_file.write(result)
+        # save_file.write(result)
 
         data_num += 1
         if opt.is_train:
@@ -169,7 +173,7 @@ def generate_data():
         else:
             if data_num == 10000:
                 break
-
+    print('maxlen:', max_len)
 def main():
     generate_data()
 
