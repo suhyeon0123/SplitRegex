@@ -19,6 +19,7 @@ MAX_SEQUENCE_LENGTH = 15
 EXAMPLE_NUM = 20
 
 
+# Timeout handler
 class TimeOutException(Exception):
     pass
 
@@ -386,15 +387,14 @@ def main():
 
 
     data_pathes = ['submodels/automatark/regex/snort-clean.re', 'submodels/automatark/regex/regexlib-clean.re', 'practical_data/practical_regexes.json']
-    # train_file = open('data/practical_data/train.csv', 'w')
-    # test_snort_file = open('data/practical_data/test_snort.csv', 'w')
-    # test_regexlib_file = open('data/practical_data/test_regexlib.csv', 'w')
-    # test_practical_file = open('data/practical_data/test_practicalregex.csv', 'w')
+    train_file = open('data/practical_data/train.csv', 'w')
+    test_snort_file = open('data/practical_data/test_snort.csv', 'w')
+    test_regexlib_file = open('data/practical_data/test_regexlib.csv', 'w')
+    test_practical_file = open('data/practical_data/test_practicalregex.csv', 'w')
 
 
     for data_idx, data_path in enumerate(data_pathes):
-        if data_idx !=2:
-            continue
+
         regex_file = open(data_path, 'r')
         data_name = re.search('[^/]*?(?=\.r|\.j)', data_path).group()
         print('Preprocessing ' + data_name + '...')
@@ -466,15 +466,15 @@ def main():
 
 
             # make train & test dataset
-            # if idx < int(len(regex_list)*0.9):
-            #     train_file.write(res+'\n')
-            # else:
-            #     if data_idx == 0:
-            #         test_snort_file.write(res+'\n')
-            #     elif data_idx == 1:
-            #         test_regexlib_file.write(res + '\n')
-            #     else:
-            #         test_practical_file.write(res + '\n')
+            if idx < int(len(regex_list)*0.9):
+                train_file.write(res+'\n')
+            else:
+                if data_idx == 0:
+                    test_snort_file.write(res+'\n')
+                elif data_idx == 1:
+                    test_regexlib_file.write(res + '\n')
+                else:
+                    test_practical_file.write(res + '\n')
 
             print(idx)
         print('error count :', len(error_idx))
