@@ -61,7 +61,9 @@ git submodule update --init --recursive
 cd fado-python3
 python setup.py install
 ```
-    
+### additional setting
+in cfg.py, change StringType to str
+
 ### New dataset download
     python data_generator/practical_data/data_generator.py
     
