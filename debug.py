@@ -1,12 +1,22 @@
 import pickle
 import os
 import re2 as re
-path = './log_data/random10/alpharegex'
+from FAdo.fa import *
+from FAdo.cfg import *
+
+path = './log_data/random10/blue_fringe'
 file_list = sorted(os.listdir(path), key=lambda x: re.sub('\D','',x))
 print(file_list)
 
+
 def membership(regex, string):
     return bool(re.fullmatch(regex, string))
+
+def membership2(regex, string):
+    return reex.str2regexp(regex).evalWordP(string)
+
+if 'blue_fringe' in path :
+    membership = membership2
 
 with open(path + '/' + file_list[-1], 'rb') as fr:
     log_data = pickle.load(fr)
@@ -28,7 +38,7 @@ with open(path + '/' + file_list[-1], 'rb') as fr:
 
 
 DC_score = 0
-Direct_score=0
+Direct_score = 0
 for file_name in file_list:
     with open(path + '/' + file_name, 'rb') as fr:
         log_data = pickle.load(fr)

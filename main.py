@@ -9,6 +9,7 @@ from split import split, generate_split_regex
 import signal
 import configparser
 import pathlib
+import torch
 
 from submodels.SoftConciseNormalForm.examples import Examples
 from submodels.SoftConciseNormalForm.util import *
@@ -22,8 +23,6 @@ parser.add_argument('--batch_size', action='store', dest='batch_size',
                     help='batch size', default=1)
 parser.add_argument('--checkpoint_pos', default='./saved_models/practical/rnntype_gru_hidden_128/best_accuracy', dest='checkpoint_pos',
                     help='path to checkpoint for splitting positive strings ')
-parser.add_argument('--checkpoint_neg', default='./saved_models/rnntype_gru_hidden_128/best_accuracy', dest='checkpoint_neg',
-                    help='path to checkpoint for splitting negative strings ')
 parser.add_argument('--sub_model', action='store', dest='sub_model', default='alpharegex',
                     help='sub model used in generating sub regex from sub strings')
 parser.add_argument('--data_type', action='store', dest='data_type', default='practical',
@@ -35,14 +34,13 @@ parser.add_argument('--alphabet_size', action='store', dest='alphabet_size',
 class TimeOutException(Exception):
     pass
 
-
 def alarm_handler(signum, frame):
     raise TimeOutException()
 
 
-def loop_for_n_seconds(n):
-    for sec in range(n):
-        time.sleep(1)
+def membership2(regex, string):
+    return reex.str2regexp(regex).evalWordP(string)
+
 
 
 
@@ -67,6 +65,9 @@ def main():
         MAX_SEQUENCE_LENGTH = 10
     else:
         MAX_SEQUENCE_LENGTH = 15
+
+    if 'blue_fringe' in opt.sub_model:
+        membership = membership2
 
     data = dataset.get_loader(opt.data_path, batch_size=opt.batch_size, object='test', shuffle=True, max_len=MAX_SEQUENCE_LENGTH)
 
@@ -98,6 +99,12 @@ def main():
             break
 
         pos, neg, tmp_regex, valid_pos, valid_neg = tuple
+        if opt.sub_model == 'blue_fringe' and opt.data_type == 'practical':
+            pos = list(map(lambda x: list(map(lambda y:torch.tensor([61]) if y.item() == 62 or y.item() == 63 else y, x)), pos))
+            neg = list(map(lambda x: list(map(lambda y: torch.tensor([61]) if y.item() == 62 or y.item() == 63 else y, x)), neg))
+            valid_pos = list(map(lambda x: list(map(lambda y: torch.tensor([61]) if y.item() == 62 or y.item() == 63 else y, x)), valid_pos))
+            valid_neg = list(map(lambda x: list(map(lambda y: torch.tensor([61]) if y.item() == 62 or y.item() == 63 else y, x)), valid_neg))
+
         pos, neg, regex = dataset.batch_preprocess(pos, neg, tmp_regex)
         valid_pos, valid_neg, regex = dataset.batch_preprocess(valid_pos, valid_neg, tmp_regex)
 
@@ -126,7 +133,6 @@ def main():
         try:
             _, _, other = pos_split_model(pos, None, regex)
             splited_pos, sigma_lst = split(pos, other['sequence'])  # batch, set, seq
-            print(splited_pos)
 
             # _, _, other = neg_split_model(neg)
             splited_neg, _ = split(neg, other['sequence'], no_split=True)  # batch, set, seq
@@ -148,7 +154,6 @@ def main():
         if dc_time_taken > MAX_TIME_LIMIT:
             dc_time_taken = MAX_TIME_LIMIT
             timeout = True
-        dc_time_total += dc_time_taken
 
         dc_answer = batch_predict[0]
 
@@ -159,6 +164,10 @@ def main():
 
         if dc_correct:
             dc_correct_count += 1
+        else:
+            dc_time_taken = MAX_TIME_LIMIT
+        dc_time_total += dc_time_taken
+
 
         print(f'{count}th Generated Regex (via DC): {dc_answer} ({dc_correct}), Time Taken: ', dc_time_taken)
 
@@ -192,7 +201,6 @@ def main():
         if direct_time_taken > MAX_TIME_LIMIT:
             direct_time_taken = MAX_TIME_LIMIT
             timeout = True
-        direct_time_total += direct_time_taken
 
         direct_answer = batch_predict[0]
 
@@ -203,7 +211,11 @@ def main():
 
         if direct_correct:
             direct_correct_count += 1
+        else:
+            direct_time_taken = MAX_TIME_LIMIT
+        direct_time_total += direct_time_taken
 
+        # win rate
         if dc_correct:
             if direct_correct:
                 if direct_time_taken > dc_time_taken:

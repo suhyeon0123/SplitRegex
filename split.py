@@ -144,10 +144,6 @@ def generate_split_regex(splited_pos, splited_neg, split_model=False, count_limi
         if not neg:
             neg.append('')
 
-        if submodel == 'blue_fringe':
-            pos = list(map(lambda x:x.replace('!','z'),pos))
-            neg = list(map(lambda x: x.replace('!', 'z'), neg))
-
 
         sub_pos_set = set(pos)
         sub_neg_set = set(neg)
@@ -171,7 +167,6 @@ def generate_split_regex(splited_pos, splited_neg, split_model=False, count_limi
         if submodel == 'blue_fringe':
             count_limit = 1000000000
             tmp = rpni_synthesis(Examples(pos=sub_pos_set, neg=sub_neg_set), count_limit, start_with_no_concat=split_model, prefix_for_neg_test=prefix, suffix_for_neg_test=None, alphabet_size=alphabet_size)
-            print(tmp)
             tmp = str(tmp)
         elif submodel == 'alpharegex':
             if data_type == 'random':
@@ -195,12 +190,8 @@ def generate_split_regex(splited_pos, splited_neg, split_model=False, count_limi
         elif submodel == 'set2regex':
             pass
         elif submodel == 'regex_generator':
-            print('ss')
-            print(list(sub_neg_set))
             tmp = execute([Ex(list(sub_pos_set), list(sub_neg_set))])
-            print(tmp)
             tmp = str(tmp)
-            print(tmp)
 
         if tmp == 'None':
             return None, 0
@@ -208,4 +199,4 @@ def generate_split_regex(splited_pos, splited_neg, split_model=False, count_limi
 
         regex.append('(' + tmp + ')')
 
-    return ''.join(regex), split_size
+    return ''.join(regex).replace('()',''), split_size
