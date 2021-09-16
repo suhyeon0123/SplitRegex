@@ -8,6 +8,7 @@ from seq2seq.util.seed import seed_all
 from split import split, generate_split_regex
 import signal
 import configparser
+import pathlib
 
 from submodels.SoftConciseNormalForm.examples import Examples
 from submodels.SoftConciseNormalForm.util import *
@@ -93,9 +94,8 @@ def main():
 
 
     for count, tuple in enumerate(data):
-
-        # if count >10:
-        #     continue
+        if count == 1000:
+            break
 
         pos, neg, tmp_regex, valid_pos, valid_neg = tuple
         pos, neg, regex = dataset.batch_preprocess(pos, neg, tmp_regex)
@@ -198,13 +198,10 @@ def main():
 
         if direct_answer is not None and not timeout:
             direct_correct = is_solution(direct_answer, Examples(pos=pos_set, neg=neg_set), membership)
-            # direct_correct = True
-            # direct_correct_count += 1
         else:
             direct_correct = False
 
-
-        if dc_correct:
+        if direct_correct:
             direct_correct_count += 1
 
         if dc_correct:
@@ -241,7 +238,11 @@ def main():
         log_data['DC_total_time'] = dc_time_total
         log_data['Direct_total_time'] = direct_time_total
 
-        with open(opt.log_path + '/' + str(count) + '.pickle', 'wb') as fw:
+
+        log_path = opt.log_path + '/{}'.format(opt.sub_model)
+
+        pathlib.Path(log_path).mkdir(parents=True, exist_ok=True)
+        with open(log_path + '/' + str(count) + '.pickle', 'wb') as fw:
             pickle.dump(log_data, fw)
 
 if __name__ == "__main__":

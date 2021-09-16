@@ -26,10 +26,27 @@ import seq2seq.dataset.dataset as dataset
 #      python examples/sample.py --train_path $TRAIN_PATH --dev_path $DEV_PATH --expt_dir $EXPT_PATH --load_checkpoint $CHECKPOINT_DIR
 
 parser = argparse.ArgumentParser()
+# data setting
 parser.add_argument('--train_path', default='./data/random_train.csv', dest='train_path',
                     help='Path to train data')
 parser.add_argument('--expt_dir', action='store', dest='expt_dir', default='./saved_models',
                     help='Path to experiment directory. If load_checkpoint is True, then path to checkpoint directory has to be provided')
+
+# hyperparameter setting
+parser.add_argument('--gru', action='store_true', dest='gru',
+                    default=False,
+                    help='use gru cell for rnn, otherwise use lstm')
+parser.add_argument('--hidden_size', action='store', dest='hidden_size',
+                    default=128, type=int,
+                    help='hidden size')
+parser.add_argument('--num_layer', action='store', dest='num_layer',
+                    default=1, type=int,
+                    help='number of the layer')
+parser.add_argument('--bidirectional', action='store_true', dest='bidirectional',
+                    default=False,
+                    help='Indicates if training model is bidirectional model or not')
+
+# etc
 parser.add_argument('--load_checkpoint', action='store', dest='load_checkpoint',
                     help='The name of the checkpoint to load, usually an encoded time string')
 parser.add_argument('--resume', action='store_true', dest='resume',
@@ -38,9 +55,6 @@ parser.add_argument('--resume', action='store_true', dest='resume',
 parser.add_argument('--log-level', dest='log_level',
                     default='info',
                     help='Logging level.')
-parser.add_argument('--bidirectional', action='store_true', dest='bidirectional',
-                    default=False,
-                    help='Indicates if training model is bidirectional model or not')
 parser.add_argument('--num_gpu', action='store', dest='num_gpu',
                     default='0',
                     help='Indicates gpu number')
@@ -91,7 +105,10 @@ else:
     output_vocab = train.dataset.vocab
 
 
-    rnn_cell = 'lstm'
+    if opt.gru:
+        rnn_cell = 'gru'
+    else:
+        rnn_cell = 'lstm'
 
 
     # Prepare loss
@@ -104,10 +121,10 @@ else:
     if not opt.resume:
         # Initialize model
 
-        hidden_size = 64
-        n_layers = 1
-
+        hidden_size = opt.hidden_size
+        n_layers = opt.num_layer
         bidirectional = opt.bidirectional
+
         encoder = EncoderRNN(
                 len(input_vocab), dataset.NUM_EXAMPLES, hidden_size,
                 dropout_p=0.25, input_dropout_p=0.25,
@@ -129,10 +146,15 @@ else:
         # Optimizer and learning rate scheduler can be customized by
         # explicitly constructing the objects and pass to the trainer.
 
-        optimizer = Optimizer(torch.optim.Adam(s2smodel.parameters(), lr=0.001), max_grad_norm=0.5)
-        scheduler = ReduceLROnPlateau(optimizer.optimizer, 'min', factor=0.1, verbose=True, patience=10)
+        optimizer = Optimizer(torch.optim.Adam(s2smodel.parameters(), lr=0.005), max_grad_norm=0.5)
+        scheduler = ReduceLROnPlateau(optimizer.optimizer, 'min', factor=0.1, verbose=True, patience=5)
         optimizer.set_scheduler(scheduler)
-    expt_dir = opt.expt_dir + '/rnntype_{}_hidden_{}_layer_{}'.format(rnn_cell, hidden_size, n_layers)
+
+    if opt.bidirectional:
+        bi = '2'
+    else:
+        bi = '1'
+    expt_dir = opt.expt_dir + '/{}__{}__{}__{}'.format(rnn_cell, hidden_size, n_layers, bi)
 
 
     # train
