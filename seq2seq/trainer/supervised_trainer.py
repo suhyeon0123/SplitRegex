@@ -4,9 +4,11 @@ import os
 import random
 import re
 import numpy as np
+import time
 import torch
 from torch import optim
 from collections import Counter
+import shutil
 
 from seq2seq.evaluator import Evaluator
 from seq2seq.loss import NLLLoss
@@ -83,6 +85,7 @@ class SupervisedTrainer(object):
         predict_dict = [dict(Counter(l)) for l in tmp]
 
         # acc of comparing to regex
+        vocab = Vocabulary()
 
         for batch_idx in range(len(regex)):
             set_count = 0
@@ -93,7 +96,6 @@ class SupervisedTrainer(object):
                 src_seq = input_variable[batch_idx, set_idx].tolist()  # list of 10 alphabet
                 predict_seq_dict = predict_dict[
                     batch_idx * 10 + set_idx]  # predict label. ex. {0.0: 2, 1.0: 1, 11.0: 7}
-                vocab = Vocabulary()
 
                 for regex_idx, subregex in enumerate(regex[batch_idx]):
                     if float(regex_idx) in predict_seq_dict:
@@ -121,20 +123,18 @@ class SupervisedTrainer(object):
             batch_size = target_variable.size(0)
             target = target_variable[:, step].to(device='cuda')  # 총 10개의 스텝
             loss.eval_batch(step_output.contiguous().view(batch_size, -1), target)
-            # print(step_output.contiguous().view(batch_size, -1))
-            # #print(step_output.contiguous().view(batch_size, -1))
-            # print(target)
+
 
             if step == 0:
                 match_seq = seqlist[step].view(-1).eq(target).unsqueeze(-1)
             else:
                 match_seq = torch.cat((match_seq, seqlist[step].view(-1).eq(target).unsqueeze(-1)), dim=1)
 
-            non_padding = target.ne(11)
+            non_padding = target.ne(vocab.stoi['<pad>'])
             self.match += seqlist[step].view(-1).eq(target).masked_select(non_padding).sum().item()
             self.total += non_padding.sum().item()
 
-        result = torch.logical_or(match_seq, target_variable.eq(11).to(device='cuda'))
+        result = torch.logical_or(match_seq, target_variable.eq(vocab.stoi['<pad>']).to(device='cuda'))
         self.match_seqnum += [example.all() for example in result].count(True)
 
         tmp = list_chunk([example.all() for example in result], 10)
@@ -156,6 +156,8 @@ class SupervisedTrainer(object):
 
         #device = torch.device('cuda:0') if torch.cuda.is_available() else -1
 
+        start_time = time.time()
+
         steps_per_epoch = len(data)
         total_steps = steps_per_epoch * n_epochs
 
@@ -169,7 +171,7 @@ class SupervisedTrainer(object):
         avg_train_losses = []
         # to track the average validtation loss per epoch as the model trains
         avg_valid_losses = []
-        early_stopping = EarlyStopping(patience=10, verbose=True)
+        early_stopping = EarlyStopping(patience=5, verbose=True)
 
         for epoch in range(start_epoch, n_epochs + 1):
             log.debug("Epoch: %d, Step: %d" % (epoch, step))
@@ -183,7 +185,9 @@ class SupervisedTrainer(object):
             self.total_data_size = 0
 
             model.train(True)
+
             for inputs, outputs, regex in data:
+
                 step += 1
                 step_elapsed += 1
                 self.total_data_size += len(regex)
@@ -214,11 +218,11 @@ class SupervisedTrainer(object):
             train_losses = []
             if step_elapsed == 0 : continue
 
+            print(train_loss)
             epoch_loss_avg = epoch_loss_total / min(steps_per_epoch, step - start_step)
             epoch_loss_total = 0
 
             print(self.total_data_size)
-
 
             accuracyT = self.match / self.total
             acc_seqT = self.match_seqnum / (self.total_data_size * 10)
@@ -231,16 +235,19 @@ class SupervisedTrainer(object):
                 dev_loss, accuracy, acc_seq, acc_seq_re, acc_set, acc_set_re = self.evaluator.evaluate(model, dev_data)
                 avg_valid_losses.append(dev_loss)
                 valid_log = "Dev %s: %.4f, Accuracy: %.4f, Accuracy of seq: %.4f, Accuracy of seq(RE): %.4f, Accuracy of set: %.4f, Accuracy of set(RE): %.4f" % (self.loss.name, dev_loss, accuracy, acc_seq, acc_seq_re, acc_set, acc_set_re)
-                early_stopping(dev_loss, model, self.optimizer, epoch, step, self.input_vocab, self.output_vocab, self.expt_dir)
+                early_stopping(acc_set, model, self.optimizer, epoch, step, self.input_vocab, self.output_vocab, self.expt_dir)
                 self.optimizer.update(dev_loss, epoch)
-                if accuracy > best_acc:
-                    log.info('accuracy increased >> best_accuracy{}, current_accuracy{}'.format(accuracy, best_acc))
+                if acc_set > best_acc:
+                    log.info('acc_set increased >> best_accuracy{}, current_accuracy{}'.format(accuracy, best_acc))
+
+                    if os.path.exists(self.expt_dir +'/best_accuracy'):
+                        shutil.rmtree(self.expt_dir +'/best_accuracy')
                     Checkpoint(model=model,
                                optimizer=self.optimizer,
                                epoch=epoch, step=step,
                                input_vocab=self.input_vocab,
-                               output_vocab=self.output_vocab).save(self.expt_dir +'/best_accuracy')
-                    best_acc = accuracy
+                               output_vocab=self.output_vocab).save(self.expt_dir +'/best_accuracy', acc_seq, acc_set, epoch_loss_avg, dev_loss, start_time-time.time())
+                    best_acc = acc_set
                 model.train(mode=True)
             else:
                 self.optimizer.update(epoch_loss_avg, epoch)

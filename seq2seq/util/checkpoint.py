@@ -35,6 +35,7 @@ class Checkpoint(object):
     MODEL_NAME = 'model.pt'
     INPUT_VOCAB_FILE = 'input_vocab.pt'
     OUTPUT_VOCAB_FILE = 'output_vocab.pt'
+    LOG_FILE = 'log.txt'
 
     def __init__(self, model, optimizer, epoch, step, input_vocab, output_vocab, path=None):
         self.model = model
@@ -51,7 +52,7 @@ class Checkpoint(object):
             raise LookupError("The checkpoint has not been saved.")
         return self._path
 
-    def save(self, experiment_dir):
+    def save(self, experiment_dir, acc_seq, acc_set, epoch_loss_avg, dev_loss, taked_time):
         """
         Saves the current model and related training parameters into a subdirectory of the checkpoint directory.
         The name of the subdirectory is the current local time in Y_M_D_H_M_S format.
@@ -71,7 +72,7 @@ class Checkpoint(object):
         torch.save({'epoch': self.epoch,
                     'step': self.step,
                     'optimizer': self.optimizer
-                   },
+                   },   
                    os.path.join(path, self.TRAINER_STATE_NAME))
         torch.save(self.model, os.path.join(path, self.MODEL_NAME))
 
@@ -79,6 +80,20 @@ class Checkpoint(object):
             dill.dump(self.input_vocab, fout)
         with open(os.path.join(path, self.OUTPUT_VOCAB_FILE), 'wb') as fout:
             dill.dump(self.output_vocab, fout)
+
+        with open(os.path.join(path, self.LOG_FILE), 'w') as f:
+            f.write('epoch : ' + str(self.epoch))
+            f.write('\n')
+            f.write('acc_seq : ' + str(acc_seq))
+            f.write('\n')
+            f.write('acc_set : ' + str(acc_set))
+            f.write('\n')
+            f.write('train_loss : ' + str(epoch_loss_avg))
+            f.write('\n')
+            f.write('valid_loss : ' + str(dev_loss))
+            f.write('\n')
+            f.write('time : ' + str(taked_time))
+                        
 
         return path
 
@@ -92,8 +107,8 @@ class Checkpoint(object):
             checkpoint (Checkpoint): checkpoint object with fields copied from those stored on disk
         """
         if torch.cuda.is_available():
-            resume_checkpoint = torch.load(os.path.join(path, cls.TRAINER_STATE_NAME))
-            model = torch.load(os.path.join(path, cls.MODEL_NAME))
+            resume_checkpoint = torch.load(os.path.join(path, cls.TRAINER_STATE_NAME), map_location='cuda:1')
+            model = torch.load(os.path.join(path, cls.MODEL_NAME), map_location='cuda:1')
         else:
             resume_checkpoint = torch.load(os.path.join(path, cls.TRAINER_STATE_NAME), map_location=lambda storage, loc: storage)
             model = torch.load(os.path.join(path, cls.MODEL_NAME), map_location=lambda storage, loc: storage)
@@ -123,6 +138,6 @@ class Checkpoint(object):
              str: path to the last saved checkpoint's subdirectory
         """
 
-        checkpoints_path = os.path.join(experiment_path, cls.CHECKPOINT_DIR_NAME)
+        checkpoints_path = os.path.join(experiment_path, 'best_accuracy', cls.CHECKPOINT_DIR_NAME)
         all_times = sorted(os.listdir(checkpoints_path), reverse=True)
         return os.path.join(checkpoints_path, all_times[0])

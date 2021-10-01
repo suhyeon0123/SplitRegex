@@ -28,12 +28,12 @@ class EarlyStopping:
 
     def __call__(self, val_loss, model, optimizer, epoch, step, input_vocab, output_vocab, expt_dir):
 
-        score = -val_loss
+        score = val_loss
 
         if self.best_score is None:
             self.best_score = score
-            Checkpoint(model=model, optimizer=optimizer, epoch=epoch, step=step,
-                       input_vocab=input_vocab, output_vocab=output_vocab).save(expt_dir +'/best_model')
+            # Checkpoint(model=model, optimizer=optimizer, epoch=epoch, step=step,
+            #            input_vocab=input_vocab, output_vocab=output_vocab).save(expt_dir +'/best_model')
         elif score < self.best_score + self.delta:
             self.counter += 1
             print(f'EarlyStopping counter: {self.counter} out of {self.patience}')
@@ -41,11 +41,11 @@ class EarlyStopping:
                 self.early_stop = True
         else:
             self.best_score = score
-            self.val_loss_min = val_loss
-            if self.verbose:
-                print(f'Validation loss decreased ({self.val_loss_min:.6f} --> {val_loss:.6f}).  Saving model ...')
+            # self.val_loss_min = val_loss
+            # if self.verbose:
+            #     print(f'Validation loss decreased ({self.val_loss_min:.6f} --> {val_loss:.6f}).  Saving model ...')
             
-            Checkpoint(model=model, optimizer=optimizer, epoch=epoch, step=step,
-                       input_vocab=input_vocab, output_vocab=output_vocab).save(expt_dir +'/best_model')
+            # Checkpoint(model=model, optimizer=optimizer, epoch=epoch, step=step,
+            #            input_vocab=input_vocab, output_vocab=output_vocab).save(expt_dir +'/best_model')
             self.counter = 0
 
