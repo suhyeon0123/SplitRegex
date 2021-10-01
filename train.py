@@ -29,6 +29,8 @@ parser = argparse.ArgumentParser()
 # data setting
 parser.add_argument('--train_path', default='./data/random_train.csv', dest='train_path',
                     help='Path to train data')
+parser.add_argument('--valid_path', default='./data/random_train.csv', dest='valid_path',
+                    help='Path to valid data')
 parser.add_argument('--expt_dir', action='store', dest='expt_dir', default='./saved_models',
                     help='Path to experiment directory. If load_checkpoint is True, then path to checkpoint directory has to be provided')
 
@@ -45,6 +47,9 @@ parser.add_argument('--num_layer', action='store', dest='num_layer',
 parser.add_argument('--bidirectional', action='store_true', dest='bidirectional',
                     default=False,
                     help='Indicates if training model is bidirectional model or not')
+parser.add_argument('--lr', action='store', dest='lr',
+                    default=0.001, type=float,
+                    help='learning rate')
 
 # etc
 parser.add_argument('--load_checkpoint', action='store', dest='load_checkpoint',
@@ -75,7 +80,7 @@ output_vocab = None
 
 if opt.load_checkpoint is not None:
     logging.info("loading checkpoint from {}".format(os.path.join(opt.expt_dir, Checkpoint.CHECKPOINT_DIR_NAME, opt.load_checkpoint)))
-    checkpoint_path = os.path.join(opt.expt_dir, Checkpoint.CHECKPOINT_DIR_NAME, opt.load_checkpoint)
+    checkpoint_path = os.path.join(opt.expt_dir, 'gru__256__2__2', 'best_accuracy', Checkpoint.CHECKPOINT_DIR_NAME, opt.load_checkpoint)
     checkpoint = Checkpoint.load(checkpoint_path)
     s2smodel = checkpoint.model
     input_vocab = checkpoint.input_vocab
@@ -90,7 +95,8 @@ else:
 
     # Prepare dataset
     train_path = opt.train_path
-
+    valid_path = opt.valid_path
+    
     batch_size = 1024
 
     if 'random' in opt.train_path:
@@ -99,7 +105,7 @@ else:
         MAX_SEQUENCE_LENGTH = 15
 
     train = dataset.get_loader(train_path, batch_size=batch_size, object='train', shuffle=True, max_len=MAX_SEQUENCE_LENGTH)
-    dev = dataset.get_loader(train_path, batch_size=batch_size, object='valid', shuffle=False, max_len=MAX_SEQUENCE_LENGTH)
+    dev = dataset.get_loader(valid_path, batch_size=batch_size, object='valid', shuffle=False, max_len=MAX_SEQUENCE_LENGTH)
 
     input_vocab = train.dataset.vocab
     output_vocab = train.dataset.vocab
@@ -118,12 +124,13 @@ else:
 
     s2smodel = None
     optimizer = None
+
+    hidden_size = opt.hidden_size
+    n_layers = opt.num_layer
+    bidirectional = opt.bidirectional
+
     if not opt.resume:
         # Initialize model
-
-        hidden_size = opt.hidden_size
-        n_layers = opt.num_layer
-        bidirectional = opt.bidirectional
 
         encoder = EncoderRNN(
                 len(input_vocab), dataset.NUM_EXAMPLES, hidden_size,
@@ -146,7 +153,7 @@ else:
         # Optimizer and learning rate scheduler can be customized by
         # explicitly constructing the objects and pass to the trainer.
 
-        optimizer = Optimizer(torch.optim.Adam(s2smodel.parameters(), lr=0.005), max_grad_norm=0.5)
+        optimizer = Optimizer(torch.optim.Adam(s2smodel.parameters(), lr=opt.lr), max_grad_norm=0.5)
         scheduler = ReduceLROnPlateau(optimizer.optimizer, 'min', factor=0.1, verbose=True, patience=5)
         optimizer.set_scheduler(scheduler)
 
@@ -164,7 +171,7 @@ else:
 
     start_time = time.time()
     s2smodel = t.train(s2smodel, train,
-                      num_epochs=50, dev_data=dev,
+                      num_epochs=200, dev_data=dev,
                       optimizer=optimizer,
                       teacher_forcing_ratio=0.5,
                       resume=opt.resume)
