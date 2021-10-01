@@ -63,6 +63,12 @@ parser.add_argument('--log-level', dest='log_level',
 parser.add_argument('--num_gpu', action='store', dest='num_gpu',
                     default='0',
                     help='Indicates gpu number')
+parser.add_argument('--dropout_en', action='store', dest='dropout_en',
+                    default=0.25, type=float,
+                    help='hyperpamameter of dropout of encoder')
+parser.add_argument('--dropout_de', action='store', dest='dropout_de',
+                    default=0.2, type=float,
+                    help='hyperpamameter of dropout of decoder')
 
 
 parser.add_argument('--use_attn', action='store_true', dest='use_attn', default=True, help='use attention or not')
@@ -134,12 +140,12 @@ else:
 
         encoder = EncoderRNN(
                 len(input_vocab), dataset.NUM_EXAMPLES, hidden_size,
-                dropout_p=0.25, input_dropout_p=0.25,
+                dropout_p=opt.dropout_en, input_dropout_p=0.25,
                 bidirectional=bidirectional, n_layers=n_layers, rnn_cell=rnn_cell,
                 variable_lengths=True)
         decoder = DecoderRNN(
                 len(input_vocab), dataset.NUM_EXAMPLES, hidden_size * (2 if bidirectional else 1),
-                dropout_p=0.2, input_dropout_p=0.25, use_attention=True,
+                dropout_p=opt.dropout_de, input_dropout_p=0.25, use_attention=True,
                 bidirectional=bidirectional, rnn_cell=rnn_cell, n_layers=n_layers, attn_mode=opt.attn_mode)
 
         s2smodel = Seq2seq(encoder, decoder)

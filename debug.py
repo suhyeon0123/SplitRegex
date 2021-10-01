@@ -3,11 +3,19 @@ import os
 import re2 as re
 from FAdo.fa import *
 from FAdo.cfg import *
+import argparse
 
-path = './log_data/random10/blue_fringe'
-file_list = sorted(os.listdir(path), key=lambda x: re.sub('\D','',x))
-print(file_list)
+parser = argparse.ArgumentParser()
+parser.add_argument('--path', dest='path', help='Path to experiment result directory.')
+opt = parser.parse_args()
 
+
+path = opt.path
+# path = './log_data/random42/blue_fringe'
+file_list = sorted(os.listdir(path), key=lambda x: int(re.sub('\D*','',x)))
+
+print(path)
+print('length of data:', str(len(file_list)))
 
 def membership(regex, string):
     return bool(re.fullmatch(regex, string))
@@ -17,6 +25,8 @@ def membership2(regex, string):
 
 if 'blue_fringe' in path :
     membership = membership2
+
+
 
 with open(path + '/' + file_list[-1], 'rb') as fr:
     log_data = pickle.load(fr)
@@ -36,9 +46,14 @@ with open(path + '/' + file_list[-1], 'rb') as fr:
     print(log_data['neg_validation'])
     print('-' * 50)
 
+    DC_success_rate = log_data["DC_success_ratio"]
+    Direct_success_rate = log_data["Direct_success_ratio"]
+
 
 DC_score = 0
 Direct_score = 0
+
+
 for file_name in file_list:
     with open(path + '/' + file_name, 'rb') as fr:
         log_data = pickle.load(fr)
@@ -59,10 +74,14 @@ for file_name in file_list:
             for string in log_data['pos_validation']:
                 if membership(log_data['Direct_answer'], string):
                     Direct_score += 1
+                    
 
             for string in log_data['neg_validation']:
                 if not membership(log_data['Direct_answer'], string):
                     Direct_score += 1
-print(DC_score)
-print(Direct_score)
 
+print('DC success ratio : ', DC_success_rate)          
+print('Direct success ratio : ', Direct_success_rate)          
+print('DC score : ', str(DC_score/20/len(file_list)))
+print('Direct score : ', str(Direct_score/20/len(file_list)))
+print()
