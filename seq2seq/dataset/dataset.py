@@ -27,7 +27,7 @@ class Vocabulary:
     def get_idx(self, text):
         tmp = self.stoi.get(text)
         if tmp is None:
-            tmp = 62
+            tmp = self.stoi.get('!')
         return tmp
 
     def text2idx(self, text):
@@ -36,37 +36,31 @@ class Vocabulary:
 
 NUM_EXAMPLES = 10
 
+POS_IDX = 0
+VALID_POS_IDX = 10
+NEG_IDX = 20
+VALID_NEG_IDX = 30
+TAG_IDX = 40
+VALID_TAG_IDX = 50
+REGEX_IDX = 60
 
 class CustomDataset(Dataset):
-    POS_COL = 0
-    NEG_COL = POS_COL + NUM_EXAMPLES
-    LABEL_COL = NEG_COL + NUM_EXAMPLES
-    REGEX_COL = LABEL_COL + NUM_EXAMPLES
 
     def __init__(self, file_path, object='train', max_len=10):
-        self.valid = False
-        self.df = pd.read_csv(file_path, header=None, dtype=str, na_filter=False)
+        if object == 'test':
+            self.test = True
+        else:
+            self.test = False
 
+        self.df = pd.read_csv(file_path, header=None, dtype=str, na_filter=False)
         self.MAX_SEQUENCE_LENGTH = max_len
 
-        if object == 'train':
-            #self.df = self.df.head(int(len(self.df) / 9 * 8))
-            self.input = self.df[self.df.columns[0:10]]
-            self.output = self.df[self.df.columns[40:50]]
-            self.regex = self.df[self.df.columns[60]]
-        elif object == 'valid':
-            #self.df = self.df.head(-int(len(self.df) / 9 * 8))
-            self.input = self.df[self.df.columns[0:10]]
-            self.output = self.df[self.df.columns[40:50]]
-            self.regex = self.df[self.df.columns[60]]
-        else:
-            self.input = self.df[self.df.columns[0:10]]
-            self.valid_input = self.df[self.df.columns[10:20]]
-            self.output = self.df[self.df.columns[20:30]]
-            self.valid_output = self.df[self.df.columns[30:40]]
-            self.regex = self.df[self.df.columns[60]]
-            self.valid = True
-
+        self.pos = self.df[self.df.columns[POS_IDX:POS_IDX+NUM_EXAMPLES]]
+        self.valid_pos = self.df[self.df.columns[VALID_POS_IDX:VALID_POS_IDX+NUM_EXAMPLES]]
+        self.neg = self.df[self.df.columns[NEG_IDX:NEG_IDX+NUM_EXAMPLES]]
+        self.valid_neg = self.df[self.df.columns[VALID_NEG_IDX:VALID_NEG_IDX+NUM_EXAMPLES]]
+        self.tag = self.df[self.df.columns[TAG_IDX:TAG_IDX+NUM_EXAMPLES]]
+        self.regex = self.df[self.df.columns[REGEX_IDX]]
 
         # Initialize vocabulary and build vocab
         self.vocab = Vocabulary()
@@ -86,15 +80,15 @@ class CustomDataset(Dataset):
         return processed_list
 
     def __getitem__(self, idx):
-        if self.valid:
-            return (self._translate_sequences(self.input.iloc[idx]),
-                    self._translate_sequences(self.output.iloc[idx]),
+        if self.test:
+            return (self._translate_sequences(self.pos.iloc[idx]),
+                    self._translate_sequences(self.neg.iloc[idx]),
                     self.regex.iloc[idx],
-                    self._translate_sequences(self.valid_input.iloc[idx]),
-                    self._translate_sequences(self.valid_output.iloc[idx]))
+                    self._translate_sequences(self.valid_pos.iloc[idx]),
+                    self._translate_sequences(self.valid_neg.iloc[idx]))
         else:
-            return (self._translate_sequences(self.input.iloc[idx]),
-                    self._translate_sequences(self.output.iloc[idx]),
+            return (self._translate_sequences(self.pos.iloc[idx]),
+                    self._translate_sequences(self.tag.iloc[idx]),
                     self.regex.iloc[idx])
 
 
