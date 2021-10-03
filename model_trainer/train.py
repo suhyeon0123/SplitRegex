@@ -69,6 +69,15 @@ parser.add_argument('--dropout_en', action='store', dest='dropout_en',
 parser.add_argument('--dropout_de', action='store', dest='dropout_de',
                     default=0.2, type=float,
                     help='hyperpamameter of dropout of decoder')
+parser.add_argument('--weight_decay', action='store', dest='weight_decay',
+                    default=0.0, type=float,
+                    help='hyperpamameter of l2 regularization weight_decay')
+parser.add_argument('--batch_size', action='store', dest='batch_size',
+                    default=1024, type=int,
+                    help='hyperpamameter of batch size')
+
+
+
 
 
 parser.add_argument('--use_attn', action='store_true', dest='use_attn', default=True, help='use attention or not')
@@ -103,7 +112,7 @@ else:
     train_path = opt.train_path
     valid_path = opt.valid_path
     
-    batch_size = 1024
+    batch_size = opt.batch_size
 
     if 'random' in opt.train_path:
         MAX_SEQUENCE_LENGTH = 10
@@ -159,7 +168,7 @@ else:
         # Optimizer and learning rate scheduler can be customized by
         # explicitly constructing the objects and pass to the trainer.
 
-        optimizer = Optimizer(torch.optim.Adam(s2smodel.parameters(), lr=opt.lr), max_grad_norm=0.5)
+        optimizer = Optimizer(torch.optim.Adam(s2smodel.parameters(), lr=opt.lr, weight_decay=opt.weight_decay), max_grad_norm=0.5)
         scheduler = ReduceLROnPlateau(optimizer.optimizer, 'min', factor=0.1, verbose=True, patience=5)
         optimizer.set_scheduler(scheduler)
 
