@@ -381,7 +381,7 @@ def main():
     xeger.seed(int(config['seed']['practical_data']))
 
 
-    data_pathes = ['submodels/automatark/regex/snort-clean.re', 'submodels/automatark/regex/regexlib-clean.re', 'practical_data/practical_regexes.json']
+    data_pathes = ['submodels/automatark/regex/snort-clean.re', 'submodels/automatark/regex/regexlib-clean.re', 'submodels/practical_data/practical_regexes.json']
 
     train_data = []
 
