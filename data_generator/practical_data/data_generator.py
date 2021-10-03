@@ -1,7 +1,5 @@
 from xeger import Xeger
-import signal
-import time
-
+import pathlib
 import os, sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'submodels', 'SoftConciseNormalForm')))
 import configparser
@@ -10,28 +8,26 @@ import random
 
 dequantifier = '(\\\.|\\.|\\\\x..)'
 dequantifier2 = '(\(.*?\)|\[[^]]*\])'
+dequantifier5 = '\\\\d|\\\\D\\\\|\\\\w|\\\\W|\\\\s|\\\\S|(?<!\\\\)\.'
 
 quantifier = '(\*|\+|\?|\{\d+\,\d*\}|\{\d+\})\??'
 
-dequantifier5 = '\\\\d|\\\\D\\\\|\\\\w|\\\\W|\\\\s|\\\\S|(?<!\\\\)\.'
 
 MAX_SEQUENCE_LENGTH = 15
 EXAMPLE_NUM = 20
+AUGMENTATION_RATIO = 10
+
+# # Description
+# Preprocess the practical data from submodule.(snort, regexlib, Polyglot Corpus) 
+# Appear in data/practical/org
+# Each pos, neg strings have a maximum length of 'MAX_SEQUENCE_LENGTH'.
+# Each data have 'EXAMPLE_NUM' of pos, neg strings.
+# Original datasets in submodule are multiply by 'AUGMENTATION_RATIO'
 
 
-# Timeout handler
-class TimeOutException(Exception):
+
+class PredictableException(Exception):
     pass
-
-
-def alarm_handler(signum, frame):
-    raise TimeOutException()
-
-
-def loop_for_n_seconds(n):
-    for sec in range(n):
-        time.sleep(1)
-
 
 
 
@@ -49,13 +45,13 @@ def make_pos(regex, xeger):
     pos = list(filter(None, list(pos)))
 
     if len(pos) != EXAMPLE_NUM:
-        raise Exception('can not make EXAMPLE_NUM of examples')
+        raise PredictableException('can not make EXAMPLE_NUM of examples')
 
     return pos
 
 
 def make_label(regex, pos):
-    # Tag 전처리
+    # Tag preprocessing
     str_list = []
     bracket = 0
     tagIndex = 1
@@ -90,7 +86,7 @@ def make_label(regex, pos):
 
     SIGMA_STAR = '0'
 
-    # templetes 생성
+    # generate templetes
     templete = []
 
     for example in pos:
@@ -132,7 +128,7 @@ def make_label(regex, pos):
 
     for idx, pp in enumerate(pos):
         if len(pp) != len(templete[idx]):
-            raise Exception('lable_length error')
+            raise PredictableException('lable_length error')
     return templete
 
 
@@ -165,7 +161,7 @@ def make_neg(regex, pos):
             break
 
     if not len(neg) == EXAMPLE_NUM:
-        raise Exception('can not make EXAMPLE_NUM of examples')
+        raise PredictableException('can not make EXAMPLE_NUM of examples')
 
     return neg
 
@@ -198,11 +194,11 @@ def remove_redundant_quantifier(regex):
 def preprocess_parenthesis_flag(regex):
     # unicode
     if re.search(r'\x5cu', regex) is not None:
-        raise Exception('There is a unicode problem')
+        raise PredictableException('There is a unicode problem')
 
     # lookahead
     if re.search(r'\(\?=|\(\?<=|\(\?!|\(\?<!', regex) is not None:
-        raise Exception('There is a lookahead problem')
+        raise PredictableException('There is a lookahead problem')
 
     # non capturing
     regex = re.sub(r'\(\?:', '(', regex)
@@ -215,8 +211,6 @@ def preprocess_parenthesis_flag(regex):
     # non-backtracking group
     regex = re.sub(r'\(\?>', '(', regex)
 
-    #regex = re.sub(r'\[\[\:space\:\]\]', r'\x5cs', regex)
-    #regex = re.sub(r'\[\[\:black\:\]\]', r'\x5cs', regex)
 
     regex = re.sub(r'\\b', r'', regex)
     regex = re.sub(r'\\B', r'', regex)
@@ -252,7 +246,8 @@ def preprocess_replace(regex):
 
     regex = re.sub(r'\\x5(c|C)', r'!', regex)
 
-    regex = re.sub('(?<!pad)[^\w](?!pad)', r'!', regex)
+    regex = re.sub('[^\w]', r'!', regex)
+
 
     return regex
 
@@ -324,7 +319,7 @@ def replace_constant_string(regex):
                 if len(mapping_table) < 26:
                     ch = chr(len(mapping_table) + 65)
                 else:
-                    raise Exception('too many constant string')
+                    raise PredictableException('too many constant string')
                 mapping_table[ch] = subregex
             regex = re.sub(repr(subregex), ch, regex, 1)
             subregex_list[idx] = ch
@@ -348,7 +343,7 @@ def replace_constant_string(regex):
             if len(mapping_table) < 26:
                 ch = chr(len(mapping_table) + 65)
             else:
-                raise Exception('too many constant string')
+                raise PredictableException('too many constant string')
             mapping_table[ch] = tmp
 
         regex = re.sub(string_pattern, ch, regex, 1)
@@ -367,7 +362,7 @@ def replace_constant_string(regex):
             if len(mapping_table) < 26:
                 ch = chr(len(mapping_table) + 65)
             else:
-                raise Exception('too many constant string')
+                raise PredictableException('too many constant string')
 
             mapping_table[ch] = tmp
 
@@ -387,26 +382,23 @@ def main():
 
 
     data_pathes = ['submodels/automatark/regex/snort-clean.re', 'submodels/automatark/regex/regexlib-clean.re', 'practical_data/practical_regexes.json']
-    train_file = open('data/practical_data/train.csv', 'w')
-    test_snort_file = open('data/practical_data/test_snort.csv', 'w')
-    test_regexlib_file = open('data/practical_data/test_regexlib.csv', 'w')
-    test_practical_file = open('data/practical_data/test_practicalregex.csv', 'w')
 
+    train_data = []
 
     for data_idx, data_path in enumerate(data_pathes):
 
         regex_file = open(data_path, 'r')
         data_name = re.search('[^/]*?(?=\.r|\.j)', data_path).group()
+        pathlib.Path('data/practical_data/org').mkdir(parents=True, exist_ok=True)
+        save_file = open('data/practical_data/org/' + data_name + '2.csv', 'w')
+
         print('Preprocessing ' + data_name + '...')
 
         regex_list = [x.strip() for x in regex_file.readlines()]
-        random.shuffle(regex_list)
 
         error_idx = []
-        max_len = 0
         for idx, regex in enumerate(regex_list):
 
-            raw = regex
             if data_name =='regexlib-clean':
                 regex = re.sub(r'\\\\', '\x5c', regex)
             if data_name =='practical_regexes':
@@ -415,9 +407,6 @@ def main():
                 regex = re.sub(r'\\\\', '\x5c', regex)
                 regex = re.sub(r'\x00', '', regex)
 
-
-            signal.signal(signal.SIGALRM, alarm_handler)
-            signal.alarm(5)
 
             try:
                 # preprocess
@@ -433,53 +422,57 @@ def main():
                 regex, mapping_table = replace_constant_string(regex)
 
                 if re.search(r'(?<!\x5c)\[[^\[\]]*[()][^\[\]]*\](?!\x5c)',regex) is not None:
-                    raise Exception('overlapped backet')
+                    raise PredictableException('overlapped backet')
 
-                # generate pos, neg, label
-                pos = make_pos(regex, xeger)
-                neg = make_neg(regex, pos)
-                label = make_label(regex, pos)
 
             except Exception as e:
-                #print(e)
+                # if not isinstance(e, PredictableException) and not isinstance(e, re.error):
                 error_idx.append(idx)
                 continue
 
-            signal.alarm(0)
-
-            # replace unrecognized symbol
-            pos = list(map(lambda y: preprocess_replace(repr(y)[1:-1]), pos))
-            neg = list(map(lambda y: preprocess_replace(repr(y)[1:-1]), neg))
 
 
-            total = pos + neg + label
+            try:
+                for _ in range(AUGMENTATION_RATIO):
 
-
-            max_len = max(max_len, len(raw))
-
-            res = ''
-            for ele in total:
-                res = res + str(ele) + ', '
-            res = res + str(regex)
+                    # generate pos, neg, label  
+                    pos = make_pos(regex, xeger)
+                    neg = make_neg(regex, pos)
+                    label = make_label(regex, pos)
 
 
 
+                    # replace unrecognized symbol
+                    pos = list(map(lambda y: preprocess_replace(repr(y)[1:-1]), pos))
+                    neg = list(map(lambda y: preprocess_replace(repr(y)[1:-1]), neg))
 
-            # make train & test dataset
-            if idx < int(len(regex_list)*0.9):
-                train_file.write(res+'\n')
-            else:
-                if data_idx == 0:
-                    test_snort_file.write(res+'\n')
-                elif data_idx == 1:
-                    test_regexlib_file.write(res + '\n')
-                else:
-                    test_practical_file.write(res + '\n')
 
-            print(idx)
+                    total = pos + neg + label
+
+
+
+                    res = ''
+                    for ele in total:
+                        res = res + str(ele) + ', '
+                    res = res + str(regex)
+
+                    save_file.write(res+'\n')
+
+            except Exception as e:
+                # if not isinstance(e, PredictableException) and not isinstance(e, re.error):
+                error_idx.append(idx)
+                continue
+
+
+
+            if idx % 1000 == 0:
+                print(idx)
+
         print('error count :', len(error_idx))
         print('total len:' ,len(regex_list))
 
-        print('max :', max_len)
+    
+
+
 if __name__ == '__main__':
     main()

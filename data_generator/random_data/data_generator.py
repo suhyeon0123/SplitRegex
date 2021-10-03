@@ -20,12 +20,14 @@ opt = parser.parse_args()
 
 MAX_SEQUENCE_LENGTH = 10
 EXAMPLE_NUM = 20
+TRAIN_SEED = 10000
+TEST_SEED = 20000
 max_depth = 4
 
 
 def generate_rand_regex(alphabet_size=5):
     regex = REGEX()
-    for count in range(max_depth):
+    for _ in range(max_depth):
         regex.make_child(alphabet_size=alphabet_size)
     regex.spreadRand(alphabet_size=alphabet_size)
     return regex
@@ -131,7 +133,10 @@ def labeling(regex, pos, subregex_list):
             if targetregex == str(KleenStar(Or(*[Character(str(x)) for x in range(opt.alphabet_size)]))):
                 label = SIGMA_STAR
             else:
-                label = str(label_num)
+                if label_num < 10:
+                    label = str(label_num)
+                else:
+                    label = chr(55+label_num)
             label_num += 1
 
             count = len(targetstring)
@@ -144,7 +149,6 @@ def labeling(regex, pos, subregex_list):
 
 def generate_data():
 
-    # get seed
     config = configparser.ConfigParser()
     config.read('config.ini', encoding='utf-8')
     random.seed(int(config['seed']['random_data']) + int(opt.alphabet_size))
@@ -155,8 +159,12 @@ def generate_data():
     pathlib.Path('./data/random_data/size_' + str(opt.alphabet_size)).mkdir(parents=True, exist_ok=True)
     if opt.is_train:
         save_file = open('./data/random_data/size_' + str(opt.alphabet_size) + '/train.csv', 'w+')
+        random.seed(int(config['seed']['random_data']) + int(opt.alphabet_size) + TRAIN_SEED) 
+        xeger.seed(int(config['seed']['random_data']) + int(opt.alphabet_size) + TRAIN_SEED)
     else:
         save_file = open('./data/random_data/size_' + str(opt.alphabet_size) + '/test.csv', 'w+')
+        random.seed(int(config['seed']['random_data']) + int(opt.alphabet_size) + TEST_SEED)
+        xeger.seed(int(config['seed']['random_data']) + int(opt.alphabet_size) + TEST_SEED)
 
     data_num = 0
     max_len = 0
