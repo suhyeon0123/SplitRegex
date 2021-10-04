@@ -107,8 +107,8 @@ class Checkpoint(object):
             checkpoint (Checkpoint): checkpoint object with fields copied from those stored on disk
         """
         if torch.cuda.is_available():
-            resume_checkpoint = torch.load(os.path.join(path, cls.TRAINER_STATE_NAME), map_location='cuda:1')
-            model = torch.load(os.path.join(path, cls.MODEL_NAME), map_location='cuda:1')
+            resume_checkpoint = torch.load(os.path.join(path, cls.TRAINER_STATE_NAME), map_location='cuda:0')
+            model = torch.load(os.path.join(path, cls.MODEL_NAME), map_location='cuda:0')
         else:
             resume_checkpoint = torch.load(os.path.join(path, cls.TRAINER_STATE_NAME), map_location=lambda storage, loc: storage)
             model = torch.load(os.path.join(path, cls.MODEL_NAME), map_location=lambda storage, loc: storage)

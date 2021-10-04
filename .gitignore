@@ -93,7 +93,7 @@ log_data/*
 data/*
 
 # saved_model
-saved_model/*
+saved_models/*
 
 
 .vscode/settings.json

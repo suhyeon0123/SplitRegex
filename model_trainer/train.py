@@ -75,6 +75,8 @@ parser.add_argument('--weight_decay', action='store', dest='weight_decay',
 parser.add_argument('--batch_size', action='store', dest='batch_size',
                     default=1024, type=int,
                     help='hyperpamameter of batch size')
+parser.add_argument('--add_seed', action='store', dest='seed',
+                    help='seed', type=int, default=1)
 
 
 
@@ -103,7 +105,7 @@ if opt.load_checkpoint is not None:
 else:
     config = configparser.ConfigParser()
     config.read('config.ini', encoding='utf-8')
-    seed_all(int(config['seed']['train']))
+    seed_all(int(config['seed']['train'])+opt.seed)
 
     device = torch.device(f'cuda:{int(opt.num_gpu)}' if torch.cuda.is_available() else 'cpu')
     torch.cuda.set_device(device)
