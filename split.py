@@ -254,7 +254,7 @@ def generate_regex_with_split_rg(sub_id, sub_pos_set, sub_neg_set, return_dict):
     return_dict[sub_id] = tmp
 
 def generate_split_regex_in_parallel(splited_pos, splited_neg, split_model=False, count_limit=1000, alphabet_size=5,
-                         data_type='random', sigma_lst=None, submodel='alpharegex'):
+                         data_type='random', sigma_lst=None, submodel='alpharegex', return_dict=None):
     regex = []
 
     split_size = len(splited_pos[0])
@@ -289,8 +289,6 @@ def generate_split_regex_in_parallel(splited_pos, splited_neg, split_model=False
 
     
     procs = []
-    manager = Manager()
-    return_dict = manager.dict()
 
     if submodel == 'regex_generator':
         for sub_id in range(split_size): 

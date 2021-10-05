@@ -5,7 +5,7 @@ import seq2seq.dataset.dataset as dataset
 from model_trainer.seq2seq.dataset.dataset import Vocabulary
 from model_trainer.seq2seq.util.checkpoint import Checkpoint
 from model_trainer.seq2seq.util.seed import seed_all
-from split import split, generate_split_regex
+from split import split, generate_split_regex, generate_split_regex_in_parallel
 import signal
 import configparser
 import pathlib
@@ -13,6 +13,9 @@ import torch
 
 from submodels.SoftConciseNormalForm.examples import Examples
 from submodels.SoftConciseNormalForm.util import *
+
+from multiprocessing import Process, Manager
+
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--data_path', default='./data/practical_data/test_practicalregex.csv', dest='data_path',
@@ -28,7 +31,7 @@ parser.add_argument('--sub_model', action='store', dest='sub_model', default='al
 parser.add_argument('--data_type', action='store', dest='data_type', default='practical',
                     help='data type: random or practical')
 parser.add_argument('--alphabet_size', action='store', dest='alphabet_size',
-                    help='define the alphabet size of the regex', type=int, default=8)
+                    help='define the alphabet size of the regex', type=int, default=10)
 
 
 class TimeOutException(Exception):
@@ -65,7 +68,7 @@ def main():
     seed_all(int(config['seed']['main']))
 
     if 'random' in opt.data_type:
-        MAX_SEQUENCE_LENGTH = 10
+        MAX_SEQUENCE_LENGTH = 15
     else:
         MAX_SEQUENCE_LENGTH = 15
 
@@ -102,6 +105,10 @@ def main():
     dc_win = 0
     direct_win = 0
 
+    
+    manager = Manager()
+    return_dict = manager.dict()
+
     for count, tuple in enumerate(data):
         if count == 1000:
             break
@@ -137,7 +144,6 @@ def main():
         signal.alarm(MAX_TIME_LIMIT)
 
 
-
         try:
             _, _, other = pos_split_model(pos, None, regex)
             splited_pos, sigma_lst = split(pos, other['sequence'])  # batch, set, seq
@@ -147,7 +153,7 @@ def main():
 
             batch_predict = []
             for batch_idx in range(len(pos)):
-                result, split_size = generate_split_regex(splited_pos[batch_idx], splited_neg[batch_idx], True,  COUNT_LIMIT, alphabet_size=opt.alphabet_size, data_type=opt.data_type, sigma_lst=sigma_lst, submodel=opt.sub_model)
+                result, split_size = generate_split_regex_in_parallel(splited_pos[batch_idx], splited_neg[batch_idx], True,  COUNT_LIMIT, alphabet_size=opt.alphabet_size, data_type=opt.data_type, sigma_lst=sigma_lst, submodel=opt.sub_model, return_dict=return_dict)
                 batch_predict.append(result)
         except Exception as e:
             print('time limit')
