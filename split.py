@@ -149,7 +149,8 @@ def generate_split_regex(splited_pos, splited_neg, split_model=False, count_limi
         sub_neg_set = set(neg)
 
 
-        if sub_id + 1 == split_size:
+        #if sub_id + 1 == split_size:
+        if sub_id != 0:
             prefix = ''.join(regex)
         else:
             sub_neg_set -= sub_pos_set
@@ -190,8 +191,10 @@ def generate_split_regex(splited_pos, splited_neg, split_model=False, count_limi
         elif submodel == 'set2regex':
             pass
         elif submodel == 'regex_generator':
-            tmp = execute([Ex(list(sub_pos_set), list(sub_neg_set))])
-            tmp = str(tmp)
+            if sigma_lst is not None and sub_id + 1 != split_size and any(list(map(lambda x: x[sub_id], sigma_lst))):
+                tmp = get_sigma(Examples(pos=sub_pos_set, neg=sub_neg_set))
+            else:
+                tmp = execute([Ex(list(sub_pos_set), list(sub_neg_set))]).replace('++', '+')
 
         if tmp == 'None':
             return None, 0

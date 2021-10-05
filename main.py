@@ -2,9 +2,9 @@ import argparse
 import time
 import pickle
 import seq2seq.dataset.dataset as dataset
-from seq2seq.dataset.dataset import Vocabulary
-from seq2seq.util.checkpoint import Checkpoint
-from seq2seq.util.seed import seed_all
+from model_trainer.seq2seq.dataset.dataset import Vocabulary
+from model_trainer.seq2seq.util.checkpoint import Checkpoint
+from model_trainer.seq2seq.util.seed import seed_all
 from split import split, generate_split_regex
 import signal
 import configparser
@@ -38,6 +38,9 @@ def alarm_handler(signum, frame):
     raise TimeOutException()
 
 
+def membership(regex, string):
+    return bool(re.fullmatch(regex, string))
+
 def membership2(regex, string):
     return reex.str2regexp(regex).evalWordP(string)
 
@@ -66,8 +69,12 @@ def main():
     else:
         MAX_SEQUENCE_LENGTH = 15
 
+
+
     if 'blue_fringe' in opt.sub_model:
-        membership = membership2
+        membership_type = membership2
+    else:
+        membership_type = membership
 
     data = dataset.get_loader(opt.data_path, batch_size=opt.batch_size, object='test', shuffle=True, max_len=MAX_SEQUENCE_LENGTH)
 
@@ -88,11 +95,12 @@ def main():
     direct_correct_count = 0
 
     MAX_TIME_LIMIT = 3
-    COUNT_LIMIT = 3000
+    if 'regex_generator' in opt.sub_model:
+        MAX_TIME_LIMIT = 10
+    COUNT_LIMIT = 1000000
 
     dc_win = 0
     direct_win = 0
-
 
     for count, tuple in enumerate(data):
         if count == 1000:
@@ -150,17 +158,31 @@ def main():
 
 
         dc_time_taken = end_time - start_time
-        timeout = False
+        # timeout = False
         if dc_time_taken > MAX_TIME_LIMIT:
             dc_time_taken = MAX_TIME_LIMIT
-            timeout = True
+            # timeout = True
 
         dc_answer = batch_predict[0]
 
-        if dc_answer is not None and not timeout:
-            dc_correct = is_solution(dc_answer, Examples(pos=pos_set, neg=neg_set), membership)
-        else:
+        if dc_answer is None:
             dc_correct = False
+        else:
+            try:
+                dc_correct = is_solution(dc_answer, Examples(pos=pos_set, neg=neg_set), membership_type)
+            except:
+                dc_correct = False  
+            
+
+        # if dc_answer is not None and not timeout:
+        #     try:
+        #         dc_correct = is_solution(dc_answer, Examples(pos=pos_set, neg=neg_set), membership_type)
+        #     except:
+        #         dc_correct = False    
+        # else:
+        #     dc_correct = False
+
+
 
         if dc_correct:
             dc_correct_count += 1
@@ -194,26 +216,39 @@ def main():
             batch_predict.append(None)
 
         end_time = time.time()
-
+        signal.alarm(0)
 
         direct_time_taken = end_time - start_time
-        timeout = False
+        # timeout = False
         if direct_time_taken > MAX_TIME_LIMIT:
             direct_time_taken = MAX_TIME_LIMIT
-            timeout = True
+            # timeout = True
 
         direct_answer = batch_predict[0]
 
-        if direct_answer is not None and not timeout:
-            direct_correct = is_solution(direct_answer, Examples(pos=pos_set, neg=neg_set), membership)
-        else:
+        if direct_answer is None:
             direct_correct = False
+        else:
+            try:
+                direct_correct = is_solution(direct_answer, Examples(pos=pos_set, neg=neg_set), membership_type)
+            except:
+                direct_correct = False  
+            
+
+        # if direct_answer is not None and not timeout:
+        #     try:
+        #         direct_correct = is_solution(direct_answer, Examples(pos=pos_set, neg=neg_set), membership_type)
+        #     except:
+        #         direct_correct = False    
+        # else:
+        #     direct_correct = False
 
         if direct_correct:
             direct_correct_count += 1
         else:
             direct_time_taken = MAX_TIME_LIMIT
         direct_time_total += direct_time_taken
+
 
         # win rate
         if dc_correct:

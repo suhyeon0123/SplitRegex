@@ -28,7 +28,7 @@ for data_idx, path in enumerate(data_list):
         elif data_idx == 1:
             test_regexlib_file.write(line)   
         else:
-            test_practical_file
+            test_practical_file.write(line)   
     intergrated_data += data[:len(data)-10000]
 
 
