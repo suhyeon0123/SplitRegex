@@ -217,6 +217,18 @@ def generate_regex_with_split(sigma_lst, sub_id, sub_pos_set, sub_neg_set, split
 
     return_dict[sub_id] = tmp
 
+def generate_regex_with_split_bf(sub_id, sub_pos_set, sub_neg_set, split_model, count_limit, alphabet_size, return_dict):
+    tmp = rpni_synthesis(Examples(pos=sub_pos_set, neg=sub_neg_set), count_limit, start_with_no_concat=split_model, prefix_for_neg_test=None, suffix_for_neg_test=None, alphabet_size=alphabet_size)
+
+    return_dict[sub_id] = str(tmp)
+
+def generate_regex_with_split_rg(sub_id, sub_pos_set, sub_neg_set, return_dict):
+    tmp = execute([Ex(list(sub_pos_set), list(sub_neg_set))])
+    #print(tmp)
+    tmp = str(tmp).replace('++', '+').replace('?+', '+')
+
+    return_dict[sub_id] = tmp
+
 def generate_split_regex_in_parallel(splited_pos, splited_neg, split_model=False, count_limit=1000, alphabet_size=5,
                          data_type='random', sigma_lst=None, submodel='alpharegex'):
     regex = []
@@ -256,8 +268,27 @@ def generate_split_regex_in_parallel(splited_pos, splited_neg, split_model=False
     manager = Manager()
     return_dict = manager.dict()
 
+    if submodel == 'regex_generator':
+        for sub_id in range(split_size): 
+            proc = Process(target=generate_regex_with_split_rg, args=(sub_id, pos_split_set[sub_id][0], pos_split_set[sub_id][1], return_dict))
+
+            procs.append(proc)
+            proc.start()
+
+        for proc in procs:
+            proc.join()
+
+        return '(' + ')('.join([return_dict[i] for i in range(split_size)]) + ')'
+
     for sub_id in range(split_size - 1): 
-        proc = Process(target=generate_regex_with_split, args=(sigma_lst, sub_id, pos_split_set[sub_id][0], pos_split_set[sub_id][1], split_model, count_limit, alphabet_size, return_dict))
+        if submodel == 'blue_fringe':
+            count_limit = 1000000000
+            proc = Process(target=generate_regex_with_split_bf, args=(sub_id, pos_split_set[sub_id][0], pos_split_set[sub_id][1], split_model, count_limit, alphabet_size, return_dict))
+        elif submodel == 'alpharegex':
+            proc = Process(target=generate_regex_with_split, args=(sigma_lst, sub_id, pos_split_set[sub_id][0], pos_split_set[sub_id][1], split_model, count_limit, alphabet_size, return_dict))
+        elif submodel == 'set2regex':
+            pass
+
         procs.append(proc)
         proc.start()
 
@@ -266,12 +297,11 @@ def generate_split_regex_in_parallel(splited_pos, splited_neg, split_model=False
 
     prefix = '(' + ')('.join([return_dict[i] for i in range(split_size - 1)]) + ')'
         
-    #if submodel == 'blue_fringe':
-    #    count_limit = 1000000000
-    #    tmp = rpni_synthesis(Examples(pos=sub_pos_set, neg=sub_neg_set), count_limit, start_with_no_concat=split_model, prefix_for_neg_test=prefix, suffix_for_neg_test=None, alphabet_size=alphabet_size)
-    #    print(tmp)
-    #    tmp = str(tmp)
-    if submodel == 'alpharegex':
+    if submodel == 'blue_fringe':
+        count_limit = 1000000000
+        tmp = rpni_synthesis(Examples(pos=pos_split_set[-1][0], neg=pos_split_set[-1][1]), count_limit, start_with_no_concat=split_model, prefix_for_neg_test=prefix, suffix_for_neg_test=None, alphabet_size=alphabet_size)        
+        tmp = str(tmp)
+    elif submodel == 'alpharegex':
         if data_type == 'random':            
             tmp = repr(submodels.SoftConciseNormalForm.synthesizer.synthesis(Examples(pos=pos_split_set[-1][0], neg=pos_split_set[-1][1]), count_limit, start_with_no_concat=split_model, 
                 prefix_for_neg_test=prefix, suffix_for_neg_test=None, alphabet_size=alphabet_size))
@@ -282,17 +312,9 @@ def generate_split_regex_in_parallel(splited_pos, splited_neg, split_model=False
             tmp = repr(tmp)
     elif submodel == 'set2regex':
         pass
-    elif submodel == 'regex_generator':
-        #print('ss')
-        #print(list(sub_neg_set))
-        tmp = execute([Ex(list(pos_split_set[-1][0]), list(pos_split_set[-1][1]))])
-        #print(tmp)
-        tmp = str(tmp).replace('++', '+').replace('?+', '+')
-        #print(tmp)
 
     if tmp == 'None':
         return None, 0
-
 
     final = prefix + '(' + tmp + ')'
 
