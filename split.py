@@ -319,7 +319,10 @@ def generate_split_regex_in_parallel(splited_pos, splited_neg, split_model=False
     for proc in procs:
         proc.join()
 
-    prefix = '(' + ')('.join([return_dict[i] for i in range(split_size - 1)]) + ')'
+    if split_size > 1:
+        prefix = '(' + ')('.join([return_dict[i] for i in range(split_size - 1)]) + ')'
+    else:
+        prefix = ''
         
     if submodel == 'blue_fringe':
         count_limit = 1000000000
