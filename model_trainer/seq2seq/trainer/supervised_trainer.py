@@ -171,7 +171,7 @@ class SupervisedTrainer(object):
         avg_train_losses = []
         # to track the average validtation loss per epoch as the model trains
         avg_valid_losses = []
-        early_stopping = EarlyStopping(patience=5, verbose=True)
+        early_stopping = EarlyStopping(patience=15, verbose=True)
 
         for epoch in range(start_epoch, n_epochs + 1):
             log.debug("Epoch: %d, Step: %d" % (epoch, step))
@@ -185,6 +185,7 @@ class SupervisedTrainer(object):
             self.total_data_size = 0
 
             model.train(True)
+
 
             for inputs, outputs, regex in data:
 
@@ -237,17 +238,22 @@ class SupervisedTrainer(object):
                 valid_log = "Dev %s: %.4f, Accuracy: %.4f, Accuracy of seq: %.4f, Accuracy of seq(RE): %.4f, Accuracy of set: %.4f, Accuracy of set(RE): %.4f" % (self.loss.name, dev_loss, accuracy, acc_seq, acc_seq_re, acc_set, acc_set_re)
                 early_stopping(acc_set, model, self.optimizer, epoch, step, self.input_vocab, self.output_vocab, self.expt_dir)
                 self.optimizer.update(dev_loss, epoch)
-                if acc_set > best_acc:
-                    log.info('acc_set increased >> best_accuracy{}, current_accuracy{}'.format(accuracy, best_acc))
+                # if acc_set > best_acc:
+                #     log.info('acc_set increased >> best_accuracy{}, current_accuracy{}'.format(accuracy, best_acc))
 
-                    if os.path.exists(self.expt_dir +'/best_accuracy'):
-                        shutil.rmtree(self.expt_dir +'/best_accuracy')
-                    Checkpoint(model=model,
+                #     if os.path.exists(self.expt_dir +'/best_accuracy'):
+                #         shutil.rmtree(self.expt_dir +'/best_accuracy')
+                #     Checkpoint(model=model,
+                #                optimizer=self.optimizer,
+                #                epoch=epoch, step=step,
+                #                input_vocab=self.input_vocab,
+                #                output_vocab=self.output_vocab).save(self.expt_dir +'/best_accuracy', acc_seq, acc_set, epoch_loss_avg, dev_loss, start_time-time.time())
+                #     best_acc = acc_set
+                Checkpoint(model=model,
                                optimizer=self.optimizer,
                                epoch=epoch, step=step,
                                input_vocab=self.input_vocab,
                                output_vocab=self.output_vocab).save(self.expt_dir +'/best_accuracy', acc_seq, acc_set, epoch_loss_avg, dev_loss, start_time-time.time())
-                    best_acc = acc_set
                 model.train(mode=True)
             else:
                 self.optimizer.update(epoch_loss_avg, epoch)

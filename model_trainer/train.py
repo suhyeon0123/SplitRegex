@@ -7,7 +7,7 @@ import torch
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 from seq2seq.trainer.supervised_trainer import SupervisedTrainer
-from seq2seq.models import EncoderRNN, DecoderRNN, Seq2seq, EncoderRNN2
+from seq2seq.models import EncoderRNN, DecoderRNN, Seq2seq, EncoderRNNST, DecoderRNNST
 from seq2seq.loss import NLLLoss
 from seq2seq.optim import Optimizer
 from seq2seq.evaluator import Predictor
@@ -77,6 +77,8 @@ parser.add_argument('--batch_size', action='store', dest='batch_size',
                     help='hyperpamameter of batch size')
 parser.add_argument('--add_seed', action='store', dest='seed',
                     help='seed', type=int, default=1)
+parser.add_argument('--set_transformer', action='store_true', default=False, dest='use_ST',
+                    help='use set_transformer in encoder2')
 
 
 
@@ -107,7 +109,9 @@ else:
     config.read('config.ini', encoding='utf-8')
     seed_all(int(config['seed']['train'])+opt.seed)
 
-    device = torch.device(f'cuda:{int(opt.num_gpu)}' if torch.cuda.is_available() else 'cpu')
+    device = torch.device('cuda:0')
+    #device = torch.device(f'cuda:{int(opt.num_gpu)}' if torch.cuda.is_available() else 'cpu')
+    print(device)
     torch.cuda.set_device(device)
 
     # Prepare dataset
@@ -146,15 +150,23 @@ else:
     n_layers = opt.num_layer
     bidirectional = opt.bidirectional
 
+    if opt.use_ST:
+        encoder = EncoderRNNST
+        decoder = DecoderRNNST
+    else:
+        encoder = EncoderRNN
+        decoder = DecoderRNN
+
+
     if not opt.resume:
         # Initialize model
 
-        encoder = EncoderRNN(
+        encoder = encoder(
                 len(input_vocab), dataset.NUM_EXAMPLES, hidden_size,
                 dropout_p=opt.dropout_en, input_dropout_p=0.25,
                 bidirectional=bidirectional, n_layers=n_layers, rnn_cell=rnn_cell,
                 variable_lengths=True)
-        decoder = DecoderRNN(
+        decoder = decoder(
                 len(input_vocab), dataset.NUM_EXAMPLES, hidden_size * (2 if bidirectional else 1),
                 dropout_p=opt.dropout_de, input_dropout_p=0.25, use_attention=True,
                 bidirectional=bidirectional, rnn_cell=rnn_cell, n_layers=n_layers, attn_mode=opt.attn_mode)
@@ -171,7 +183,7 @@ else:
         # explicitly constructing the objects and pass to the trainer.
 
         optimizer = Optimizer(torch.optim.Adam(s2smodel.parameters(), lr=opt.lr, weight_decay=opt.weight_decay), max_grad_norm=0.5)
-        scheduler = ReduceLROnPlateau(optimizer.optimizer, 'min', factor=0.1, verbose=True, patience=5)
+        scheduler = ReduceLROnPlateau(optimizer.optimizer, 'min', factor=0.1, verbose=True, patience=15)
         optimizer.set_scheduler(scheduler)
 
     if opt.bidirectional:

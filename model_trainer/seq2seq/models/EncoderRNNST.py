@@ -3,12 +3,13 @@ import torch.nn.functional as F
 import torch
 import seq2seq
 from seq2seq.util.string_preprocess import preprocessing, get_set_lengths, get_mask, get_mask2
-
+from seq2seq.models.set_transformer.model import SetTransformer
 from .baseRNN import BaseRNN
 
-class EncoderRNN(BaseRNN):
+class EncoderRNNST(BaseRNN):
     r"""
     Applies a multi-layer RNN to an input sequence.
+    Applies a set transformer
 
     Args:
         vocab_size (int): size of the vocabulary
@@ -40,7 +41,7 @@ class EncoderRNN(BaseRNN):
                  input_dropout_p=0, dropout_p=0,
                  n_layers=1, bidirectional=False, rnn_cell='LSTM', variable_lengths=False,
                  embedding=None, update_embedding=True, vocab=None):
-        super(EncoderRNN, self).__init__(vocab_size, max_len, hidden_size,
+        super(EncoderRNNST, self).__init__(vocab_size, max_len, hidden_size,
                 input_dropout_p, dropout_p, n_layers, rnn_cell)
 
         self.vocab_size = vocab_size
@@ -55,22 +56,22 @@ class EncoderRNN(BaseRNN):
         self.rnn1 = self.rnn_cell(self.vocab_size, hidden_size, n_layers,
                                  batch_first=True, bidirectional=bidirectional, dropout=dropout_p)
 
-        self.rnn2 = self.rnn_cell(hidden_size*2 if self.bidirectional else hidden_size, hidden_size, n_layers,
-                                 batch_first=True, bidirectional=bidirectional, dropout=dropout_p)
+        # self.rnn2 = self.rnn_cell(hidden_size*2 if self.bidirectional else hidden_size, hidden_size, n_layers,
+        #                          batch_first=True, bidirectional=bidirectional, dropout=dropout_p)
+        self.set_transformer = SetTransformer(in_dimension=hidden_size*2 if self.bidirectional else hidden_size, out_dimension= hidden_size)
+
 
     def forward(self, input_var, input_lengths=None, embedding=None):
 
         batch_size, set_size, seq_len = input_var.size(0), input_var.size(1), input_var.size(2)
 
         one_hot = F.one_hot(input_var.to(device='cuda'), num_classes = self.vocab_size)
-        #src_embedded = embedding(input_var.reshape(batch_size * set_size, seq_len))
         src_embedded = one_hot.view(batch_size*set_size,seq_len, -1).float()
 
         masking = get_mask(input_var)  # batch, set_size, seq_len
 
         src_output, src_hidden = self.rnn1(src_embedded) # (batch x set_size, seq_len, hidden), # (num_layer x num_dir, batch*set_size, hidden)
         rnn1_hidden = src_hidden
-
         src_output = src_output.view(batch_size, set_size, src_output.size(1), -1)  # batch, set_size, seq_len, hidden)
 
         if type(self.rnn1) is nn.LSTM:
@@ -87,16 +88,12 @@ class EncoderRNN(BaseRNN):
         else:
             set_embedded = set_embedded.squeeze(0)  # batch x set_size, hidden
 
+        
         set_embedded = set_embedded.view(batch_size, set_size, -1) # batch, set_size, hidden
-        set_output, set_hidden = self.rnn2(set_embedded) # (batch, set_size, hidden), # (num_layer*num_dir, batch, hidden) 2개 tuple 구성
+        set_hidden = self.set_transformer(set_embedded) # (batch, out_dimention)
 
-        if type(self.rnn2) is nn.LSTM:
-            last_hidden = set_hidden[0] # num_layer x num_dir, batch, hidden
-            last_cell = set_hidden[1] # num_layer x num_dir, batch, hidden
-            hiddens = (last_hidden, last_cell)
-        else:
-            hiddens = set_hidden # num_layer x num_dir, batch, hidden
-
-        outputs = (src_output, set_output)
-
-        return outputs, hiddens, masking, rnn1_hidden
+        # print(set_hidden.shape)
+        # print(set_embedded.shape)
+        # print(rnn1_hidden[0].shape)
+        return (src_output, None), set_hidden, masking, rnn1_hidden[0]
+        
