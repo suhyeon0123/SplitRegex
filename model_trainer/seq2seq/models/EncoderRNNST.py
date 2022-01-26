@@ -3,7 +3,7 @@ import torch.nn.functional as F
 import torch
 import seq2seq
 from seq2seq.util.string_preprocess import preprocessing, get_set_lengths, get_mask, get_mask2
-from seq2seq.models.set_transformer.model import SetTransformer
+from seq2seq.models.set_transformer.model import SetTransformer, SetTransformer2
 from .baseRNN import BaseRNN
 
 class EncoderRNNST(BaseRNN):
@@ -58,7 +58,7 @@ class EncoderRNNST(BaseRNN):
 
         # self.rnn2 = self.rnn_cell(hidden_size*2 if self.bidirectional else hidden_size, hidden_size, n_layers,
         #                          batch_first=True, bidirectional=bidirectional, dropout=dropout_p)
-        self.set_transformer = SetTransformer(in_dimension=hidden_size*2 if self.bidirectional else hidden_size, out_dimension= hidden_size)
+        self.set_transformer = SetTransformer2(in_dimension=hidden_size*2 if self.bidirectional else hidden_size, out_dimension= hidden_size*2)
 
 
     def forward(self, input_var, input_lengths=None, embedding=None):

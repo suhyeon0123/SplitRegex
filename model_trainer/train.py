@@ -110,7 +110,7 @@ else:
     seed_all(int(config['seed']['train'])+opt.seed)
 
     device = torch.device('cuda:0')
-    #device = torch.device(f'cuda:{int(opt.num_gpu)}' if torch.cuda.is_available() else 'cpu')
+    device = torch.device(f'cuda:{int(opt.num_gpu)}' if torch.cuda.is_available() else 'cpu')
     print(device)
     torch.cuda.set_device(device)
 

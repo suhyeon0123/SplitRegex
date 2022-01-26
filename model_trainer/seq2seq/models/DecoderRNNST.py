@@ -126,7 +126,7 @@ class DecoderRNNST(BaseRNN):
         set_hidden = torch.stack(tuple(hidden), dim=0).repeat_interleave(10, dim=0) # 5120, 256
         # seq_hidden = self.rnn1_hidden.view(batch_size * 10 , -1) # 5120, 512
         seq_hidden = self.rnn1_hidden # 2, 5102, 512
-        set_hidden = self.hidden_out1(set_hidden)   # 5120, 512
+        # set_hidden = self.hidden_out1(set_hidden)   # 5120, 512
         set_hidden = torch.stack((set_hidden, set_hidden.clone().detach()), dim=0)
 
         
