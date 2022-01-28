@@ -42,6 +42,7 @@ Regular expression : _<img src="https://render.githubusercontent.com/render/math
 3. make regex by concatenating the subregexes.
 
 ### Sub models
+(target dir, required submodule)
 
 - set2labeling/submodels/ [SoftConciseNormalForm](https://github.com/suhyeon0123/SoftConciseNormalForm)
 - set2labeling/submodels/ [automatark](https://github.com/lorisdanto/automatark)
@@ -97,11 +98,6 @@ in submodels/fado-python/cfg.py, change StringType to str
 
 ## ETC..
 
-### To-Do
-- [x] add AlphaRegex module for generating generate sub regex
-- [x] generate overall module of synthesizing regex using set2label
-- [ ] implement evaluation.py 
-- [ ] add set2regex submodule for generating sub regex
 
 ### License
 
