@@ -42,8 +42,12 @@ Regular expression : _<img src="https://render.githubusercontent.com/render/math
 3. make regex by concatenating the subregexes.
 
 ### Sub models
-- [SoftConciseNormalForm](https://github.com/suhyeon0123/SoftConciseNormalForm)
-- [set2regex](https://github.com/woaksths/set2regex)
+
+- set2labeling/submodels/ [SoftConciseNormalForm](https://github.com/suhyeon0123/SoftConciseNormalForm)
+- set2labeling/submodels/ [automatark](https://github.com/lorisdanto/automatark)
+- set2labeling/submodels/ [set2regex](https://github.com/woaksths/set2regex)
+- set2labeling/submodels/ [fado-python3](https://github.com/0xnurl/fado-python3)
+- set2labeling/submodels/RegexGenerator [origin_src](https://github.com/MaLeLabTs/RegexGenerator)
 
 
 <br> <br>
@@ -62,7 +66,7 @@ cd fado-python3
 python setup.py install
 ```
 ### additional setting
-in cfg.py, change StringType to str
+in submodels/fado-python/cfg.py, change StringType to str
 
 ### New dataset download
     python data_generator/practical_data/data_generator.py
