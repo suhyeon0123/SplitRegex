@@ -24,7 +24,9 @@ Regular expression : _<img src="https://render.githubusercontent.com/render/math
 |000|002|
 
 ### Model architecture
-![modelarchitecrue](https://user-images.githubusercontent.com/64397574/128458956-751766c6-a8f9-4bdd-b7f9-269a5895d700.png)
+![modelarchitecture](https://user-images.githubusercontent.com/64397574/156624601-fbb130d6-1dda-4275-93cc-4b0941d6da60.png)
+
+<!--![modelarchitecrue](https://user-images.githubusercontent.com/64397574/128458956-751766c6-a8f9-4bdd-b7f9-269a5895d700.png)-->
 
 
 <br> <br>
