@@ -1,7 +1,11 @@
 #!/bin/bash
 
+# generate practical data
 python data_generator/practical_data/data_generator.py
+python data_generator/practical_data/data_integration.py
 
+
+# generate random data
 python data_generator/random_data/data_generator.py --alphabet_size 2 --is_train --number 40000
 python data_generator/random_data/data_generator.py --alphabet_size 2 --number 1000
 

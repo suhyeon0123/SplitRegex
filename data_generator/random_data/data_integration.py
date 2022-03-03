@@ -5,9 +5,10 @@ config = configparser.ConfigParser()
 config.read('config.ini', encoding='utf-8')
 random.seed(int(config['seed']['integrate_data']))
 
+
 data_list = ['./data/random_data/size_2', './data/random_data/size_4', './data/random_data/size_6', './data/random_data/size_8', './data/random_data/size_10']
-train_file = open('./data/random_data/integrated/train.csv', 'w+')
-valid_file = open('./data/random_data/integrated/valid.csv', 'w+')
+train_file = open('./data/random_data/train.csv', 'w+')
+valid_file = open('./data/random_data/valid.csv', 'w+')
 
 data = []
 for path in data_list:

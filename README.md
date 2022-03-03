@@ -10,7 +10,7 @@
 ## Split Model (train.py)
 
 ### Description
-- Generating set of labelled strings from set of strings by spliting each string to determine the boundaries of sub expression.
+- Generating set of labeled strings from set of strings by spliting each string to determine the boundaries of sub expression.
 - Data is given as (10pos, 10label, regular expression).
 - Acc means accuracy between data and prediction, while Acc (RE) means accuracy between sub regular expression and prediction.
 
@@ -43,16 +43,6 @@ Regular expression : _<img src="https://render.githubusercontent.com/render/math
 2. generate subregex from substrings by the one of submodels.
 3. make regex by concatenating the subregexes.
 
-### Sub models
-(target dir, required submodule)
-
-- set2labeling/submodels/ [SoftConciseNormalForm](https://github.com/suhyeon0123/SoftConciseNormalForm)
-- set2labeling/submodels/ [automatark](https://github.com/lorisdanto/automatark)
-- set2labeling/submodels/ [set2regex](https://github.com/woaksths/set2regex)
-- set2labeling/submodels/ [fado-python3](https://github.com/0xnurl/fado-python3)
-- set2labeling/submodels/RegexGenerator [origin_src](https://github.com/MaLeLabTs/RegexGenerator)
-
-
 <br> <br>
 
 ## Code Execution
@@ -68,6 +58,7 @@ git submodule update --init --recursive
 cd fado-python3
 python setup.py install
 ```
+
 ### additional setting
 in submodels/fado-python/cfg.py, change StringType to str
 
@@ -78,8 +69,6 @@ in submodels/fado-python/cfg.py, change StringType to str
     python data_generator/random_data/regex_generator.py --alphabet_size 10 --number 100000
     python data_generator/random_data/data_generator.py --alphabet_size 10 --is_train
     python data_generator/random_data/data_generator.py --alphabet_size 10
-    
-
     
 
 ### Train model

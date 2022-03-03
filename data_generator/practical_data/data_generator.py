@@ -1,5 +1,6 @@
 from xeger import Xeger
 import pathlib
+import argparse
 import os, sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'submodels', 'SoftConciseNormalForm')))
 import configparser
@@ -12,10 +13,14 @@ dequantifier5 = '\\\\d|\\\\D\\\\|\\\\w|\\\\W|\\\\s|\\\\S|(?<!\\\\)\.'
 
 quantifier = '(\*|\+|\?|\{\d+\,\d*\}|\{\d+\})\??'
 
+parser = argparse.ArgumentParser()
+parser.add_argument('--augment', default=10, dest='aug_ratio', type=int, action='store',
+                    help='augmentation number')
+opt = parser.parse_args()
 
 MAX_SEQUENCE_LENGTH = 15
 EXAMPLE_NUM = 20
-AUGMENTATION_RATIO = 10
+AUGMENTATION_RATIO = opt.aug_ratio
 
 # # Description
 # Preprocess the practical data from submodule.(snort, regexlib, Polyglot Corpus) 
@@ -390,7 +395,7 @@ def main():
         regex_file = open(data_path, 'r')
         data_name = re.search('[^/]*?(?=\.r|\.j)', data_path).group()
         pathlib.Path('data/practical_data/org').mkdir(parents=True, exist_ok=True)
-        save_file = open('data/practical_data/org/' + data_name + '2.csv', 'w')
+        save_file = open('data/practical_data/org/' + data_name + '.csv', 'w')
 
         print('Preprocessing ' + data_name + '...')
 

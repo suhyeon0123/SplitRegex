@@ -151,7 +151,6 @@ def generate_data():
 
     config = configparser.ConfigParser()
     config.read('config.ini', encoding='utf-8')
-    random.seed(int(config['seed']['random_data']) + int(opt.alphabet_size))
     xeger = Xeger(limit=5)
     xeger.seed(int(config['seed']['random_data']) + int(opt.alphabet_size))
 

@@ -13,3 +13,6 @@
 [submodule "submodels/RegexGenerator/origin_src"]
 	path = submodels/RegexGenerator/origin_src
 	url = https://github.com/MaLeLabTs/RegexGenerator.git
+[submodule "submodels/set-transformer"]
+	path = submodels/set-transformer
+	url = https://github.com/TropComplique/set-transformer.git
