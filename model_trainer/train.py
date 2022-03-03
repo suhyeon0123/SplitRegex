@@ -81,9 +81,6 @@ parser.add_argument('--set_transformer', action='store_true', default=False, des
                     help='use set_transformer in encoder2')
 
 
-
-
-
 parser.add_argument('--use_attn', action='store_true', dest='use_attn', default=True, help='use attention or not')
 parser.add_argument('--attn_mode', action='store_true', dest='attn_mode', default=False, help='choose attention mode')
 
