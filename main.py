@@ -2,9 +2,10 @@ import argparse
 import time
 import pickle
 import seq2seq.dataset.dataset as dataset
-from model_trainer.seq2seq.dataset.dataset import Vocabulary
-from model_trainer.seq2seq.util.checkpoint import Checkpoint
-from model_trainer.seq2seq.util.seed import seed_all
+from seq2seq.dataset.dataset import Vocabulary
+from seq2seq.util.checkpoint import Checkpoint
+from seq2seq.util.seed import seed_all
+from seq2seq.models import *
 from split import split, generate_split_regex, generate_split_regex_in_parallel
 import signal
 import configparser
@@ -71,7 +72,6 @@ def main():
         MAX_SEQUENCE_LENGTH = 15
     else:
         MAX_SEQUENCE_LENGTH = 15
-
 
 
     if 'blue_fringe' in opt.sub_model:
