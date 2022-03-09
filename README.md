@@ -32,6 +32,15 @@ python setup.py install
 - Random dataset contains size of 2, 4, 6, 8, 10.
 - Practical dataset contains 'Snort', 'Regexlib', and 'Polyglot'. We replace some quantifiers with kleene star and character sets with customed alphabet.
 - Data is given as (20pos, 20neg, 20label, regular expression).
+    -
+    Regular expression : _<img src="https://render.githubusercontent.com/render/math?math=a^* b^? a">_
+    |String|Labelled string|
+    |------|---|
+    |0001|0001|
+    |0010|0012|
+    |10|12|
+    |000|002|
+
 ```
 sh shell_script/data_generate.sh
 ```
@@ -47,14 +56,6 @@ sh shell_script/data_generate.sh
 - Data is given as (10pos, 10label, regular expression).
 - Acc means accuracy between data and prediction, while Acc (RE) means accuracy between sub regular expression and prediction.
 
-### Example
-Regular expression : _<img src="https://render.githubusercontent.com/render/math?math=a^* b^? a">_
-|String|Labelled string|
-|------|---|
-|0001|0001|
-|0010|0012|
-|10|12|
-|000|002|
 
 
 
