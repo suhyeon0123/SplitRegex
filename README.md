@@ -1,4 +1,9 @@
 # SplitRegex: Regular Expression Synthesis via Divide-and-Conquer Approach
+SplitRegex is a divided-and-conquer framework for learning target regexes; split (=divide) positive strings and infer partial regexes for multiple
+parts, which is much more accurate than the whole string inferring, and concatenate (=conquer) inferred regexes while satisfying negative string.
+
+This repo implement the SplitRegex framework, and dataset for experiments.
+
 ![modelarchitecture](https://user-images.githubusercontent.com/64397574/156624601-fbb130d6-1dda-4275-93cc-4b0941d6da60.png)
 
 <!--![modelarchitecrue](https://user-images.githubusercontent.com/64397574/128458956-751766c6-a8f9-4bdd-b7f9-269a5895d700.png)-->
