@@ -40,7 +40,8 @@ sh shell_script/data_generate.sh
 
 
 ## Split Model (train.py)
-
+![NeuralSplitter](https://user-images.githubusercontent.com/64397574/157478033-f8eb7b69-a86e-455d-9def-39d3d66fec72.png)
+<br>
 ### Description
 - Generating set of labeled strings from set of strings by spliting each string to determine the boundaries of sub expression.
 - Data is given as (10pos, 10label, regular expression).
