@@ -21,6 +21,8 @@ pip install -r requirements.txt
 python setup.py install
 cd submodels  
 git submodule update --init --recursive
+cd fado
+python setup.py install
 ```
 
 <br> <br>
