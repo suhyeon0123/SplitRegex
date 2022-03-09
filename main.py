@@ -12,8 +12,8 @@ import configparser
 import pathlib
 import torch
 
-from submodels.SoftConciseNormalForm.examples import Examples
-from submodels.SoftConciseNormalForm.util import *
+from submodels.SCNF.examples import Examples
+from submodels.SCNF.util import *
 
 from multiprocessing import Process, Manager
 

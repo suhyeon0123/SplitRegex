@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # generate practical data
-python data_generator/practical_data/data_generator.py
+python data_generator/practical_data/data_generator.py --augment 10
 python data_generator/practical_data/data_integration.py
 
 

@@ -9,14 +9,14 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), 'submode
 
 from collections import Counter
 from submodels.RegexGenerator.batch import *
-import submodels.SoftConciseNormalForm.synthesizer
-from submodels.SoftConciseNormalForm.parsetree import *
+import submodels.SCNF.synthesizer
+from submodels.SCNF.parsetree import *
 
-import submodels.SoftConciseNormalForm.synthesizer_snort
-from submodels.SoftConciseNormalForm.util_snort import *
+import submodels.SCNF.synthesizer_snort
+from submodels.SCNF.util_snort import *
 
 from seq2seq.dataset.dataset import Vocabulary
-from submodels.SoftConciseNormalForm.examples import Examples
+from submodels.SCNF.examples import Examples
 from rpni import synthesis as rpni_synthesis
 
 
