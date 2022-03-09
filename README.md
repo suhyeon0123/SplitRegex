@@ -1,9 +1,7 @@
 # SplitRegex: Regular Expression Synthesis via Divide-and-Conquer Approach
+![modelarchitecture](https://user-images.githubusercontent.com/64397574/156624601-fbb130d6-1dda-4275-93cc-4b0941d6da60.png)
 
-
-- This product includes software (seq2seq base model) developed at https://github.com/IBM/pytorch-seq2seq
-- This product use fado module from https://github.com/0xnurl/fado-python3
-- This product refers to set2regex module from https://github.com/woaksths/set2regex
+<!--![modelarchitecrue](https://user-images.githubusercontent.com/64397574/128458956-751766c6-a8f9-4bdd-b7f9-269a5895d700.png)-->
 
 <br> <br>
 
@@ -23,10 +21,8 @@ Regular expression : _<img src="https://render.githubusercontent.com/render/math
 |10|12|
 |000|002|
 
-### Model architecture
-![modelarchitecture](https://user-images.githubusercontent.com/64397574/156624601-fbb130d6-1dda-4275-93cc-4b0941d6da60.png)
 
-<!--![modelarchitecrue](https://user-images.githubusercontent.com/64397574/128458956-751766c6-a8f9-4bdd-b7f9-269a5895d700.png)-->
+
 
 
 <br> <br>
@@ -71,8 +67,12 @@ You could run the code from data_generate.sh to main.sh through the shellscript 
 
 <br> <br>
 
-## ETC..
+## Acknowledgment
+- This product includes software (seq2seq base model) developed at https://github.com/IBM/pytorch-seq2seq
+- This product use fado module from https://github.com/0xnurl/fado-python3
+- This product refers to set2regex module from https://github.com/woaksths/set2regex
 
+<br> <br>
 
 ### License
 
