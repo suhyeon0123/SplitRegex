@@ -1,4 +1,4 @@
-# Regular Expression Synthesis via Divide-and-Conquer Approach
+# SplitRegex: Regular Expression Synthesis via Divide-and-Conquer Approach
 
 
 - This product includes software (seq2seq base model) developed at https://github.com/IBM/pytorch-seq2seq
