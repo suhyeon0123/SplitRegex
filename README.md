@@ -31,6 +31,7 @@ python setup.py install
 - Download and transform raw data to usable form. 
 - Random dataset contains size of 2, 4, 6, 8, 10.
 - Practical dataset contains 'Snort', 'Regexlib', and 'Polyglot'. We replace some quantifiers with kleene star and character sets with customed alphabet.
+- Data is given as (20pos, 20neg, 20label, regular expression).
 ```
 sh shell_script/data_generate.sh
 ```
