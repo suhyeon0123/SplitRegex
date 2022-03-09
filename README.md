@@ -23,6 +23,13 @@ cd fado
 python setup.py install
 ```
 
+<br> <br>
+
+## Data
+
+<br> <br>
+
+
 ## Split Model (train.py)
 
 ### Description
@@ -38,8 +45,6 @@ Regular expression : _<img src="https://render.githubusercontent.com/render/math
 |0010|0012|
 |10|12|
 |000|002|
-
-
 
 
 
