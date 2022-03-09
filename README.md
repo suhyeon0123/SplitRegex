@@ -48,7 +48,7 @@ sh shell_script/data_generate.sh
 - Acc means accuracy between data and prediction, while Acc (RE) means accuracy between sub regular expression and prediction.
 
 ### Example
-Regular expression : _<img src="https://render.githubusercontent.com/render/math?math=0^* 1^? 0">_
+Regular expression : _<img src="https://render.githubusercontent.com/render/math?math=a^* b^? a">_
 |String|Labelled string|
 |------|---|
 |0001|0001|
