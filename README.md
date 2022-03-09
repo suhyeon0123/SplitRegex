@@ -13,7 +13,7 @@ This repo implement the SplitRegex framework, and dataset for experiments.
 <br> <br>
 
 ## Setting
-
+- prefer Python 3.9.7
 ```shell
 python3 -m venv venv
 source venv/bin/activate
@@ -62,7 +62,7 @@ sh shell_script/random_train.sh
 ### Description
 - Generating set of labeled strings from set of strings by spliting each string to determine the boundaries of sub expression.
 - Data is given as (10pos, 10label, regular expression).
-- Saving trained model with the form of 'model.pt' in saved_models/.. . 
+- Saving trained model with the form of 'model.pt' in saved_models/. 
 - Acc means accuracy between data and prediction, while Acc (RE) means accuracy between sub regular expression and prediction.
 
 
@@ -71,9 +71,12 @@ sh shell_script/random_train.sh
 <br> <br>
 
 ## Overall Synthesis Architecture (main.py)
+```
+sh shell_script/main.sh
+```
 
 ### Description
-- Generating the regex from set of positive strings and set of negative strings.
+- Inferring the regex from set of positive strings and set of negative strings.
 - Data is given as (10pos, 10neg, regular expression).
 - Compare divide-and-conquer approach and naive synthesis approach in terms of time and success rate.
 
@@ -84,19 +87,7 @@ sh shell_script/random_train.sh
 
 <br> <br>
 
-
-
-<!--### additional setting
-in submodels/fado-python/cfg.py, change StringType to str-->
-
-### Shell script 
-You could run the code from data_generate.sh to main.sh through the shellscript of .sh format.
-
-
-    
-    
-
-<br> <br>
+  
 
 ## Acknowledgment
 - This product includes software (seq2seq base model) developed at https://github.com/IBM/pytorch-seq2seq
