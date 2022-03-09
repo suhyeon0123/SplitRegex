@@ -55,9 +55,14 @@ Regular expression : _<img src="https://render.githubusercontent.com/render/math
 ## Split Model (train.py)
 ![NeuralSplitter](https://user-images.githubusercontent.com/64397574/157478033-f8eb7b69-a86e-455d-9def-39d3d66fec72.png)
 <br>
+```
+sh shell_script/practical_train.sh
+sh shell_script/random_train.sh
+```
 ### Description
 - Generating set of labeled strings from set of strings by spliting each string to determine the boundaries of sub expression.
 - Data is given as (10pos, 10label, regular expression).
+- Saving trained model with the form of 'model.pt' in saved_models/.. . 
 - Acc means accuracy between data and prediction, while Acc (RE) means accuracy between sub regular expression and prediction.
 
 
