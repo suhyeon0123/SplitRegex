@@ -10,6 +10,19 @@ This repo implement the SplitRegex framework, and dataset for experiments.
 
 <br> <br>
 
+## Setting
+
+```shell
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+python setup.py install
+cd submodels  
+git submodule update --init --recursive
+cd fado
+python setup.py install
+```
+
 ## Split Model (train.py)
 
 ### Description
@@ -46,19 +59,7 @@ Regular expression : _<img src="https://render.githubusercontent.com/render/math
 
 <br> <br>
 
-## Code Execution
 
-### Install
-```shell
-python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-python setup.py install
-cd submodels  
-git submodule update --init --recursive
-cd fado
-python setup.py install
-```
 
 <!--### additional setting
 in submodels/fado-python/cfg.py, change StringType to str-->
