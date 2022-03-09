@@ -4,6 +4,8 @@ parts, which is much more accurate than the whole string inferring, and concaten
 
 This repo implement the SplitRegex framework, and dataset for experiments.
 
+<br>
+
 ![modelarchitecture](https://user-images.githubusercontent.com/64397574/156624601-fbb130d6-1dda-4275-93cc-4b0941d6da60.png)
 
 <!--![modelarchitecrue](https://user-images.githubusercontent.com/64397574/128458956-751766c6-a8f9-4bdd-b7f9-269a5895d700.png)-->
@@ -26,6 +28,12 @@ python setup.py install
 <br> <br>
 
 ## Data
+- Download and transform raw data to usable form. 
+- Random dataset contains size of 2, 4, 6, 8, 10.
+- Practical dataset contains 'Snort', 'Regexlib', and 'Polyglot'. We replace some quantifiers with kleene star and character sets with customed alphabet.
+```
+sh shell_script/data_generate.sh
+```
 
 <br> <br>
 
