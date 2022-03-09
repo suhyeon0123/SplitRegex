@@ -45,9 +45,6 @@ Regular expression : _<img src="https://render.githubusercontent.com/render/math
 |ba|12|
 |aaa|002|
 
-### Data file looks like..
-
-
 
 <br> <br>
 
