@@ -28,12 +28,15 @@ python setup.py install
 <br> <br>
 
 ## Data
+```
+sh shell_script/data_generate.sh
+```
 - Download and transform raw data to usable form. 
 - Random dataset contains size of 2, 4, 6, 8, 10.
 - Practical dataset contains 'Snort', 'Regexlib', and 'Polyglot'. We replace some quantifiers with kleene star and character sets with customed alphabet.
 - Data is given as (20pos, 20neg, 20label, regular expression).
-- 
-### example
+
+### Example
 Regular expression : _<img src="https://render.githubusercontent.com/render/math?math=a^* b^? a">_
 |String|Labelled string|
 |------|---|
@@ -42,9 +45,9 @@ Regular expression : _<img src="https://render.githubusercontent.com/render/math
 |ba|12|
 |aaa|002|
 
-```
-sh shell_script/data_generate.sh
-```
+### Data file looks like..
+
+
 
 <br> <br>
 
