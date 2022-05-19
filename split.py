@@ -175,7 +175,7 @@ def generate_split_regex(splited_pos, splited_neg, split_model=False, count_limi
                 if sigma_lst is not None and sub_id + 1 != split_size and any(list(map(lambda x: x[sub_id], sigma_lst))):
                     tmp = repr(KleenStar(Or(*[Character(str(x)) for x in range(alphabet_size)])))
                 else:
-                    tmp = repr(submodels.SoftConciseNormalForm.synthesizer.synthesis(Examples(pos=sub_pos_set, neg=sub_neg_set),
+                    tmp = repr(submodels.SCNF.synthesizer.synthesis(Examples(pos=sub_pos_set, neg=sub_neg_set),
                                                                                 count_limit,
                                                                                 start_with_no_concat=split_model,
                                                                                 prefix_for_neg_test=prefix,
@@ -185,7 +185,7 @@ def generate_split_regex(splited_pos, splited_neg, split_model=False, count_limi
                 if sigma_lst is not None and sub_id + 1 != split_size and any(list(map(lambda x: x[sub_id], sigma_lst))):
                     tmp = get_sigma(Examples(pos=sub_pos_set, neg=sub_neg_set))
                 else:
-                    tmp, _ = submodels.SoftConciseNormalForm.synthesizer_snort.synthesis(
+                    tmp, _ = submodels.SCNF.synthesizer_snort.synthesis(
                         Examples(pos=sub_pos_set, neg=sub_neg_set), count_limit, start_with_no_concat=split_model,
                         prefix_for_neg_test=prefix, suffix_for_neg_test=None, alphabet_size=alphabet_size)
                     tmp = repr(tmp)
@@ -215,7 +215,7 @@ def generate_regex_with_split(sigma_lst, sub_id, sub_pos_set, sub_neg_set, split
         if sigma_lst is not None  and any(list(map(lambda x: x[sub_id], sigma_lst))):
             tmp = repr(KleenStar(Or(*[Character(str(x)) for x in range(alphabet_size)])))
         else:
-            tmp = repr(submodels.SoftConciseNormalForm.synthesizer.synthesis(Examples(pos=sub_pos_set, neg=sub_neg_set),
+            tmp = repr(submodels.SCNF.synthesizer.synthesis(Examples(pos=sub_pos_set, neg=sub_neg_set),
                                                                         count_limit,
                                                                         start_with_no_concat=split_model,
                                                                         prefix_for_neg_test=None,
@@ -225,7 +225,7 @@ def generate_regex_with_split(sigma_lst, sub_id, sub_pos_set, sub_neg_set, split
         if sigma_lst is not None  and any(list(map(lambda x: x[sub_id], sigma_lst))):
             tmp = get_sigma(Examples(pos=sub_pos_set, neg=sub_neg_set))
         else:
-            tmp, _ = submodels.SoftConciseNormalForm.synthesizer_snort.synthesis(
+            tmp, _ = submodels.SCNF.synthesizer_snort.synthesis(
                 Examples(pos=sub_pos_set, neg=sub_neg_set), count_limit, start_with_no_concat=split_model,
                 prefix_for_neg_test=None, suffix_for_neg_test=None, alphabet_size=alphabet_size)
             tmp = repr(tmp)
@@ -328,10 +328,10 @@ def generate_split_regex_in_parallel(splited_pos, splited_neg, split_model=False
         tmp = str(tmp)
     elif submodel == 'alpharegex':
         if data_type == 'random':            
-            tmp = repr(submodels.SoftConciseNormalForm.synthesizer.synthesis(Examples(pos=pos_split_set[-1][0], neg=pos_split_set[-1][1]), count_limit, start_with_no_concat=split_model, 
+            tmp = repr(submodels.SCNF.synthesizer.synthesis(Examples(pos=pos_split_set[-1][0], neg=pos_split_set[-1][1]), count_limit, start_with_no_concat=split_model, 
                 prefix_for_neg_test=prefix, suffix_for_neg_test=None, alphabet_size=alphabet_size))
         else:
-            tmp, _ = submodels.SoftConciseNormalForm.synthesizer_snort.synthesis(
+            tmp, _ = submodels.SCNF.synthesizer_snort.synthesis(
                 Examples(pos=pos_split_set[-1][0], neg=pos_split_set[-1][1]), count_limit, start_with_no_concat=split_model,
                 prefix_for_neg_test=prefix, suffix_for_neg_test=None, alphabet_size=alphabet_size)
             tmp = repr(tmp)

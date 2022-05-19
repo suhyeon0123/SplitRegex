@@ -1,6 +1,6 @@
 import os, sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), 'submodels', 'fado')))
-from submodels.fado.FAdo.cfg import *
+from FAdo.cfg import *
 from .parsetree import *
 
 import copy
