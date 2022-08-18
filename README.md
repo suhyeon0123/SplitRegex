@@ -17,12 +17,12 @@ This repo implement the SplitRegex framework, and dataset for experiments.
 ```shell
 python3 -m venv venv
 source venv/bin/activate
+pip install --upgrade pip
 pip install -r requirements.txt
 python setup.py install
 cd submodels  
 git submodule update --init --recursive
-cd fado
-python setup.py install
+cd ..
 ```
 
 <br> <br>
@@ -67,15 +67,16 @@ sh shell_script/random_train.sh
 
 <br> <br>
 
-## Overall Synthesis Architecture (main.py)
+## Overall Synthesis Architecture (synthesis.py)
 ```
-sh shell_script/main.sh
+sh shell_script/synthesis.sh
 ```
 
 ### Description
 - Inferring the regex from set of positive strings and set of negative strings.
 - Data is given as (10pos, 10neg, regular expression).
 - Compare divide-and-conquer approach and naive synthesis approach in terms of time and success rate.
+- Synthesis output will be stored in log_data/
 
 ### Synthesis process
 1. split each positive string and negative string using the trained split model.
@@ -84,6 +85,13 @@ sh shell_script/main.sh
 
 <br> <br>
 
+
+<br> <br>
+
+## Show the result (debug.py)
+```
+sh shell_script/debug.sh
+```
   
 
 ## Acknowledgment
