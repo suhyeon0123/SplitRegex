@@ -5,6 +5,7 @@
 
 import FAdo.fa as fa
 import FAdo.reex as reex
+import FAdo.conversions as conv
 
 import itertools
 import logging
@@ -298,13 +299,17 @@ def synthesis(examples,
               **kwargs):
     A = rpni_regex(examples.pos, examples.neg, count_limit,
                    prefix_for_neg_test, suffix_for_neg_test)
-    return REPR(str(A.reCG()).replace(' ', '').replace('+', '|'))
+    # return REPR(str(A.reCG()).replace(' ', '').replace('+', '|'))
+    return REPR(str(conv.FA2regexpCG_nn(A)).replace(' ', '').replace('+', '|'))
+    
+
 
 import unittest
 
 class Test(unittest.TestCase):
     def check(self, A, pos, neg):
-        logger.info(str(A.reCG()).replace(' ', '').replace('+', '|'))
+        # logger.info(str(A.reCG()).replace(' ', '').replace('+', '|'))
+        logger.info(str(conv.FA2regexpCG_nn(A)).replace(' ', '').replace('+', '|'))
         for w in pos:
             with self.subTest(w=w):
                 self.assertTrue(A.evalWordP(w))

@@ -85,7 +85,8 @@ class CustomDataset(Dataset):
                     self._translate_sequences(self.neg.iloc[idx]),
                     self.regex.iloc[idx],
                     self._translate_sequences(self.valid_pos.iloc[idx]),
-                    self._translate_sequences(self.valid_neg.iloc[idx]))
+                    self._translate_sequences(self.valid_neg.iloc[idx]),
+                    self._translate_sequences(self.tag.iloc[idx]))
         else:
             return (self._translate_sequences(self.pos.iloc[idx]),
                     self._translate_sequences(self.tag.iloc[idx]),

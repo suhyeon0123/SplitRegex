@@ -97,3 +97,8 @@ saved_models/*
 
 
 .vscode/settings.json
+outputs*/
+debug_*
+plot.py
+re2fado.py
+inputs

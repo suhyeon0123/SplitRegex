@@ -18,12 +18,15 @@ from submodels.SCNF.util_snort import *
 from seq2seq.dataset.dataset import Vocabulary
 from submodels.SCNF.examples import Examples
 from rpni import synthesis as rpni_synthesis
+from synthesis import TimeOutException
 
 
 class Ex():
     def __init__(self, pos, neg):
         self.pos = pos
         self.neg = neg
+    def __str__(self):
+        print(self.pos, self.neg)
 
 def is_last_sigma(lst, split_size):
 
@@ -35,6 +38,19 @@ def is_last_sigma(lst, split_size):
     if idx != 9 and lst[idx+1] == 0:
         return True
 
+org2RG = {'A':'\.', 'B':':','C':',', 'D':';', 'E':'_', 'F':'=', 'G':'[', 'H':']', 'I':'/', 'J':'\?','K':'\!', 'L':'\{','M':'\}','N':'\(','O':'\)','P':'\<'}
+RG2org = {v: k for k, v in org2RG.items()}
+
+# change original string to RG formed string
+def get_org2RG(string):
+    for k, v in org2RG.items():
+        string = string.replace(k, v)
+    return string
+    
+def get_RG2org(string):
+    for k, v in RG2org.items():
+        string = string.replace(k, v)
+    return string
 
 def split(strings, label, no_split=False):
     vocab = Vocabulary()
@@ -123,90 +139,8 @@ def get_sigma(examples):
         return r".*"
 
 
-
-def generate_split_regex(splited_pos, splited_neg, split_model=False, count_limit=1000, alphabet_size=5,
-                         data_type='random', sigma_lst=None, submodel='alpharegex'):
-    regex = []
-
-    split_size = len(splited_pos[0])
-    print("Split Size: ", split_size)
-
-    splited_pos = list(filter(lambda x: any(x), splited_pos))
-    splited_neg = list(filter(lambda x: any(x), splited_neg))
-
-    for sub_id in range(split_size):
-        pos = []
-        neg = []
-
-        for set_idx in range(len(splited_pos)):
-            pos.append(splited_pos[set_idx][sub_id])
-        for set_idx in range(len(splited_neg)):
-            neg.append(splited_neg[set_idx][0])
-        if not neg:
-            neg.append('')
-
-
-        sub_pos_set = set(pos)
-        sub_neg_set = set(neg)
-
-
-        if sub_id + 1 == split_size:
-        #if sub_id != 0:
-            prefix = ''.join(regex)
-        else:
-            sub_neg_set -= sub_pos_set
-            prefix = None
-
-
-
-        print('Splited Positive Strings:', sub_pos_set)
-        print('Splited Negative Strings:', sub_neg_set)
-
-        if len(sub_pos_set) == 1:
-            regex.append('(' + sub_pos_set.pop() + ')')
-            continue
-
-        if submodel == 'blue_fringe':
-            count_limit = 1000000000
-            tmp = rpni_synthesis(Examples(pos=sub_pos_set, neg=sub_neg_set), count_limit, start_with_no_concat=split_model, prefix_for_neg_test=prefix, suffix_for_neg_test=None, alphabet_size=alphabet_size)
-            tmp = str(tmp)
-        elif submodel == 'alpharegex':
-            if data_type == 'random':
-                if sigma_lst is not None and sub_id + 1 != split_size and any(list(map(lambda x: x[sub_id], sigma_lst))):
-                    tmp = repr(KleenStar(Or(*[Character(str(x)) for x in range(alphabet_size)])))
-                else:
-                    tmp = repr(submodels.SCNF.synthesizer.synthesis(Examples(pos=sub_pos_set, neg=sub_neg_set),
-                                                                                count_limit,
-                                                                                start_with_no_concat=split_model,
-                                                                                prefix_for_neg_test=prefix,
-                                                                                suffix_for_neg_test=None,
-                                                                                 alphabet_size=alphabet_size))
-            else:
-                if sigma_lst is not None and sub_id + 1 != split_size and any(list(map(lambda x: x[sub_id], sigma_lst))):
-                    tmp = get_sigma(Examples(pos=sub_pos_set, neg=sub_neg_set))
-                else:
-                    tmp, _ = submodels.SCNF.synthesizer_snort.synthesis(
-                        Examples(pos=sub_pos_set, neg=sub_neg_set), count_limit, start_with_no_concat=split_model,
-                        prefix_for_neg_test=prefix, suffix_for_neg_test=None, alphabet_size=alphabet_size)
-                    tmp = repr(tmp)
-        elif submodel == 'set2regex':
-            pass
-        elif submodel == 'regex_generator':
-            if sigma_lst is not None and sub_id + 1 != split_size and any(list(map(lambda x: x[sub_id], sigma_lst))):
-                tmp = get_sigma(Examples(pos=sub_pos_set, neg=sub_neg_set))
-            else:
-                tmp = execute([Ex(list(sub_pos_set), list(sub_neg_set))]).replace('++', '+')
-
-        if tmp == 'None':
-            return None, 0
-
-
-        regex.append('(' + tmp + ')')
-
-    return ''.join(regex).replace('()',''), split_size
-
-
-def generate_regex_with_split(sigma_lst, sub_id, sub_pos_set, sub_neg_set, split_model, count_limit, alphabet_size, data_type, return_dict):
+# for subregex synthesis with baselines
+def generate_regex_with_split_ar(sigma_lst, sub_id, sub_pos_set, sub_neg_set, split_model, count_limit, prefix, alphabet_size, data_type, return_dict):
     if len(sub_pos_set) == 1:
         return_dict[sub_id] = sub_pos_set.pop()
         return
@@ -218,7 +152,7 @@ def generate_regex_with_split(sigma_lst, sub_id, sub_pos_set, sub_neg_set, split
             tmp = repr(submodels.SCNF.synthesizer.synthesis(Examples(pos=sub_pos_set, neg=sub_neg_set),
                                                                         count_limit,
                                                                         start_with_no_concat=split_model,
-                                                                        prefix_for_neg_test=None,
+                                                                        prefix_for_neg_test=prefix,
                                                                         suffix_for_neg_test=None,
                                                                             alphabet_size=alphabet_size))
     else:
@@ -227,35 +161,52 @@ def generate_regex_with_split(sigma_lst, sub_id, sub_pos_set, sub_neg_set, split
         else:
             tmp, _ = submodels.SCNF.synthesizer_snort.synthesis(
                 Examples(pos=sub_pos_set, neg=sub_neg_set), count_limit, start_with_no_concat=split_model,
-                prefix_for_neg_test=None, suffix_for_neg_test=None, alphabet_size=alphabet_size)
+                prefix_for_neg_test=prefix, suffix_for_neg_test=None, alphabet_size=alphabet_size)
             tmp = repr(tmp)
 
     return_dict[sub_id] = tmp
 
-def generate_regex_with_split_bf(sub_id, sub_pos_set, sub_neg_set, split_model, count_limit, alphabet_size, return_dict):
+def generate_regex_with_split_bf(sub_id, sub_pos_set, sub_neg_set, split_model, count_limit, prefix, alphabet_size, return_dict):
 
     if len(sub_pos_set) == 1:
         return_dict[sub_id] = sub_pos_set.pop()
         return
 
-    tmp = rpni_synthesis(Examples(pos=sub_pos_set, neg=sub_neg_set), count_limit, start_with_no_concat=split_model, prefix_for_neg_test=None, suffix_for_neg_test=None, alphabet_size=alphabet_size)
+    tmp = rpni_synthesis(Examples(pos=sub_pos_set, neg=sub_neg_set), count_limit, start_with_no_concat=split_model, prefix_for_neg_test=prefix, suffix_for_neg_test=None, alphabet_size=alphabet_size)
 
     return_dict[sub_id] = str(tmp)
 
-def generate_regex_with_split_rg(sub_id, sub_pos_set, sub_neg_set, return_dict):
+def generate_regex_with_split_rg(sigma_lst, sub_id, sub_pos_set, sub_neg_set, return_dict):   
+    
     if len(sub_pos_set) == 1:
         return_dict[sub_id] = sub_pos_set.pop()
         return
 
-    tmp = execute([Ex(list(sub_pos_set), list(sub_neg_set))])
-    #print(tmp)
+    # print(sub_pos_set, sub_neg_set)
+    # new_pos_set = set()
+    # for x in sub_pos_set:
+    #     new_pos_set.add(get_org2RG(x))
+    # new_neg_set = set()
+    # for x in sub_neg_set:
+    #     new_neg_set.add(get_org2RG(x))
+    # print(new_pos_set, new_neg_set)
+
+    if sigma_lst is not None and any(list(map(lambda x: x[sub_id], sigma_lst))):
+        tmp = get_sigma(Examples(pos=sub_pos_set, neg=sub_neg_set))
+    else:
+        tmp = execute([Ex(list(sub_pos_set), list(sub_neg_set))])
+ 
     tmp = str(tmp).replace('++', '+').replace('?+', '+')
+    
+    # tmp = get_RG2org(tmp)
 
     return_dict[sub_id] = tmp
 
-def generate_split_regex_in_parallel(splited_pos, splited_neg, split_model=False, count_limit=1000, alphabet_size=5,
-                         data_type='random', sigma_lst=None, submodel='alpharegex', return_dict=None):
-    regex = []
+
+
+
+def generate_split_regex_sequential(splited_pos, splited_neg, split_model=False, count_limit=1000, alphabet_size=5,
+                         data_type='random', sigma_lst=None, submodel='alpharegex', return_dict=None, use_prefix_every=False):
 
     split_size = len(splited_pos[0])
     print("Split Size: ", split_size)
@@ -263,8 +214,7 @@ def generate_split_regex_in_parallel(splited_pos, splited_neg, split_model=False
     splited_pos = list(filter(lambda x: any(x), splited_pos))
     splited_neg = list(filter(lambda x: any(x), splited_neg))
 
-    pos_split_set = []
-
+    split_set = []
 
     for sub_id in range(split_size):
         pos = []
@@ -277,70 +227,117 @@ def generate_split_regex_in_parallel(splited_pos, splited_neg, split_model=False
         if not neg:
             neg.append('')
 
-        if submodel == 'blue_fringe':
-            pos = list(map(lambda x:x.replace('!','z'),pos))
-            neg = list(map(lambda x: x.replace('!', 'z'), neg))
+        split_set.append([set(pos), set(neg)])
 
+    # synthesis one by one
+    for sub_id in range(split_size): 
 
-        sub_pos_set = set(pos)
-        sub_neg_set = set(neg)
+        # prefix strategy (only nth element or every element)
+        if sub_id != 0 and (sub_id == split_size - 1 or use_prefix_every):
+            prefix = '(' + ')('.join([return_dict[i] for i in range(sub_id)]) + ')'
+        else:
+            split_set[sub_id][1] -= split_set[sub_id][0]
+            prefix = None
 
-        pos_split_set.append([sub_pos_set, sub_neg_set])
+        
+        print('Splited Positive Strings:', split_set[sub_id][0])
+        print('Splited Negative Strings:', split_set[sub_id][1])
+
+        if submodel == 'alpharegex':
+            generate_regex_with_split_ar(sigma_lst, sub_id, split_set[sub_id][0], split_set[sub_id][1], split_model, count_limit, prefix, alphabet_size, data_type, return_dict)
+        elif submodel == 'blue_fringe':
+            count_limit = 1000000000
+            generate_regex_with_split_bf(sub_id, split_set[sub_id][0], split_set[sub_id][1], split_model, count_limit, prefix, alphabet_size, return_dict)
+        elif submodel == 'regex_generator':
+            generate_regex_with_split_rg(sigma_lst, sub_id, split_set[sub_id][0], split_set[sub_id][1], return_dict)
+        else:
+            raise Exception('unknown baseline')
 
     
+    return '(' + ')('.join([return_dict[i] for i in range(split_size)]) + ')', split_size
+    
+
+
+def generate_split_regex_in_parallel(splited_pos, splited_neg, split_model=False, count_limit=1000, alphabet_size=5,
+                         data_type='random', sigma_lst=None, submodel='alpharegex', return_dict=None, use_prefix_every=False):
+
+    split_size = len(splited_pos[0])
+    print("Split Size: ", split_size)
+
+    splited_pos = list(filter(lambda x: any(x), splited_pos))
+    splited_neg = list(filter(lambda x: any(x), splited_neg))
+
+    split_set = []
     procs = []
 
-    if submodel == 'regex_generator':
-        for sub_id in range(split_size): 
-            proc = Process(target=generate_regex_with_split_rg, args=(sub_id, pos_split_set[sub_id][0], pos_split_set[sub_id][1], return_dict))
+    for sub_id in range(split_size):
+        pos = []
+        neg = []
+
+        for set_idx in range(len(splited_pos)):
+            pos.append(splited_pos[set_idx][sub_id])
+        for set_idx in range(len(splited_neg)):
+            neg.append(splited_neg[set_idx][0])
+        if not neg:
+            neg.append('')
+
+        split_set.append([set(pos), set(neg)])
+
+    
+    # parallel for regex_generator
+    try:
+        if submodel == 'regex_generator':
+            for sub_id in range(split_size): 
+                proc = Process(target=generate_regex_with_split_rg, args=(sigma_lst, sub_id, split_set[sub_id][0], split_set[sub_id][1], return_dict))
+
+                procs.append(proc)
+                proc.start()
+
+            for proc in procs:
+                proc.join()
+
+            return '(' + ')('.join([return_dict[i] for i in range(split_size)]) + ')'
+    except Exception as e:
+        for proc in procs:
+            proc.terminate()
+        raise TimeOutException()
+
+
+    # parallel synthesis [1, n-1]
+    try:
+        prefix = None
+        for sub_id in range(split_size - 1): 
+            if submodel == 'alpharegex':
+                proc = Process(target=generate_regex_with_split_ar, args=(sigma_lst, sub_id, split_set[sub_id][0], split_set[sub_id][1], split_model, count_limit, prefix, alphabet_size, data_type, return_dict))
+            elif submodel == 'blue_fringe':
+                count_limit = 1000000000
+                proc = Process(target=generate_regex_with_split_bf, args=(sub_id, split_set[sub_id][0], split_set[sub_id][1], split_model, count_limit, prefix, alphabet_size, return_dict))
+            else:
+                raise Exception('unknown baseline')
 
             procs.append(proc)
             proc.start()
 
         for proc in procs:
             proc.join()
+    except Exception as e:
+        for proc in procs:
+            proc.terminate()
+        print('catch processes')
+        raise TimeOutException()
 
-        return '(' + ')('.join([return_dict[i] for i in range(split_size)]) + ')'
-
-    for sub_id in range(split_size - 1): 
-        if submodel == 'blue_fringe':
-            count_limit = 1000000000
-            proc = Process(target=generate_regex_with_split_bf, args=(sub_id, pos_split_set[sub_id][0], pos_split_set[sub_id][1], split_model, count_limit, alphabet_size, return_dict))
-        elif submodel == 'alpharegex':
-            proc = Process(target=generate_regex_with_split, args=(sigma_lst, sub_id, pos_split_set[sub_id][0], pos_split_set[sub_id][1], split_model, count_limit, alphabet_size, data_type, return_dict))
-        elif submodel == 'set2regex':
-            pass
-
-        procs.append(proc)
-        proc.start()
-
-    for proc in procs:
-        proc.join()
-
+    # synthesis for nth subregex
     if split_size > 1:
         prefix = '(' + ')('.join([return_dict[i] for i in range(split_size - 1)]) + ')'
     else:
-        prefix = ''
+        prefix = None
         
-    if submodel == 'blue_fringe':
+    if submodel == 'alpharegex':
+        generate_regex_with_split_ar(sigma_lst, split_size-1, split_set[split_size-1][0], split_set[split_size-1][1], split_model, count_limit, prefix, alphabet_size, data_type, return_dict)
+    elif submodel == 'blue_fringe':
         count_limit = 1000000000
-        tmp = rpni_synthesis(Examples(pos=pos_split_set[-1][0], neg=pos_split_set[-1][1]), count_limit, start_with_no_concat=split_model, prefix_for_neg_test=prefix, suffix_for_neg_test=None, alphabet_size=alphabet_size)
-        tmp = str(tmp)
-    elif submodel == 'alpharegex':
-        if data_type == 'random':            
-            tmp = repr(submodels.SCNF.synthesizer.synthesis(Examples(pos=pos_split_set[-1][0], neg=pos_split_set[-1][1]), count_limit, start_with_no_concat=split_model, 
-                prefix_for_neg_test=prefix, suffix_for_neg_test=None, alphabet_size=alphabet_size))
-        else:
-            tmp, _ = submodels.SCNF.synthesizer_snort.synthesis(
-                Examples(pos=pos_split_set[-1][0], neg=pos_split_set[-1][1]), count_limit, start_with_no_concat=split_model,
-                prefix_for_neg_test=prefix, suffix_for_neg_test=None, alphabet_size=alphabet_size)
-            tmp = repr(tmp)
-    elif submodel == 'set2regex':
-        pass
+        generate_regex_with_split_bf(split_size-1, split_set[split_size-1][0], split_set[split_size-1][1], split_model, count_limit, prefix, alphabet_size, return_dict)
+    else:
+        raise Exception('unknown baseline')
 
-    if tmp == 'None':
-        return None, 0
-
-    final = prefix + '(' + tmp + ')'
-
-    return final.replace('()','') , split_size
+    return '(' + ')('.join([return_dict[i] for i in range(split_size)]) + ')', split_size

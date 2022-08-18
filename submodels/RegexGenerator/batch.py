@@ -6,6 +6,7 @@ import glob
 import subprocess as sp
 import time
 import json
+import shutil
 
 INPUT_PATH = 'inputs'
 OUTPUT_PATH = 'outputs-{}'.format(time.strftime(
@@ -27,12 +28,13 @@ def execute(examples,
 
     if not path.exists(OUTPUT_PATH):
         os.makedirs(OUTPUT_PATH, exist_ok=True)
-    print('aa')
-    print(examples)
+
     preprocess_input_files(INPUT_PATH, examples)
-    print('ff')
-    return run_reggen(INPUT_PATH, OUTPUT_PATH, examples.keys())
+    answer = run_reggen(INPUT_PATH, OUTPUT_PATH, examples.keys())
     # results = read_results(OUTPUT_PATH)
+    shutil.rmtree(OUTPUT_PATH)
+    return answer
+    
     #
     # with open(RESULT_TXT, 'w') as f:
     #     for k, v in results.items():
@@ -114,6 +116,11 @@ if __name__ == '__main__':
         def __init__(self, pos, neg):
             self.pos = pos
             self.neg = neg
+        def __repr__(self):
+            return '(' + str(self.pos) +  str(self.neg) + ')'
 
     print(execute([Ex(['000', '0000', '00000'], ['11', '1111', '11111'])]))
-    print(execute([Ex(['6'], ['950561406', '681411297', '882', '84', '354380', '1498', '351721', '381', '994062614', '5480'])]))
+    # print(execute([Ex(['6'], ['950561406', '681411297', '882', '84', '354380', '1498', '351721', '381', '994062614', '5480'])]))
+    # print(execute([Ex(['a', 'aa'], ['b'])]))
+    # print(execute([Ex(['a', 'aa'], [])]))
+
